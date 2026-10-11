@@ -124,24 +124,34 @@ def escribe_json(ruta, datos):
 
 
 # ---------------------------------------------------------------- carteras
-# Varias carteras conviven en DATOS/carteras/<id>/ (cada una con su cartera.json,
-# calculado, copias, cache…). DATOS/registro.json guarda cuál está activa. Si solo
-# hay una cartera suelta en DATOS/cartera.json (modo antiguo), se sigue usando tal
-# cual: el multi-cartera solo se estrena al crear la segunda.
+# Estructura de mis_datos (ordenada y uniforme):
+#   mis_datos/
+#     carteras/<id>/   -> una carpeta por patrimonio (cartera.json, cálculo, cache, copias)
+#     app/             -> datos internos de la app (registro.json: cuál está activa)
+# Las versiones viejas dejaban una cartera suelta en mis_datos/cartera.json y
+# registro.json en la raíz; migra_layout() lo reordena solo al arrancar (sin borrar).
 
 def _carteras_dir():
     return os.path.join(DATOS, "carteras")
 
 
+def _app_dir():
+    return os.path.join(DATOS, "app")
+
+
 def registro():
-    return lee_json(os.path.join(DATOS, "registro.json"), {}) or {}
+    # Nuevo sitio (app/registro.json); si no, el de la raíz (layout antiguo).
+    r = lee_json(os.path.join(_app_dir(), "registro.json"))
+    if r is None:
+        r = lee_json(os.path.join(DATOS, "registro.json"))
+    return r or {}
 
 
 def guarda_registro(reg):
     # Fusiona sobre lo que haya (no reemplaza), para no perder otras claves futuras.
     base = registro()
     base.update(reg)
-    escribe_json(os.path.join(DATOS, "registro.json"), base)
+    escribe_json(os.path.join(_app_dir(), "registro.json"), base)
 
 
 def asegura_multi():
@@ -156,10 +166,26 @@ def asegura_multi():
     cid = almacen.slug(cfg.get("titular") or "cartera", set())
     destino = os.path.join(_carteras_dir(), cid)
     os.makedirs(destino, exist_ok=True)
+    # Mueve los archivos de la cartera suelta a su carpeta; deja fuera lo que es
+    # estructura (carteras/, app/) y el registro (ambos sitios).
     for n in os.listdir(DATOS):
-        if n not in ("carteras", "registro.json"):
+        if n not in ("carteras", "app", "registro.json"):
             os.replace(os.path.join(DATOS, n), os.path.join(destino, n))
     guarda_registro({"activa": cid})
+
+
+def migra_layout():
+    """Reordena mis_datos al layout nuevo. Idempotente y no destructiva (solo mueve):
+    se puede llamar en cada arranque sin efectos si ya está ordenado."""
+    try:
+        viejo_reg = os.path.join(DATOS, "registro.json")
+        nuevo_reg = os.path.join(_app_dir(), "registro.json")
+        if os.path.exists(viejo_reg) and not os.path.exists(nuevo_reg):
+            os.makedirs(_app_dir(), exist_ok=True)
+            os.replace(viejo_reg, nuevo_reg)
+        asegura_multi()   # cartera suelta del modo antiguo -> carteras/<id>/
+    except OSError:
+        pass   # si algo está bloqueado, se intentará en el próximo arranque
 
 
 def carteras():
@@ -283,7 +309,11 @@ def api_actualizar():
 
 @app.get("/api/cartera")
 def api_cartera():
-    return jsonify(modo=modo(), cartera=cartera(), tipos=motor.TIPOS, fuentes=motor.FUENTES,
+    cfg = cartera()
+    # tipos = los de base no ocultos + los que haya creado el usuario (para los
+    # selectores); tiposBase para que el editor sepa cuáles puede ocultar/renombrar.
+    return jsonify(modo=modo(), cartera=cfg, tipos=motor.tipos_visibles(cfg),
+                   tiposBase=motor.TIPOS, fuentes=motor.FUENTES,
                    tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO)
 
 
@@ -374,7 +404,12 @@ def api_empezar():
             cfg = dict(lee_json(DEMO, {}), titular="Mi patrimonio (copia del ejemplo)")
         else:
             cfg = json.loads(json.dumps(almacen.CARTERA_VACIA))
-        almacen.guarda(os.path.join(carpeta(), "cartera.json"), cfg)
+        # Tu primera cartera ya va a su carpeta carteras/<id>/ (layout ordenado),
+        # no suelta en la raíz de mis_datos.
+        cid = almacen.slug(cfg.get("titular") or "cartera", {c["id"] for c in carteras()})
+        os.makedirs(os.path.join(_carteras_dir(), cid), exist_ok=True)
+        almacen.guarda(os.path.join(_carteras_dir(), cid, "cartera.json"), cfg)
+        guarda_registro({"activa": cid})
         recalcula(descargar="faltan")
     return jsonify(ok=True)
 
@@ -835,6 +870,7 @@ def main():
             webbrowser.open(f"http://127.0.0.1:{PUERTO}/")
         return
 
+    migra_layout()   # reordena mis_datos al layout nuevo si viene de una versión vieja
     print("\n  RUMBO  ·  tu patrimonio neto")
     print("  " + "-" * 40)
     if modo() == "demo":

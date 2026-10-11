@@ -175,7 +175,9 @@
       let dd = "";
       for (let i = 0; i < n; i++) dd += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(arriba[i]).toFixed(1) + " ";
       for (let i = n - 1; i >= 0; i--) dd += "L" + x(i).toFixed(1) + " " + y(abajo[i]).toFixed(1) + " ";
-      svg.appendChild(el("path", { d: dd + "Z", fill: series[s].color, "fill-opacity": 0.9 }));
+      // Semitransparente (como el área del modo «Total»): deja ver la rejilla del
+      // fondo y le da una estética más ligera, conservando el color de cada serie.
+      svg.appendChild(el("path", { d: dd + "Z", fill: series[s].color, "fill-opacity": 0.5 }));
     }
     // separadores de 2px del color del fondo
     for (let s = 0; s < series.length - 1; s++) {

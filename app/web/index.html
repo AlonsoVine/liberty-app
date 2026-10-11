@@ -97,13 +97,24 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .anotarBar input,.anotarBar select{font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;
   border:1px solid var(--borde);background:var(--sup);color:var(--tinta)}
 .anotarBar .arImp{width:120px}
+.anotarBar .arNota{flex:1;min-width:150px}
 .anotarBar .arCat{flex:1;min-width:140px}
 .anotarBar .arFecha{width:150px}
 .anotarBar .arTit option{background:var(--sup);color:var(--tinta)}
 .anotarBar .arMsg{color:var(--mal);font-size:12.5px;flex-basis:100%}
 .anotarBar .arRec{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--tinta2);cursor:pointer}
 .anotarBar .arRec input{accent-color:var(--s1)}
-@media(max-width:640px){.anotarBar .arImp,.anotarBar .arFecha{width:100%}.anotarBar .arCat{flex-basis:100%}}
+@media(max-width:640px){.anotarBar .arImp,.anotarBar .arFecha{width:100%}.anotarBar .arCat,.anotarBar .arNota{flex-basis:100%}}
+/* Editor de filas (titulares, tipos propios) y casillas de tipos de base */
+.filasEdit{display:flex;flex-direction:column;gap:7px;margin-bottom:8px}
+.filaEdit{display:flex;align-items:center;gap:7px}
+.filaEdit .inEdit{flex:1;font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;
+  border:1px solid var(--borde);background:var(--sup);color:var(--tinta)}
+.filaEdit .filaX{color:var(--tinta3);padding:6px 10px}
+.filaEdit .filaX:hover{color:var(--mal);border-color:var(--mal)}
+.tiposBase{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px}
+.chkTipo{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--tinta2);cursor:pointer}
+.chkTipo input{accent-color:var(--s1)}
 .recChips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 2px}
 .recHint{font-size:12.5px;color:var(--tinta3);margin-right:2px}
 .recChip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px 6px 11px;border-radius:999px;

@@ -48,7 +48,7 @@
   }
   async function carga() {
     const j = await api("GET", "api/cartera");
-    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
+    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
   }
   async function guarda(coleccion, datos) {
     const j = await api("POST", "api/" + coleccion, datos);
@@ -110,6 +110,26 @@
       else el.value = v;
     });
   }
+
+  // Editor de lista en filas (para titulares y tipos propios): cada fila es un input
+  // con botón de quitar, más un botón de añadir. Guarda en data-de el valor original
+  // de cada fila, para poder detectar renombrados al guardar. Se lee luego recorriendo
+  // las .inEdit del contenedor (no usan name, así no entran en el FormData del modal).
+  function montaFilasEdit(cont, valores, ph, etiquetaNuevo) {
+    const fila = v => `<div class="filaEdit"><input class="inEdit" value="${esc(v)}" data-de="${esc(v)}" placeholder="${esc(ph)}" autocomplete="off">
+      <button type="button" class="btn mini filaX" data-quita aria-label="Quitar">✕</button></div>`;
+    cont.innerHTML = `<div class="filasEdit">${valores.map(fila).join("")}</div>
+      <button type="button" class="btn mini" data-add>+ ${esc(etiquetaNuevo)}</button>`;
+    const lista = cont.querySelector(".filasEdit");
+    cont.querySelector("[data-add]").onclick = () => {
+      lista.insertAdjacentHTML("beforeend", fila(""));
+      const ins = lista.querySelectorAll(".inEdit");
+      ins[ins.length - 1].focus();
+    };
+    lista.onclick = e => { const q = e.target.closest("[data-quita]"); if (q) q.closest(".filaEdit").remove(); };
+  }
+  const leeFilasEdit = cont => [...cont.querySelectorAll(".inEdit")]
+    .map(i => ({ de: i.dataset.de || "", a: i.value.trim() }));
 
   /* ---------------------------------------------- empezar con mis datos */
   function empezar() {
@@ -454,8 +474,8 @@
         ${campo("ISIN o ticker", '<input name="identificador">', "opcional")}
         ${campo("Banco o bróker", `<input name="entidad" list="edEntidades">
           <datalist id="edEntidades">${entidades.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`, "opcional")}
-        ${campo("Titular", `<input name="titular" list="edTitulares" placeholder="Yo, Común…">
-          <datalist id="edTitulares">${(E.cfg.titulares || []).map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "de quién es")}
+        ${(E.cfg.titulares || []).length > 1 ? campo("Titular", `<input name="titular" list="edTitulares" placeholder="Yo, Común…">
+          <datalist id="edTitulares">${(E.cfg.titulares || []).map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "de quién es") : ""}
         ${campo("Moneda", '<input name="moneda" maxlength="3" placeholder="EUR">', "EUR por defecto")}
       </div>
 
@@ -620,29 +640,47 @@
     const conf = E.cfg.config || {};
     const tits = E.cfg.titulares || [];
     const cats = conf.categorias || [];
-    const objN = Object.keys(conf.objetivos || {}).length;
+    const obj = conf.objetivos || {};
+    const dims = conf.dimensiones || [];
+    const reglas = conf.reglasCategoria || [];
+    const propios = conf.tipos || [];
+    const ocultos = conf.tiposOcultos || [];
+    const monedas = conf.monedas || [];
     const pct = v => v != null ? (v * 100).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " %" : "—";
+    const sub = t => `<span class="subt">${t}</span>`;
     const fila = (et, val) => `<tr><td>${et}</td><td>${val}</td></tr>`;
+    // Nombre legible de un tipo (base o propio) a partir de su clave.
+    const nomTipo = k => E.tipos[k] || (E.tiposBase && E.tiposBase[k]) || (propios.find(t => t.id === k) || {}).nombre || k;
+    const objFilas = Object.entries(obj).map(([k, v]) => `${esc(nomTipo(k))}: <b>${pct(v)}</b>`).join(" · ");
     return `<section class="tarjeta"><header><h2>Configuración</h2>
-        <span class="subt">Titulares, categorías, monedas y umbrales de aviso (como la hoja «Configuración» del Excel)</span>
+        <span class="subt">Todo lo que defines del hogar: titulares, tipos, categorías, monedas y avisos (como la hoja «Configuración» del Excel). Es lo mismo que ves al pulsar «Editar».</span>
         <span class="sp"></span><button class="btn prim" data-acc="editarConfig">Editar</button></header>
       <table class="leyenda">
         ${fila("Nombre del patrimonio", esc(E.cfg.titular || "Mi patrimonio"))}
-        ${fila("Objetivo de patrimonio", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : '<span class="subt">sin meta</span>')}
-        ${fila("Titulares", tits.length ? tits.map(esc).join(", ") : '<span class="subt">ninguno</span>')}
+        ${fila("Objetivo de patrimonio", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : sub("sin meta"))}
+        ${fila("Titulares", tits.length ? tits.map(esc).join(", ") : sub("solo tú"))}
         ${fila("Colchón deseado", eur(conf.colchon || 0))}
-        ${fila("Objetivos de asignación", objN ? objN + " tipos con objetivo" : '<span class="subt">sin objetivos</span>')}
+        ${fila("Inflación de referencia", conf.inflacion != null ? pct(conf.inflacion) : sub("sin fijar"))}
+        ${fila("Tipos propios", propios.length ? propios.map(t => esc(t.nombre)).join(", ") : sub("ninguno"))}
+        ${fila("Tipos de base ocultos", ocultos.length ? ocultos.map(k => esc(nomTipo(k))).join(", ") : sub("ninguno"))}
+        ${fila("Objetivos de asignación", objFilas || sub("sin objetivos"))}
         ${fila("Umbral de concentración", pct(conf.umbralConcentracion))}
         ${fila("Desviación máxima", pct(conf.desviacionMax))}
-        ${fila("Días de aviso", (conf.diasAviso != null ? conf.diasAviso : "—"))}
-        ${fila("Monedas", (conf.monedas || []).length ? (conf.monedas || []).map(m => esc(m.codigo)).join(", ") : "EUR")}
-        ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : '<span class="subt">se escriben libres</span>')}
+        ${fila("Días de aviso de vencimientos", (conf.diasAviso != null ? conf.diasAviso : "—"))}
+        ${fila("Recordatorio sin anotar", (conf.diasSinAnotar != null ? conf.diasSinAnotar + " días" : "—"))}
+        ${fila("Monedas (cambio manual)", monedas.length ? monedas.map(m => `${esc(m.codigo)} = ${esc(String(m.tipo))}`).join(", ") : "EUR")}
+        ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
+        ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
+        ${fila("Dimensiones de clasificación", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
+        ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
       </table>
-      <p class="ayuda">Aquí defines las listas maestras y los parámetros del hogar. El <b>colchón</b> es la liquidez mínima
-        que quieres mantener; la <b>concentración</b> avisa cuando un tipo o entidad pesa demasiado; las <b>categorías</b>
-        alimentan el desplegable de ingresos y gastos.</p>
-      ${cats.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Categoría</th><th>Tipo</th></tr></thead>
-        <tbody>${cats.map(c => `<tr><td>${esc(c.nombre)}</td><td class="${c.tipo === "ingreso" ? "pos" : "neg"}">${c.tipo === "ingreso" ? "Ingreso" : "Gasto"}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      <p class="ayuda">El <b>colchón</b> es la liquidez mínima que quieres mantener; la <b>concentración</b> avisa cuando un tipo o entidad pesa demasiado;
+        las <b>categorías</b> alimentan el desplegable de ingresos y gastos; las <b>dimensiones</b> son ejes propios para agrupar tus activos.</p>
+      ${cats.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Categoría</th><th>Tipo</th><th style="text-align:right">Presupuesto</th></tr></thead>
+        <tbody>${cats.map(c => `<tr><td>${esc(c.nombre)}</td><td class="${c.tipo === "ingreso" ? "pos" : "neg"}">${c.tipo === "ingreso" ? "Ingreso" : "Gasto"}</td>
+          <td style="text-align:right">${c.presupuesto != null ? eur(c.presupuesto) : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${dims.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Dimensión</th><th>Valores sugeridos</th></tr></thead>
+        <tbody>${dims.map(d => `<tr><td>${esc(d.nombre)}</td><td>${(d.valores || []).map(esc).join(", ") || "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
     </section>`;
   }
 
@@ -655,8 +693,8 @@
       <div class="rejilla">
         ${campo("Nombre", '<input name="nombre" required>', "", "ancho")}
         ${campo("Finalidad", '<input name="finalidad">', "para qué es")}
-        ${campo("Titular", `<input name="titular" list="apTitulares" placeholder="Común…">
-          <datalist id="apTitulares">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional")}
+        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="apTitulares" placeholder="Común…">
+          <datalist id="apTitulares">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${campo("Importe reservado", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Fecha prevista de uso", '<input name="fechaPrevista" type="date">', "opcional")}
         ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
@@ -688,6 +726,8 @@
   function formHogar() {
     const conf = E.cfg.config || {};
     const obj = conf.objetivos || {};
+    const ocultos = conf.tiposOcultos || [];
+    const tiposPropios = (conf.tipos || []).map(t => t.nombre);
     const objInputs = Object.entries(E.tipos).map(([clave, label]) =>
       `<label class="campo"><span class="et">${esc(label)} <em>%</em></span><input name="obj_${clave}" inputmode="decimal" placeholder="0"></label>`).join("");
     const f = abreModal("Configuración", `
@@ -701,10 +741,18 @@
         ${campo("Colchón deseado", '<input name="colchon" inputmode="decimal" placeholder="3000">', "€, liquidez mínima")}
         ${campo("Inflación anual", '<input name="inflacion" inputmode="decimal" placeholder="2,5">', "%, referencia en Evolución; puedes cambiarla también en la gráfica")}
       </div>
-      ${seccion("Titulares")}
-      <div class="rejilla">
-        ${campo("Un titular por línea", '<textarea name="titulares" rows="4" placeholder="Yo\nNovia\nComún"></textarea>', "personas del hogar", "ancho")}
-      </div>
+      ${seccion("Titulares del hogar")}
+      <div id="edTits" class="rejilla"></div>
+      <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y apartados.
+        Añade más miembros con «+ Añadir titular». <b>Con un solo titular</b>, la app no te pregunta por titular en ningún sitio ni muestra los filtros por titular.</p>
+      ${seccion("Tipos de activo")}
+      <div class="campo ancho"><span class="et">Tipos de base <em>desmarca los que no uses</em></span>
+        <div class="tiposBase">${Object.entries(E.tiposBase).map(([k, v]) =>
+          `<label class="chkTipo"><input type="checkbox" class="tbChk" value="${esc(k)}"${ocultos.includes(k) ? "" : " checked"}> ${esc(v)}</label>`).join("")}</div></div>
+      <div class="campo ancho"><span class="et">Tus tipos <em>se añaden a los de base</em></span>
+        <div id="edTipos"></div></div>
+      <p class="ayuda">Puedes crear tus propios tipos (p. ej. <code>Crowdlending</code>, <code>Arte</code>, <code>Coche</code>) además de los de base.
+        Aparecen al clasificar un activo y en el objetivo de asignación de abajo. Los de base no se borran: solo se ocultan si los desmarcas.</p>
       ${seccion("Control de asignación")}
       <div class="rejilla tres">
         ${campo("Umbral de concentración", '<input name="umbralConcentracion" inputmode="decimal" placeholder="40">', "%")}
@@ -775,12 +823,20 @@
         const valores = i >= 0 ? l.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean) : [];
         return { nombre, valores };
       }).filter(dm => dm.nombre);
+      // Titulares: filas del editor. El valor que tenía cada fila al abrir (data-de)
+      // sirve para detectar renombrados y propagarlos a activos/apuntes/apartados.
+      const filasTit = leeFilasEdit($("#edTits"));
+      const titulares = [...new Set(filasTit.map(x => x.a).filter(Boolean))];
+      const renombresTitular = filasTit.filter(x => x.de && x.a && x.de !== x.a).map(x => ({ de: x.de, a: x.a }));
+      // Tipos propios (filas) + tipos de base ocultos (casillas desmarcadas).
+      const tipos = leeFilasEdit($("#edTipos")).map(x => ({ nombre: x.a })).filter(t => t.nombre);
+      const tiposOcultos = [...f.querySelectorAll(".tbChk")].filter(c => !c.checked).map(c => c.value);
       await guardaConfig({
         titular: (d.nombreCartera || "").trim(),
         objetivoImporte: d.objetivoImporte,
         colchon: d.colchon,
         inflacion: d.inflacion,
-        titulares: (d.titulares || "").split(/\n+/).map(s => s.trim()).filter(Boolean),
+        titulares, renombresTitular, tipos, tiposOcultos,
         umbralConcentracion: d.umbralConcentracion,
         desviacionMax: d.desviacionMax,
         diasAviso: d.diasAviso,
@@ -795,7 +851,8 @@
     f.elements.objetivoImporte.value = (E.cfg.objetivo && E.cfg.objetivo.activo) ? (E.cfg.objetivo.importe || "") : "";
     f.elements.colchon.value = conf.colchon || "";
     f.elements.inflacion.value = conf.inflacion != null ? +(conf.inflacion * 100).toFixed(2) : "";
-    f.elements.titulares.value = (E.cfg.titulares || []).join("\n");
+    montaFilasEdit(f.querySelector("#edTits"), (E.cfg.titulares || []).length ? E.cfg.titulares : ["Yo"], "Nombre del titular", "Añadir titular");
+    montaFilasEdit(f.querySelector("#edTipos"), tiposPropios, "Nombre del tipo", "Añadir tipo");
     const pct = v => v != null ? +(v * 100).toFixed(2) : "";
     f.elements.umbralConcentracion.value = pct(conf.umbralConcentracion);
     f.elements.desviacionMax.value = pct(conf.desviacionMax);
@@ -826,7 +883,7 @@
   // puede variar de un mes a otro, así que el usuario lo ajusta y confirma).
   function rellenaDe(r) {
     if (!r) return;
-    AR = { tipo: r.tipo, importe: r.importe, categoria: r.categoria || "", titular: r.titular || "" };
+    AR = { tipo: r.tipo, importe: r.importe, categoria: r.categoria || "", nota: r.nota || "", titular: r.titular || "" };
     montaAnotarRapido();
     const imp = $("#formAnotar") && $("#formAnotar").importe;
     if (imp) { imp.focus(); if (imp.select) imp.select(); }
@@ -850,10 +907,11 @@
           <button type="button" data-ar="gasto" aria-pressed="${tipo === "gasto"}">− Gasto</button>
           <button type="button" data-ar="ingreso" aria-pressed="${tipo === "ingreso"}">+ Ingreso</button></div>
         <input name="importe" inputmode="decimal" placeholder="Importe €" class="arImp" required>
+        <input name="concepto" placeholder="Concepto (nota)" class="arNota" aria-label="Concepto">
         <input name="categoria" placeholder="Categoría" list="arCats" class="arCat">
         <datalist id="arCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
         <input name="fecha" type="date" value="${hoy}" class="arFecha" aria-label="Fecha">
-        ${tits.length ? `<select name="titular" class="arTit" aria-label="Titular"><option value="">Titular…</option>${tits.map(t => `<option${t === AR.titular ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>` : ""}
+        ${tits.length > 1 ? `<select name="titular" class="arTit" aria-label="Titular"><option value="">Titular…</option>${tits.map(t => `<option${t === AR.titular ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>` : ""}
         <label class="arRec" title="Guardar como plantilla para repetirlo cada mes"><input type="checkbox" id="arRecurrente"> 🔁 recurrente</label>
         <button class="btn prim" type="submit">Anotar</button>
         <span class="arMsg" id="arMsg"></span></form>
@@ -861,6 +919,7 @@
         <span class="recChip ${r.tipo === "ingreso" ? "pos" : "neg"}" data-rellena="${i}" role="button" tabindex="0" title="Rellenar el formulario con esta plantilla">🔁 ${esc(r.categoria || r.nota || (r.tipo === "ingreso" ? "Ingreso" : "Gasto"))} <b>${r.tipo === "gasto" ? "−" : "+"}${eur(r.importe)}</b>${r.titular ? ` · ${esc(r.titular)}` : ""}<button class="recX" data-quitar="${i}" title="Quitar plantilla" aria-label="Quitar">×</button></span>`).join("")}</div>` : ""}`;
     if (AR.importe != null) cont.querySelector('[name="importe"]').value = AR.importe;
     if (AR.categoria != null) cont.querySelector('[name="categoria"]').value = AR.categoria;
+    if (AR.nota != null) cont.querySelector('[name="concepto"]').value = AR.nota;
     cont.querySelectorAll(".arTipo button").forEach(b => { b.onclick = () => { AR = { tipo: b.dataset.ar }; montaAnotarRapido(); }; });
     cont.querySelectorAll("[data-rellena]").forEach(ch => { ch.onclick = e => { if (!e.target.closest(".recX")) rellenaDe(recs[+ch.dataset.rellena]); }; });
     cont.querySelectorAll(".recX").forEach(x => { x.onclick = e => { e.stopPropagation(); quitaRecurrente(+x.dataset.quitar); }; });
@@ -868,7 +927,8 @@
       e.preventDefault();
       const f = e.target, btn = f.querySelector('button[type="submit"]');
       const cuerpo = { tipo, importe: f.importe.value, fecha: f.fecha.value,
-        categoria: (f.categoria.value || "").trim(), titular: (f.titular && f.titular.value) || "" };
+        categoria: (f.categoria.value || "").trim(), nota: (f.concepto.value || "").trim(),
+        titular: (f.titular && f.titular.value) || "" };
       btn.disabled = true; btn.textContent = "Anotando…";
       try {
         await guarda("flujos", cuerpo);
@@ -883,10 +943,13 @@
 
   function vistaFlujos() {
     const fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const filas = fs.map(x => `<tr>
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
-      <td>${esc(x.categoria || "")}</td><td>${esc(x.titular || "")}</td>
+      <td>${esc(x.categoria || "")}</td>
+      <td class="nota" title="${esc(x.nota)}">${esc(x.nota || "")}</td>
+      ${varios ? `<td>${esc(x.titular || "")}</td>` : ""}
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
       <td class="acc"><button data-acc="editarFlujo" data-id="${esc(x.id)}">Editar</button>
         <button data-acc="borrarFlujo" data-id="${esc(x.id)}">Borrar</button></td></tr>`).join("");
@@ -896,8 +959,8 @@
       <section class="tarjeta"><header><h2>Ingresos y gastos</h2>
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… No incluye compras de inversión ni traspasos entre tus cuentas.</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
-      ${filas ? envTabla("flujos", `<tr><th>Fecha</th><th>Tipo</th><th>Categoría</th>
-        <th>Titular</th><th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
+      ${filas ? envTabla("flujos", `<tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th>
+        ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
     </section>`;
   }
@@ -918,8 +981,8 @@
         ${campo("Importe", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Categoría", `<input name="categoria" list="flCats" placeholder="Nómina, Alimentación…">
           <datalist id="flCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>`, "opcional")}
-        ${campo("Titular", `<input name="titular" list="flTits">
-          <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional")}
+        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="flTits">
+          <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
       </div>`,
     async f => {

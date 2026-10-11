@@ -440,6 +440,35 @@ FUENTES = {"morningstar": "Morningstar", "yahoo": "Yahoo Finance",
            "coingecko": "CoinGecko", "manual": "Valor anotado a mano"}
 ORDEN_TIPO = {"compra": 0, "comision": 1, "dividendo": 2, "venta": 3}
 
+
+# -- Tipos de activo: los de base (TIPOS) más los que cree el usuario -----------
+# El usuario puede AÑADIR tipos propios (config.tipos: [{id, nombre}]) y OCULTAR
+# los de base que no use (config.tiposOcultos: [id]). Los personalizados se tratan
+# como activos de valor «a mano» (como «Inmueble» u «Otro»): su clase por defecto
+# es su propio nombre y se siguen con los saldos anotados.
+def tipos_personalizados(cfg):
+    out = {}
+    for t in ((cfg.get("config") or {}).get("tipos") or []):
+        tid, nom = (t or {}).get("id"), (t or {}).get("nombre")
+        if tid and nom and tid not in TIPOS:
+            out[tid] = nom
+    return out
+
+
+def tipos_todos(cfg):
+    """Mapa clave->nombre de TODOS los tipos válidos (base + propios). Para validar
+    y para resolver el nombre de un producto, sin ocultar ninguno."""
+    return {**TIPOS, **tipos_personalizados(cfg)}
+
+
+def tipos_visibles(cfg):
+    """Tipos para los selectores: los de base que no estén ocultos, más los propios.
+    Conserva el orden (primero los de base, luego los del usuario)."""
+    ocultos = set(((cfg.get("config") or {}).get("tiposOcultos")) or [])
+    out = {k: v for k, v in TIPOS.items() if k not in ocultos}
+    out.update(tipos_personalizados(cfg))
+    return out
+
 # Carteras de referencia para «¿y si lo hubieras metido en un indexado?». Son ETF
 # reales que cotizan en euros; las piezas son (ticker de Yahoo, peso).
 REFERENCIAS = {
@@ -680,6 +709,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     SOLO_FALTAN = descargar == "faltan"
     AVISOS.clear()
     _COTIZACIONES.clear()
+    TT = tipos_todos(cfg)   # tipos válidos: los de base + los que haya creado el usuario
 
     # Meses con datos (siempre la lista completa, aunque luego acotemos con «hasta»).
     meses_disp = sorted({str(x.get("fecha"))[:7]
@@ -753,10 +783,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     productos, otros, pasivos, primera = [], [], [], None
 
     for p in productos_cfg:
-        clave = p.get("tipo") if p.get("tipo") in TIPOS else "otro"
+        clave = p.get("tipo") if p.get("tipo") in TT else "otro"
         p["tipoClave"] = clave
-        p["tipo"] = p.get("tipoDetalle") or TIPOS[clave]
-        p.setdefault("clase", CLASE_DEFECTO[clave])
+        p["tipo"] = p.get("tipoDetalle") or TT[clave]
+        p.setdefault("clase", CLASE_DEFECTO.get(clave) or TT[clave])
         p.setdefault("categorias", {})   # dimensiones de clasificación del usuario
         p["fuentePrecio"] = FUENTES.get(p["fuente"], p["fuente"])
         etq = ETIQUETAS.get(clave, ("Precio", "Unidades", "El precio"))
@@ -1594,7 +1624,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             estado = "OK" if abs(desv) <= desv_max else ("Sobreponderado" if desv > 0 else "Infraponderado")
             # Rebalanceo: euros que faltan (+) o sobran (-) para llegar al objetivo.
             ajuste = round(obj * bruto - val, 2)
-        asignacion.append({"tipoClave": clave, "tipo": TIPOS.get(clave, clave),
+        asignacion.append({"tipoClave": clave, "tipo": TT.get(clave, clave),
                            "valor": round(val, 2), "peso": r4(peso), "objetivo": obj,
                            "desviacion": r4(desv) if desv is not None else None,
                            "ajuste": ajuste, "estado": estado, "concentracion": peso > umbral,

@@ -12,7 +12,7 @@ import os
 import re
 import unicodedata
 
-from .motor import FUENTES, TIPOS, num_es
+from .motor import FUENTES, TIPOS, num_es, tipos_todos
 
 COPIAS_MAX = 20
 TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cupón",
@@ -23,7 +23,10 @@ SOLO_SALDO = ("efectivo", "deuda")   # tipos que se siguen solo con saldos anota
 CARTERA_VACIA = {
     "version": 1, "titular": "Mi patrimonio",
     "productos": [], "movimientos": [], "valoraciones": [],
-    "titulares": [], "apartados": [], "flujos": [],
+    # Siempre hay al menos un titular. Por defecto «Yo»: se puede renombrar (el cambio
+    # se propaga a todo) y añadir más. Con uno solo, la app oculta los filtros/vistas
+    # por titular para no meter ruido.
+    "titulares": ["Yo"], "apartados": [], "flujos": [],
     "config": {"colchon": 0, "categorias": [], "objetivos": {}, "monedas": [],
                "umbralConcentracion": 0.4, "desviacionMax": 0.05, "diasAviso": 90,
                "diasSinAnotar": 30},
@@ -158,7 +161,7 @@ def guarda_producto(cfg, datos):
     if not nuevo["nombre"]:
         errores.append("Ponle un nombre al producto.")
     tipo = datos.get("tipo")
-    if tipo not in TIPOS:
+    if tipo not in tipos_todos(cfg):   # base + tipos propios del usuario
         errores.append("Elige de qué tipo es el producto.")
     fuente = "manual" if tipo in SOLO_SALDO else datos.get("fuente") or "manual"
     if fuente not in FUENTES:
@@ -471,10 +474,50 @@ def guarda_config(cfg, datos):
         conf["asistenteOculto"] = bool(datos.get("asistenteOculto"))
     if "buscarActualizaciones" in datos:
         conf["buscarActualizaciones"] = bool(datos.get("buscarActualizaciones"))
+    if "tipos" in datos:
+        # Tipos de activo propios del usuario (se SUMAN a los de base). Id estable
+        # derivado del nombre (reutilizado si ya existía uno con ese nombre), nunca
+        # pisa un id de base. Vacío = se borra de la lista (los activos que lo usaran
+        # pasarán a «Otro» en el cálculo, no se tocan sus datos).
+        previo = {t.get("nombre", "").lower(): t.get("id")
+                  for t in (conf.get("tipos") or [])}
+        propios, ids = [], set()
+        for it in (datos.get("tipos") or [])[:40]:
+            nombre = texto((it or {}).get("nombre"), 40)
+            if not nombre:
+                continue
+            tid = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "tipo"
+            base, k = tid, 2
+            while tid in ids or tid in TIPOS:
+                tid, k = f"{base}-{k}", k + 1
+            ids.add(tid)
+            propios.append({"id": tid, "nombre": nombre})
+        conf["tipos"] = propios
+    if "tiposOcultos" in datos:
+        # Tipos de BASE que el usuario no usa y prefiere no ver en los selectores.
+        # Solo se ocultan (nunca se borran): los activos que los usen siguen igual.
+        conf["tiposOcultos"] = [t for t in (datos.get("tiposOcultos") or []) if t in TIPOS]
+    if "renombresTitular" in datos:
+        # Renombrar un titular propaga el nombre nuevo a todos sus activos, apuntes,
+        # apartados y plantillas recurrentes, para que nada quede «huérfano».
+        for r in (datos.get("renombresTitular") or []):
+            de, a = texto((r or {}).get("de"), 60), texto((r or {}).get("a"), 60)
+            if not de or not a or de == a:
+                continue
+            for p in cfg.get("productos", []):
+                if texto(p.get("titular"), 60) == de:
+                    p["titular"] = a
+            for col in ("flujos", "apartados"):
+                for x in cfg.get(col, []) or []:
+                    if texto(x.get("titular"), 60) == de:
+                        x["titular"] = a
+            for rec in conf.get("recurrentes", []) or []:
+                if texto(rec.get("titular"), 60) == de:
+                    rec["titular"] = a
     if "objetivos" in datos:
         objs = {}
         for clave, val in (datos.get("objetivos") or {}).items():
-            if clave in TIPOS:
+            if clave in tipos_todos(cfg):
                 x = numero(val, "el objetivo", errores, obligatorio=False, minimo=0)
                 if x is not None:   # permite fijar un objetivo explícito del 0 %
                     objs[clave] = round(x / 100, 4)
@@ -560,6 +603,20 @@ def guarda_config(cfg, datos):
 
 # ---------------------------------------------------------------- flujos (ingresos/gastos)
 
+def registra_categoria(cfg, nombre, tipo):
+    """Añade una categoría a la lista maestra (config.categorias) si aún no existe.
+    Devuelve True si la ha creado. No duplica (compara sin distinguir mayúsculas)."""
+    nombre = texto(nombre, 40)
+    if not nombre or tipo not in TIPOS_FLUJO:
+        return False
+    conf = cfg.setdefault("config", {})
+    cats = conf.setdefault("categorias", [])
+    if any(texto(c.get("nombre"), 40).lower() == nombre.lower() for c in cats):
+        return False
+    cats.append({"nombre": nombre, "tipo": tipo})
+    return True
+
+
 def guarda_flujo(cfg, datos):
     """Registra un ingreso o un gasto del hogar (flujo de caja, F3)."""
     errores = []
@@ -571,8 +628,12 @@ def guarda_flujo(cfg, datos):
     if errores:
         raise ErrorValidacion(errores)
     fl = {"fecha": f, "tipo": tipo, "importe": round(importe, 2),
-          "categoria": texto(datos.get("categoria")), "titular": texto(datos.get("titular")),
+          "categoria": texto(datos.get("categoria"), 40), "titular": texto(datos.get("titular")),
           "nota": texto(datos.get("nota"))}
+    # Si escribes una categoría que no está en la lista maestra, se da de alta sola
+    # (con el tipo del apunte), para que luego salga en los desplegables y en los
+    # informes, igual que la configuras a mano en Configuración.
+    registra_categoria(cfg, fl["categoria"], tipo)
     lista = cfg.setdefault("flujos", [])
     existente = next((x for x in lista if x.get("id") == datos.get("id")), None) if datos.get("id") else None
     if existente:
