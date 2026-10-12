@@ -124,6 +124,27 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .marcaBtn:hover{color:var(--aviso);background:color-mix(in srgb,var(--aviso) 16%,transparent)}
 .marcaBtn.on{color:var(--mal)}
 td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
+/* Notas: lista de notas y tablero tipo Trello */
+.notasNav{margin:4px 0 14px}
+.notasGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
+.notaCard{background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.notaTit{font-weight:650}
+.notaTxt{font-size:13.5px;color:var(--tinta2);line-height:1.5;flex:1;overflow-wrap:anywhere}
+.notaPie{display:flex;align-items:center;gap:6px;margin-top:4px}
+.kBoard{display:flex;gap:14px;overflow-x:auto;padding:4px 2px 10px;align-items:flex-start}
+.kCol{flex:0 0 260px;background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px}
+.kColHead{display:flex;align-items:center;gap:6px;font-size:14px}
+.kIco{border:0;background:none;cursor:pointer;color:var(--tinta3);padding:2px 5px;border-radius:6px}
+.kIco:hover{color:var(--tinta);background:var(--sup3)}
+.kCards{display:flex;flex-direction:column;gap:8px;min-height:40px;border-radius:8px;transition:.1s}
+.kCards.over{background:color-mix(in srgb,var(--s1) 14%,transparent);outline:2px dashed var(--s1)}
+.kCard{background:var(--sup);border:1px solid var(--borde);border-radius:9px;padding:9px 10px;font-size:13.5px;cursor:grab;display:flex;gap:6px;align-items:flex-start}
+.kCard.dragging{opacity:.5}
+.kTxt{flex:1;overflow-wrap:anywhere;line-height:1.45}
+.kDel{border:0;background:none;color:var(--tinta3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;border-radius:6px}
+.kDel:hover{color:var(--mal)}
+.kAdd{border:1px dashed var(--borde);background:none;color:var(--tinta2);cursor:pointer;padding:7px;border-radius:8px;font-size:13px}
+.kAdd:hover{border-color:var(--s1);color:var(--tinta)}
 .recChips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 2px}
 .recHint{font-size:12.5px;color:var(--tinta3);margin-right:2px}
 .recChip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px 6px 11px;border-radius:999px;
@@ -950,6 +971,7 @@ body.video .tarjetaCanal{display:none}
     <nav class="tabs tabsPrin" id="tabs" role="tablist">
       <button data-tab="panel" role="tab" aria-selected="true">📊 Panel</button>
       <button data-tab="datos" role="tab" aria-selected="false">✏️ Mis datos</button>
+      <button data-tab="notas" role="tab" aria-selected="false">📝 Notas</button>
       <button data-tab="ayuda" role="tab" aria-selected="false">❓ Ayuda</button>
       <button data-tab="ajustes" role="tab" aria-selected="false">⚙️ Ajustes</button>
     </nav>
@@ -1176,6 +1198,7 @@ body.video .tarjetaCanal{display:none}
       <button data-ig="presupuesto" aria-selected="false">Presupuesto</button>
     </nav>
     <p class="subt" id="igVacio" hidden style="margin-top:12px">Todavía no has anotado ingresos ni gastos. Ve a «Mis datos → Ingresos y gastos», o importa el extracto de tu banco en «Mis datos → Importar → Datos del banco».</p>
+    <div class="filtros" id="igFiltros"></div>
 
     <!-- RESUMEN -->
     <div class="ig" id="ig-resumen">
@@ -1276,6 +1299,8 @@ body.video .tarjetaCanal{display:none}
 </div>
 
 <div class="panel" id="tab-datos" role="tabpanel" hidden><div id="editor"></div></div>
+
+<div class="panel" id="tab-notas" role="tabpanel" hidden><div id="notas"></div></div>
 
 <div class="panel" id="tab-ayuda" role="tabpanel" hidden>
   <div class="banner" id="bannerVersion" hidden><span id="bannerVersionTexto"></span></div>

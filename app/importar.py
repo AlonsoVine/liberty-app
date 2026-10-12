@@ -701,7 +701,7 @@ def aplicar(cfg, plan):
     for fl in plan.flujos:
         datos = {"fecha": fl["fecha"], "tipo": fl["tipo"], "importe": fl["importe"],
                  "categoria": fl.get("categoria") or "", "titular": fl.get("titular") or "",
-                 "nota": fl.get("concepto") or ""}
+                 "entidad": fl.get("entidad") or "", "nota": fl.get("concepto") or ""}
         estado = "nuevo"
         if firma_fl(fl) in flujos_existentes:
             flujos_rep += 1

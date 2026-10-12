@@ -917,17 +917,62 @@
       esteMes: bloque(eIng, eGas), anio: bloque(aIng, aGas), media12: bloque(sum(serIng) / 12, sum(serGas) / 12),
       porCategoria, porTitular: (D.flujos || {}).porTitular || [], presupuestoMensual: (D.flujos || {}).presupuestoMensual || 0 };
   }
-  // Los flujos a mostrar: todos, o reagregados para el titular filtrado.
+  // Los flujos a mostrar: todos, o reagregados según los filtros de ingresos/gastos
+  // (titular, entidad y dimensiones propias).
   function flujosSel() {
-    const tit = estado.titular;
-    if (!tit || tit === "todos" || !D.flujosLista || !D.flujos) return D.flujos;
-    return agregaFlujos(D.flujosLista.filter(f => (f.titular || "") === tit), D.flujos.meses);
+    if (!D.flujosLista || !D.flujos) return D.flujos;
+    const tit = estado.titular, ent = estado.igEntidad;
+    const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
+    const porTit = tit && tit !== "todos";
+    if (!porTit && !ent && !dimPares.length) return D.flujos;
+    const lista = D.flujosLista.filter(f =>
+      (!porTit || (f.titular || "") === tit)
+      && (!ent || (f.entidad || "Sin entidad") === ent)
+      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
+    return agregaFlujos(lista, D.flujos.meses);
+  }
+
+  // Filtros propios de Ingresos y gastos: por entidad/banco y por dimensiones de flujos.
+  function pintaIgFiltros() {
+    const cont = $("#igFiltros"); if (!cont) return;
+    const ents = D.entidades || [], dims = D.dimensionesFlujos || [];
+    if (!ents.length && !dims.length) { cont.innerHTML = ""; return; }
+    estado.igDim = estado.igDim || {};
+    const campos = [];
+    if (ents.length) {
+      const usadas = [...new Set((D.flujosLista || []).map(f => f.entidad).filter(e => e && e !== "Sin entidad"))];
+      const vals = [...new Set([...ents, ...usadas])];
+      const sel = estado.igEntidad || "";
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Entidad</label>
+        <select data-igf="ent"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
+    }
+    dims.forEach(dm => {
+      const usados = [...new Set((D.flujosLista || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean))];
+      const vals = [...new Set([...(dm.valores || []), ...usados])];
+      if (!vals.length) return;
+      const sel = estado.igDim[dm.id] || "";
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>${esc(dm.nombre)}</label>
+        <select data-igf="dim" data-dim="${esc(dm.id)}"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
+    });
+    const hayFiltro = estado.igEntidad || Object.values(estado.igDim).some(Boolean);
+    cont.innerHTML = `<span class="filtroTitulo">🔎 Filtrar apuntes:</span>${campos.join("")}` +
+      (hayFiltro ? `<button class="btn mini filtroQuitar" id="igQuitar">✕ Quitar</button>` : "");
+    cont.querySelectorAll("[data-igf]").forEach(s => {
+      s.onchange = e => {
+        if (e.target.dataset.igf === "ent") estado.igEntidad = e.target.value;
+        else estado.igDim[e.target.dataset.dim] = e.target.value;
+        pintaIngresos();
+      };
+    });
+    const bq = $("#igQuitar");
+    if (bq) bq.onclick = () => { estado.igEntidad = ""; estado.igDim = {}; pintaIngresos(); };
   }
 
   function pintaIngresos() {
     const f = D.flujos, hay = !!f;
     const nav = $("#igNav"); if (nav) nav.hidden = !hay;
     const vac = $("#igVacio"); if (vac) vac.hidden = hay;
+    pintaIgFiltros();
     document.querySelectorAll(".ig").forEach(el => { el.hidden = true; });
     if (!hay) return;
     const ig = estado.ig || "resumen";
@@ -2264,6 +2309,7 @@
       document.querySelectorAll(".pv").forEach(el => { el.hidden = el.id !== "pv-" + pv; });
       pintaPatrimonio();
     } else if (estado.tab === "datos" && window.Editor) window.Editor.mostrar();
+    else if (estado.tab === "notas" && window.Editor && window.Editor.notas) window.Editor.notas();
     else if (estado.tab === "ajustes") pintaAjustes();
   }
   function pintar() { pintaComun(); pintarTab(); }
@@ -2672,7 +2718,7 @@
   window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(pintarTab, 140); });
 
   const tabGuardada = recuerda.lee("patrimonio.tab");
-  estado.tab = ["panel", "datos", "ayuda", "ajustes"].includes(tabGuardada) ? tabGuardada : "panel";
+  estado.tab = ["panel", "datos", "notas", "ayuda", "ajustes"].includes(tabGuardada) ? tabGuardada : "panel";
   // Preferencia «Pantalla de inicio»: siempre el Panel o la última que usaste.
   if (pref("inicio", "ultima") === "panel") estado.tab = "panel";
   let pvGuardada = recuerda.lee("patrimonio.pv");

@@ -207,6 +207,48 @@ def test_marcas_de_usa_defecto_si_vacio():
     assert almacen.marcas_de(c) == almacen.MARCAS_DEFECTO
 
 
+# ---------------------------------------------------------------- entidad y dimensiones de flujos
+
+def test_entidades_y_dimensiones_flujos_se_guardan():
+    c = cfg()
+    almacen.guarda_config(c, {"entidades": ["BBVA", "ING", "bbva"],   # dedup sin mayúsculas
+                              "dimensionesFlujos": [{"nombre": "Necesidad", "valores": ["Fijo", "Variable"]}]})
+    assert c["config"]["entidades"] == ["BBVA", "ING"]
+    df = c["config"]["dimensionesFlujos"]
+    assert df[0]["id"] == "necesidad" and df[0]["valores"] == ["Fijo", "Variable"]
+
+
+def test_flujo_guarda_entidad_y_dimension():
+    c = cfg()
+    almacen.guarda_config(c, {"entidades": ["BBVA"], "dimensionesFlujos": [{"nombre": "Necesidad", "valores": ["Fijo"]}]})
+    did = c["config"]["dimensionesFlujos"][0]["id"]
+    fl = almacen.guarda_flujo(c, {"fecha": "2025-03-01", "tipo": "gasto", "importe": "40",
+                                  "entidad": "BBVA", f"cat_{did}": "Fijo"})
+    assert fl["entidad"] == "BBVA"
+    assert fl["categorias"] == {did: "Fijo"}
+
+
+# ---------------------------------------------------------------- notas y tablero
+
+def test_guarda_notas():
+    c = cfg()
+    almacen.guarda_notas(c, [{"titulo": "Idea", "texto": "Comprar X"}, {"titulo": "", "texto": ""}])
+    assert len(c["notas"]) == 1   # la vacía se descarta
+    assert c["notas"][0]["titulo"] == "Idea" and c["notas"][0]["fecha"]
+
+
+def test_guarda_tablero_sanea_columnas_y_tarjetas():
+    c = cfg()
+    almacen.guarda_tablero(c, {"columnas": [{"id": "a", "nombre": "Por hacer"}, {"id": "b", "nombre": "Hecho"}],
+                               "tarjetas": [{"id": "t1", "col": "a", "texto": "Tarea"},
+                                            {"id": "t2", "col": "zzz", "texto": "Huérfana"},
+                                            {"col": "a", "texto": ""}]})
+    tb = c["tablero"]
+    assert [col["id"] for col in tb["columnas"]] == ["a", "b"]
+    assert len(tb["tarjetas"]) == 2            # la vacía se descarta
+    assert tb["tarjetas"][1]["col"] == "a"     # la de columna inexistente va a la primera
+
+
 # ---------------------------------------------------------------- motor con tipo propio
 
 def test_motor_construye_con_un_tipo_propio(tmp_path):

@@ -681,6 +681,8 @@
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
         ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.nombre)).join(", ") : sub("«A revisar» (por defecto)"))}
         ${fila("Dimensiones de clasificación", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
+        ${fila("Entidades / bancos", (conf.entidades || []).length ? (conf.entidades || []).map(esc).join(", ") : sub("ninguna"))}
+        ${fila("Dimensiones de ingresos/gastos", (conf.dimensionesFlujos || []).length ? (conf.dimensionesFlujos || []).map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
         ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
       </table>
@@ -808,6 +810,16 @@
         ${campo("Una marca por línea: «Nombre» o «Nombre = #color»", '<textarea name="marcasTxt" rows="3" placeholder="A revisar = #e34948\nDuda\nImportante = #eda100"></textarea>', "", "ancho")}
       </div>
       <p class="ayuda">Sirven para marcar apuntes en <b>Ingresos y gastos</b> (la ☆ de cada fila) y luego ver solo los marcados. Si lo dejas vacío, se usa «A revisar».</p>
+      ${seccion("Entidades / bancos (ingresos y gastos)")}
+      <div class="rejilla">
+        ${campo("Una entidad por línea", '<textarea name="entidadesTxt" rows="3" placeholder="BBVA\nING\nRevolut\nEfectivo"></textarea>', "", "ancho")}
+      </div>
+      <p class="ayuda">Define tus bancos o cuentas. Al <b>importar</b> del banco eliges a cuál corresponde esa importación y se asigna a todos sus apuntes. Luego puedes <b>filtrar y analizar</b> Ingresos y gastos por entidad.</p>
+      ${seccion("Dimensiones de ingresos y gastos")}
+      <div class="rejilla">
+        ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimFlujos" rows="3" placeholder="Necesidad: Fijo, Variable, Caprichos\nProyecto: Casa, Viaje, Coche"></textarea>', "", "ancho")}
+      </div>
+      <p class="ayuda">Como las dimensiones de activos, pero para los apuntes: ejes propios para clasificar y filtrar tus ingresos y gastos.</p>
       ${seccion("Dimensiones de clasificación")}
       <div class="rejilla">
         ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
@@ -857,6 +869,13 @@
         const i = l.indexOf("=");
         return { nombre: (i >= 0 ? l.slice(0, i) : l).trim(), color: i >= 0 ? l.slice(i + 1).trim() : "" };
       }).filter(m => m.nombre);
+      const entidades = lineas("entidadesTxt");
+      const dimensionesFlujos = lineas("dimFlujos").map(l => {
+        const i = l.indexOf(":");
+        const nombre = (i >= 0 ? l.slice(0, i) : l).trim();
+        const valores = i >= 0 ? l.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean) : [];
+        return { nombre, valores };
+      }).filter(dm => dm.nombre);
       // Titulares: filas del editor. El valor que tenía cada fila al abrir (data-de)
       // sirve para detectar renombrados y propagarlos a activos/apuntes/apartados.
       const filasTit = leeFilasEdit($("#edTits"));
@@ -880,6 +899,7 @@
         diasSinAnotar: d.diasSinAnotar,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
+        entidades, dimensionesFlujos,
       });
       // El nombre sale en el selector de arriba: recargar para que se vea al momento.
       location.reload();
@@ -911,6 +931,9 @@
       .map(r => `${r.palabra} = ${r.categoria}`).join("\n");
     f.elements.marcasTxt.value = (conf.marcas || [])
       .map(m => m.color ? `${m.nombre} = ${m.color}` : m.nombre).join("\n");
+    f.elements.entidadesTxt.value = (conf.entidades || []).join("\n");
+    f.elements.dimFlujos.value = (conf.dimensionesFlujos || [])
+      .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
     return f;
   }
 
@@ -989,6 +1012,7 @@
     const solo = !!E.soloMarcados;
     if (solo) fs = fs.filter(x => x.marca);
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
+    const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0;
     const estrella = x => `<button class="marcaBtn${x.marca ? " on" : ""}" data-acc="marcarFlujo" data-id="${esc(x.id)}"
         title="${x.marca ? "Quitar la marca" : "Marcar como «" + esc(marca0.nombre) + "»"}"${x.marca ? ` style="color:${esc(colorMarca(x.marca))}"` : ""}>${x.marca ? "★" : "☆"}</button>`;
     const filas = fs.map(x => `<tr>
@@ -996,6 +1020,7 @@
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
       <td>${esc(x.categoria || "")}</td>
+      ${conEnt ? `<td>${esc(x.entidad || "")}</td>` : ""}
       <td class="nota" title="${esc(x.nota)}">${esc(x.nota || "")}</td>
       ${varios ? `<td>${esc(x.titular || "")}</td>` : ""}
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
@@ -1010,7 +1035,7 @@
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Pulsa la ☆ de un apunte para marcarlo (p. ej. «a revisar»).</span>
         <span class="sp"></span>${toggleMarc}<button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${(E.cfg.flujos || []).length
-        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th>
+        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Nota</th>
           ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
           : '<p class="subt">No hay apuntes marcados.</p>')
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
@@ -1021,6 +1046,9 @@
     const nuevo = !x;
     x = x || { tipo: "gasto" };
     const tits = E.cfg.titulares || [];
+    const ents = ((E.cfg.config || {}).entidades) || [];
+    const dimsF = ((E.cfg.config || {}).dimensionesFlujos) || [];
+    const xcats = x.categorias || {};
     // Categorías definidas en Configuración + las que ya hayas usado.
     const defin = ((E.cfg.config || {}).categorias || []).map(c => c.nombre);
     const usadas = (E.cfg.flujos || []).map(v => v.categoria).filter(Boolean);
@@ -1033,8 +1061,12 @@
         ${campo("Importe", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Categoría", `<input name="categoria" list="flCats" placeholder="Nómina, Alimentación…">
           <datalist id="flCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>`, "opcional")}
+        ${ents.length ? campo("Entidad", `<input name="entidad" list="flEnts" value="${esc(x.entidad || "")}" placeholder="Banco / cuenta">
+          <datalist id="flEnts">${ents.map(e => `<option value="${esc(e)}">`).join("")}</datalist>`, "banco de origen") : ""}
         ${tits.length > 1 ? campo("Titular", `<input name="titular" list="flTits" value="${esc(nuevo ? tits[0] || "" : "")}">
           <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
+        ${dimsF.map(dm => campo(esc(dm.nombre), `<input name="cat_${esc(dm.id)}" list="dlf_${esc(dm.id)}" value="${esc(xcats[dm.id] || "")}" placeholder="…" autocomplete="off">
+          <datalist id="dlf_${esc(dm.id)}">${(dm.valores || []).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`, "opcional")).join("")}
         ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
       </div>`,
     async f => {
@@ -1480,6 +1512,8 @@
         <th style="text-align:left">Concepto</th><th>Tipo</th><th style="text-align:left">Categoría</th><th>Importe</th>
         <th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>` : ""}
       <div class="imAcc"><button class="btn" data-acc="imCancelar">Cancelar</button>
+        ${(((E.cfg.config || {}).entidades) || []).length ? `<label class="imRecordar" title="Se asigna a todos los apuntes de esta importación">Entidad:
+          <select id="imEntidad"><option value="">— sin entidad —</option>${(((E.cfg.config || {}).entidades) || []).map(e => `<option>${esc(e)}</option>`).join("")}</select></label>` : ""}
         <label class="imRecordar" title="Guarda tus categorías como reglas para la próxima importación">
           <input type="checkbox" id="imRecordar" checked> Recordar mis correcciones</label>
         <span class="sp"></span>
@@ -1497,6 +1531,8 @@
         cuerpo.categorias = IMP.cats;
         const rec = $("#imRecordar");
         cuerpo.recordar = rec ? rec.checked : false;
+        const ent = $("#imEntidad");
+        if (ent && ent.value) cuerpo.entidad = ent.value;
       }
       const j = await api("POST", "api/importar/confirmar", cuerpo);
       E.cfg = j.cartera;
@@ -1787,8 +1823,144 @@
     }, 6000);
   })();
 
+  /* ---------------------------------------------- Notas (lista + tablero Trello) */
+  async function guardaNotas(notas) {
+    const j = await api("POST", "api/notas", { notas });
+    E.cfg = j.cartera; pintarNotas();   // no marca EDITOR_SUCIO: no afecta al panel
+  }
+  async function guardaTablero(tablero) {
+    const j = await api("POST", "api/tablero", { tablero });
+    E.cfg = j.cartera; pintarNotas();
+  }
+
+  function formNota(n) {
+    const nuevo = !n; n = n || {};
+    const f = abreModal(nuevo ? "Nueva nota" : "Editar nota", `
+      <div class="rejilla">
+        ${campo("Título", '<input name="titulo" maxlength="120">', "", "ancho")}
+        ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "", "ancho")}
+      </div>`,
+    async f => {
+      const d = campos(f);
+      const notas = (E.cfg.notas || []).slice();
+      if (nuevo) notas.push({ id: "n" + Date.now(), titulo: d.titulo, texto: d.texto, fecha: hoy() });
+      else { const i = notas.findIndex(x => x.id === n.id); if (i >= 0) notas[i] = { ...notas[i], titulo: d.titulo, texto: d.texto }; }
+      await guardaNotas(notas);
+    }, "Guardar");
+    rellena(f, n);
+    return f;
+  }
+
+  function montaNotasLista() {
+    const cont = $("#notasCuerpo"); if (!cont) return;
+    const notas = (E.cfg.notas || []).slice().sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+    const cards = notas.map(n => `<div class="notaCard">
+      <div class="notaTit">${esc(n.titulo || "(sin título)")}</div>
+      <div class="notaTxt">${esc(n.texto || "").replace(/\n/g, "<br>")}</div>
+      <div class="notaPie"><span class="subt">${fecha(n.fecha)}</span><span class="sp"></span>
+        <button class="btn mini" data-nacc="editar" data-id="${esc(n.id)}">Editar</button>
+        <button class="btn mini" data-nacc="borrar" data-id="${esc(n.id)}">Borrar</button></div></div>`).join("");
+    cont.innerHTML = `<section class="tarjeta"><header><h2>Notas</h2>
+        <span class="subt">Apuntes libres: ideas, recordatorios, cosas pendientes… (no afectan a tus cifras)</span>
+        <span class="sp"></span><button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>
+      ${cards ? `<div class="notasGrid">${cards}</div>` : '<p class="subt">Todavía no has escrito ninguna nota.</p>'}</section>`;
+    cont.querySelectorAll("[data-nacc]").forEach(b => {
+      b.onclick = () => {
+        const id = b.dataset.id;
+        if (b.dataset.nacc === "nueva") return formNota(null);
+        const n = (E.cfg.notas || []).find(x => x.id === id);
+        if (b.dataset.nacc === "editar") return formNota(n);
+        if (b.dataset.nacc === "borrar" && confirm(`¿Borrar la nota «${n ? (n.titulo || "sin título") : ""}»?`)) {
+          guardaNotas((E.cfg.notas || []).filter(x => x.id !== id));
+        }
+      };
+    });
+  }
+
+  const TABLERO_DEFECTO = () => ({ columnas: [{ id: "porhacer", nombre: "Por hacer" }, { id: "encurso", nombre: "En curso" }, { id: "hecho", nombre: "Hecho" }], tarjetas: [] });
+  function montaTablero() {
+    const cont = $("#notasCuerpo"); if (!cont) return;
+    let tab = E.cfg.tablero;
+    if (!tab || !(tab.columnas || []).length) tab = TABLERO_DEFECTO();
+    const cols = tab.columnas.map(c => {
+      const cards = (tab.tarjetas || []).filter(t => t.col === c.id).map(t => `<div class="kCard" draggable="true" data-id="${esc(t.id)}">
+        <span class="kTxt">${esc(t.texto).replace(/\n/g, "<br>")}</span>
+        <button class="kDel" data-tdel="${esc(t.id)}" title="Borrar tarjeta" aria-label="Borrar">×</button></div>`).join("");
+      return `<div class="kCol"><div class="kColHead"><b>${esc(c.nombre)}</b><span class="sp"></span>
+          <button class="kIco" data-cren="${esc(c.id)}" title="Renombrar columna">✎</button>
+          <button class="kIco" data-cdel="${esc(c.id)}" title="Borrar columna">🗑</button></div>
+        <div class="kCards" data-col="${esc(c.id)}">${cards}</div>
+        <button class="kAdd" data-cadd="${esc(c.id)}">+ Tarjeta</button></div>`;
+    }).join("");
+    cont.innerHTML = `<section class="tarjeta"><header><h2>Tablero</h2>
+        <span class="subt">Tipo Trello: arrastra las tarjetas entre columnas.</span>
+        <span class="sp"></span><button class="btn" data-knuevacol>+ Columna</button></header>
+      <div class="kBoard">${cols}</div></section>`;
+    const guardar = () => guardaTablero(tab);
+    // Acciones
+    cont.querySelector("[data-knuevacol]").onclick = () => {
+      const nombre = (prompt("Nombre de la nueva columna:") || "").trim();
+      if (!nombre) return;
+      tab.columnas.push({ id: "c" + Date.now(), nombre }); guardar();
+    };
+    cont.querySelectorAll("[data-cadd]").forEach(b => b.onclick = () => {
+      const txt = (prompt("Texto de la tarjeta:") || "").trim();
+      if (!txt) return;
+      (tab.tarjetas = tab.tarjetas || []).push({ id: "t" + Date.now(), col: b.dataset.cadd, texto: txt }); guardar();
+    });
+    cont.querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => {
+      tab.tarjetas = (tab.tarjetas || []).filter(t => t.id !== b.dataset.tdel); guardar();
+    });
+    cont.querySelectorAll("[data-cren]").forEach(b => b.onclick = () => {
+      const c = tab.columnas.find(x => x.id === b.dataset.cren);
+      const nombre = (prompt("Nuevo nombre:", c ? c.nombre : "") || "").trim();
+      if (c && nombre) { c.nombre = nombre; guardar(); }
+    });
+    cont.querySelectorAll("[data-cdel]").forEach(b => b.onclick = () => {
+      if (!confirm("¿Borrar esta columna y sus tarjetas?")) return;
+      tab.columnas = tab.columnas.filter(x => x.id !== b.dataset.cdel);
+      tab.tarjetas = (tab.tarjetas || []).filter(t => t.col !== b.dataset.cdel); guardar();
+    });
+    // Arrastrar y soltar entre columnas.
+    let dragId = null;
+    cont.querySelectorAll(".kCard").forEach(card => {
+      card.addEventListener("dragstart", e => { dragId = card.dataset.id; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+      card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    });
+    cont.querySelectorAll(".kCards").forEach(zone => {
+      zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("over"); });
+      zone.addEventListener("dragleave", () => zone.classList.remove("over"));
+      zone.addEventListener("drop", e => {
+        e.preventDefault(); zone.classList.remove("over");
+        const card = (tab.tarjetas || []).find(t => t.id === dragId);
+        if (card && card.col !== zone.dataset.col) { card.col = zone.dataset.col; guardar(); }
+        dragId = null;
+      });
+    });
+  }
+
+  function pintarNotas() {
+    const cont = $("#notas"); if (!cont) return;
+    if (E.modo !== "propio") {
+      cont.innerHTML = `<section class="tarjeta"><header><h2>Notas</h2></header>
+        <p class="subt">Las notas y el tablero están disponibles cuando empieces tu propio patrimonio. Ve a «Mis datos → Empezar con mis datos».</p></section>`;
+      return;
+    }
+    const v = E.notasVista || "lista";
+    cont.innerHTML = `<div class="segm notasNav">
+        <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
+        <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button></div>
+      <div id="notasCuerpo"></div>`;
+    cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
+      E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
+    });
+    if (v === "lista") montaNotasLista(); else montaTablero();
+  }
+  E.notasVista = recuerda.lee("patrimonio.notasVista") || "lista";
+
   window.Editor = {
     mostrar: pinta,
+    notas: pintarNotas,
     // Navegar a una sección de «Mis datos» desde fuera (p. ej. la paleta de acciones).
     ir(v) {
       if (["activos", "deudas", "apartados", "flujos", "saldos", "config", "importar", "copias"].includes(v)) {
@@ -1797,7 +1969,11 @@
       pinta();
     },
   };
-  carga().then(pinta).catch(x => {
+  carga().then(() => {
+    pinta();
+    // Si al cargar la pestaña activa es «Notas», re-dibujarla ya con los datos reales.
+    if ($("#tab-notas") && !$("#tab-notas").hidden) pintarNotas();
+  }).catch(x => {
     const cont = $("#editor");
     if (cont) cont.innerHTML = `<div class="av"><span>⚠</span><span>${esc(x.message)}</span></div>`;
   });

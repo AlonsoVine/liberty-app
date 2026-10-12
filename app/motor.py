@@ -1823,16 +1823,20 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "categorias": [{"nombre": c.get("nombre"), "tipo": c.get("tipo")} for c in cats_cfg if c.get("nombre")],
         "recurrentes": (cfg.get("config") or {}).get("recurrentes", []) or [],
         "dimensiones": (cfg.get("config") or {}).get("dimensiones", []) or [],
+        "dimensionesFlujos": (cfg.get("config") or {}).get("dimensionesFlujos", []) or [],
+        "entidades": (cfg.get("config") or {}).get("entidades", []) or [],
         "inflacion": (cfg.get("config") or {}).get("inflacion"),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
         "flujos": flujos_out,
-        # Flujos crudos (acotados a 'hasta') para filtrar por titular en el cliente,
-        # sin recalcular en el servidor: el Panel reagrega al vuelo.
+        # Flujos crudos (acotados a 'hasta') para filtrar por titular/entidad/dimensión
+        # en el cliente, sin recalcular en el servidor: el Panel reagrega al vuelo.
         "flujosLista": [{"fecha": f["fecha"], "tipo": f.get("tipo"),
                          "importe": round(float(f.get("importe") or 0), 2),
                          "categoria": f.get("categoria") or "Sin categoría",
-                         "titular": _tit(f.get("titular"))}
+                         "titular": _tit(f.get("titular")),
+                         "entidad": (f.get("entidad") or "").strip() or "Sin entidad",
+                         "categorias": f.get("categorias") or {}}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
         "asignacion": asignacion,
         "concentracionEntidad": concentracion_entidad,
