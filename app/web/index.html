@@ -391,6 +391,14 @@ svg.grafico{display:block;width:100%;height:auto;overflow:visible}
 svg.grafico .rejilla{stroke:var(--rejilla);stroke-width:1}
 svg.grafico .eje{stroke:var(--eje);stroke-width:1}
 svg.grafico .ejeCero{stroke:var(--tinta3);stroke-width:1.5;opacity:.85}
+/* Tour guiado (foco + globo) */
+.tourFoco{position:fixed;z-index:200;border-radius:12px;box-shadow:0 0 0 9999px rgba(0,0,0,.62);pointer-events:none;transition:left .25s,top .25s,width .25s,height .25s}
+.tourPop{position:fixed;z-index:201;max-width:340px;background:var(--sup);border:1px solid var(--borde);border-radius:14px;padding:16px 18px;box-shadow:0 18px 50px rgba(0,0,0,.45)}
+.tourPop h3{margin:0 0 6px;font-size:16px}
+.tourPop p{margin:0 0 14px;font-size:13.5px;color:var(--tinta2);line-height:1.5}
+.tourPie{display:flex;align-items:center;gap:8px}
+.tourProg{font-size:12px;color:var(--tinta3);flex:1}
+@media(prefers-reduced-motion:reduce){.tourFoco{transition:none}}
 svg.grafico .ejeY,svg.grafico .ejeX{fill:var(--tinta3);font-size:11px;font-variant-numeric:tabular-nums}
 svg.grafico .ejeY{text-anchor:end}
 svg.grafico .separador{stroke:var(--sup);stroke-width:2}
@@ -885,6 +893,36 @@ body.video .tarjetaCanal{display:none}
   .env{max-width:none;margin:0;padding:0}
   a[href]:after{content:""}
 }
+/* Informe de patrimonio (resumen / detallado) para imprimir o guardar como PDF */
+#hojaInforme{display:none}
+@media print{
+  body[data-impr] .top,body[data-impr] .env,
+  body[data-impr] .toast,body[data-impr] .tourFoco,body[data-impr] .tourPop{display:none !important}
+  body[data-impr]{background:#fff;color:#000}
+  body[data-impr] #hojaInforme{display:block;color:#000;font:13px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+  #hojaInforme .infPort{margin-bottom:22px;padding-bottom:14px;border-bottom:2px solid #222}
+  #hojaInforme .infMarca{font-size:11px;letter-spacing:.06em;color:#555;text-transform:uppercase}
+  #hojaInforme .infPort h1{font-size:26px;margin:6px 0 2px}
+  #hojaInforme .infFecha{color:#555;font-size:13px}
+  #hojaInforme .infNeto{margin-top:14px;display:flex;align-items:baseline;gap:12px}
+  #hojaInforme .infNeto span{color:#555;font-size:13px}
+  #hojaInforme .infNeto b{font-size:30px}
+  #hojaInforme .infSec{margin:0 0 18px;break-inside:avoid}
+  #hojaInforme .infSec.pb{break-before:page}
+  #hojaInforme .infSec h2{font-size:16px;border-bottom:1px solid #bbb;padding-bottom:4px;margin:0 0 10px}
+  #hojaInforme .infSec h3{font-size:13px;margin:12px 0 6px;color:#333}
+  #hojaInforme .infCifras{display:grid;grid-template-columns:repeat(4,1fr);gap:9px}
+  #hojaInforme .infCif{border:1px solid #ddd;border-radius:6px;padding:7px 10px}
+  #hojaInforme .infCif span{display:block;font-size:10.5px;color:#666}
+  #hojaInforme .infCif b{font-size:15px}
+  #hojaInforme .infTab{width:100%;border-collapse:collapse;font-size:12px}
+  #hojaInforme .infTab th{text-align:left;border-bottom:1px solid #999;padding:5px 6px;font-size:10.5px;color:#444;text-transform:uppercase;letter-spacing:.02em}
+  #hojaInforme .infTab td{border-bottom:1px solid #eee;padding:5px 6px}
+  #hojaInforme .infTab td:not(:first-child),#hojaInforme .infTab th:not(:first-child){text-align:right}
+  #hojaInforme .infNota{font-size:12px;margin:6px 0 0}
+  #hojaInforme .infPie{margin-top:20px;border-top:1px solid #ccc;padding-top:8px;font-size:11px;color:#666}
+  @page{margin:14mm}
+}
 </style>
 </head>
 <body>
@@ -975,6 +1013,7 @@ body.video .tarjetaCanal{display:none}
       <header style="flex-wrap:wrap;gap:10px">
         <h2>Distribución</h2>
         <div class="sep"></div>
+        <button class="btn" id="btnRebal" hidden title="Cómo repartir para volver a tus objetivos">⚖️ Cómo rebalancear</button>
         <div class="segm" id="segDistModo"></div>
       </header>
       <!-- Modo anillo -->
@@ -992,11 +1031,6 @@ body.video .tarjetaCanal{display:none}
         <div class="envGraf" id="grafTreemap" style="min-height:420px"></div>
         <p class="subt" id="estrNota" style="margin-top:8px"></p>
       </div>
-    </section>
-    <section class="tarjeta" id="tarjetaAsignacion" style="margin-top:16px" hidden>
-      <header><h2>Asignación objetivo</h2><span class="subt" id="asigSub"></span></header>
-      <div class="tablaEnv"><table class="dt" id="asigTabla"></table></div>
-      <div id="asigRebal"></div>
     </section>
   </div>
 
@@ -1235,7 +1269,8 @@ body.video .tarjetaCanal{display:none}
 
 <div class="panel" id="tab-ayuda" role="tabpanel" hidden>
   <div class="banner" id="bannerVersion" hidden><span id="bannerVersionTexto"></span></div>
-  <div style="margin:4px 0 2px"><button class="btn" id="btnVerBienvenida">👋 Ver la presentación de bienvenida</button></div>
+  <div style="margin:4px 0 2px;display:flex;flex-wrap:wrap;gap:8px"><button class="btn" id="btnVerBienvenida">👋 Ver la presentación de bienvenida</button>
+    <button class="btn" id="btnTour">🧭 Ver el tour guiado</button></div>
 
   <section class="tarjeta ayudaTarjeta webCard">
     <header><h2>🌐 Web oficial de Liberty</h2><span class="subt">La página desde donde se descarga y se actualiza</span></header>
@@ -1594,6 +1629,8 @@ body.video .tarjetaCanal{display:none}
 </dialog>
 <dialog class="modal" id="modal"></dialog>
 <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<!-- Informe para imprimir / PDF (resumen o detallado). Oculto salvo al imprimir. -->
+<div id="hojaInforme" aria-hidden="true"></div>
 
 <script src="cargador.js"></script>
 </body>

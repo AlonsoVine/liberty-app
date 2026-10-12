@@ -1076,25 +1076,28 @@
     });
   }
 
-  /* Asignación por tipo frente al objetivo, con desviación, estado y concentración. */
+  /* El botón «Cómo rebalancear» abre un modal (no ocupa sitio si no se usa). Solo se
+     muestra cuando hay objetivos definidos. */
   function pintaAsignacion() {
-    const card = $("#tarjetaAsignacion"), a = D.asignacion || [];
-    if (!a.length) { card.hidden = true; return; }
-    card.hidden = false;
+    const btn = $("#btnRebal"), a = D.asignacion || [];
+    if (!btn) return;
     const conObj = a.some(x => x.objetivo != null);
-    $("#asigSub").textContent = conObj
-      ? "Peso actual frente a tu objetivo, y cuánto aportar o reducir para rebalancear"
-      : "Peso por tipo · define objetivos en «Mis datos → Configuración» para ver el rebalanceo";
+    btn.hidden = !conObj;
+    btn.onclick = () => muestraRebalanceo();
+  }
+
+  // Tabla de asignación: peso actual vs objetivo, desviación y cuánto aportar/reducir.
+  function tablaAsignacion() {
+    const a = D.asignacion || [];
     const tag = e => {
       const c = e === "OK" ? "var(--bien)" : e === "Sin objetivo" ? "var(--tinta3)" : "var(--mal)";
-      return `<span style="color:${c}">${e}</span>`;
+      return `<span style="color:${c}">${esc(e)}</span>`;
     };
     const ajusteCel = x => {
       if (x.ajuste == null) return "—";
       if (Math.abs(x.ajuste) < 1) return '<span style="color:var(--bien)">en objetivo</span>';
       const cl = x.ajuste > 0 ? "pos" : "neg";
-      const verbo = x.ajuste > 0 ? "aporta " : "reduce ";
-      return `<span class="${cl}">${verbo}${G.fmtEur(Math.abs(x.ajuste), 0)}</span>`;
+      return `<span class="${cl}">${x.ajuste > 0 ? "aporta " : "reduce "}${G.fmtEur(Math.abs(x.ajuste), 0)}</span>`;
     };
     const filas = a.map(x => `<tr>
       <td><i class="pt" style="background:${(x.color && x.color[0]) || "#888"}"></i>${esc(x.tipo)}${x.concentracion ? ' <span style="color:var(--mal)" title="Concentración por encima del umbral">●</span>' : ""}</td>
@@ -1104,18 +1107,64 @@
       <td style="text-align:right">${x.desviacion != null ? G.fmtPctSigno(x.desviacion) : "—"}</td>
       <td style="text-align:right">${ajusteCel(x)}</td>
       <td>${tag(x.estado)}</td></tr>`).join("");
-    $("#asigTabla").innerHTML =
-      `<thead><tr><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:right">Peso</th>
+    return `<table class="dt"><thead><tr><th>Tipo</th><th style="text-align:right">Valor</th><th style="text-align:right">Peso</th>
         <th style="text-align:right">Objetivo</th><th style="text-align:right">Desviación</th>
-        <th style="text-align:right">Rebalanceo</th><th>Estado</th></tr></thead><tbody>${filas}</tbody>`;
-    const cont = $("#asigRebal");
-    if (cont) {
-      const mov = a.filter(x => x.ajuste != null && Math.abs(x.ajuste) >= 1);
-      cont.innerHTML = (conObj && mov.length)
-        ? `<p class="subt" style="margin-top:10px">Para volver a tu objetivo: ` + mov.map(x =>
-          `${x.ajuste > 0 ? "aporta " : "reduce "}<b>${G.fmtEur(Math.abs(x.ajuste), 0)}</b> ${x.ajuste > 0 ? "a" : "de"} ${esc(x.tipo)}`).join(" · ") + ".</p>"
-        : "";
+        <th style="text-align:right">Rebalanceo</th><th>Estado</th></tr></thead><tbody>${filas}</tbody></table>`;
+  }
+
+  // Repartidor: con N€ a aportar, cuánto meter en cada tipo para acercarse al objetivo.
+  // Prioriza los tipos más infraponderados (llena primero lo que más falta).
+  function repartoAportacion(n) {
+    const a = (D.asignacion || []).filter(x => x.objetivo != null);
+    if (!a.length || !(n > 0)) return [];
+    const bruto = a.reduce((s, x) => s + x.valor, 0);
+    const nuevoTotal = bruto + n;
+    const falta = a.map(x => Math.max(0, x.objetivo * nuevoTotal - x.valor));
+    const sumaFalta = falta.reduce((s, v) => s + v, 0);
+    return a.map((x, i) => ({
+      tipo: x.tipo, color: x.color,
+      aportar: sumaFalta > 0 ? n * falta[i] / sumaFalta : n * x.objetivo,
+    })).filter(r => r.aportar > 0.5).sort((p, q) => q.aportar - p.aportar);
+  }
+
+  function muestraRebalanceo() {
+    let dlg = $("#dlgRebal");
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.id = "dlgRebal"; dlg.className = "modal";
+      document.body.appendChild(dlg);
+      dlg.addEventListener("click", e => { if (e.target === dlg) { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } } });
     }
+    const pintaReparto = n => {
+      const r = repartoAportacion(n);
+      const cont = dlg.querySelector("#rebalReparto");
+      if (!cont) return;
+      cont.innerHTML = !r.length ? '<p class="subt">Escribe cuánto quieres aportar y te digo cómo repartirlo.</p>'
+        : `<table class="dt"><thead><tr><th>Tipo</th><th style="text-align:right">Mete aquí</th></tr></thead><tbody>${
+          r.map(x => `<tr><td><i class="pt" style="background:${(x.color && x.color[0]) || "#888"}"></i>${esc(x.tipo)}</td>
+            <td style="text-align:right" class="pos">${G.fmtEur(x.aportar, 0)}</td></tr>`).join("")}</tbody></table>
+          <p class="subt" style="margin-top:8px">Reparto orientativo para acercarte a tus objetivos (primero lo más infraponderado). No mueve nada: lo decides tú.</p>`;
+    };
+    dlg.innerHTML = `<div class="rebalCuerpo">
+      <header style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+        <h2 style="margin:0">⚖️ Cómo rebalancear</h2><span class="sp" style="flex:1"></span>
+        <button class="x" type="button" aria-label="Cerrar" data-cerrar>×</button></header>
+      <p class="subt" style="margin:0 0 14px">Tu peso por tipo frente al objetivo, y cuánto aportar o reducir para volver a él.</p>
+      <div class="tablaEnv">${tablaAsignacion()}</div>
+      <div class="secc" style="margin-top:18px">Tengo dinero para aportar</div>
+      <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px">
+        <input id="rebalN" inputmode="decimal" placeholder="€ a aportar" style="width:160px;font:inherit;padding:9px 11px;border-radius:9px;border:1px solid var(--borde);background:var(--sup);color:var(--tinta)">
+        <button class="btn prim" type="button" id="rebalCalc">Repartir</button></div>
+      <div id="rebalReparto" style="margin-top:12px"></div>
+      <div style="text-align:right;margin-top:16px"><button class="btn" type="button" data-cerrar>Cerrar</button></div></div>`;
+    dlg.querySelectorAll("[data-cerrar]").forEach(b => { b.onclick = () => { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } }; });
+    const inp = dlg.querySelector("#rebalN");
+    const calc = () => pintaReparto(parseFloat(String(inp.value).replace(/[.\s€]/g, "").replace(",", ".")));
+    dlg.querySelector("#rebalCalc").onclick = calc;
+    inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); calc(); } };
+    pintaReparto(0);
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+    inp.focus();
   }
 
   /* Vencimientos ordenados por fecha, con días restantes y estado. */
@@ -2291,7 +2340,7 @@
           <tr><td><kbd>1</kbd> … <kbd>7</kbd></td><td>Cambiar de sub-pestaña del Panel</td></tr>
           <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Paleta de acciones: buscar e ir a cualquier sitio</td></tr>
           <tr><td><kbd>L</kbd></td><td>Ver solo lo de largo plazo (y volver)</td></tr>
-          <tr><td><kbd>V</kbd></td><td>Modo vídeo (oculta importes para grabar)</td></tr>
+          <tr><td><kbd>V</kbd></td><td>Modo vídeo: pantalla completa para presentar o grabar</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Quitar el filtro activo</td></tr>
           <tr><td><kbd>?</kbd></td><td>Mostrar esta ayuda</td></tr>
         </tbody></table>
@@ -2300,6 +2349,169 @@
       dlg.querySelector("button").onclick = () => { try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); } };
       dlg.addEventListener("click", e => { if (e.target === dlg) dlg.querySelector("button").click(); });
     }
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+  }
+
+  /* ---------------------------------------------- tour guiado (primer uso + Ayuda) */
+  // Recorrido con foco (spotlight) sobre elementos reales, sin librerías. Cambia solo
+  // a la pestaña/subpestaña de cada paso y señala el elemento con un globo explicativo.
+  const PASOS_TOUR = [
+    { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», puedes verlo a un día o a un tramo pasado.", antes: () => { irA("panel"); irVista("patrimonio"); } },
+    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas e Informe fiscal. Con las teclas 1–7 saltas entre ellas.", antes: () => irVista("patrimonio") },
+    { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada tipo.", antes: () => irVista("distribucion") },
+    { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo ha crecido tu patrimonio. Enciende y apaga componentes en la leyenda; las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
+    { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (con coste FIFO) y los dividendos y cupones cobrados, por año, listos para la declaración.", antes: () => irVista("fiscal") },
+    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, apartados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
+    { sel: "#btnPaleta", tit: "Buscar (⌘K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
+    { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100% en tu ordenador.", antes: () => irA("panel") },
+  ];
+  function iniciaTour() {
+    if ($(".tourFoco")) return;   // ya hay un tour abierto
+    const reduce = (() => { try { return matchMedia("(prefers-reduced-motion:reduce)").matches; } catch (e) { return false; } })();
+    const foco = document.createElement("div"); foco.className = "tourFoco";
+    const pop = document.createElement("div"); pop.className = "tourPop";
+    document.body.appendChild(foco); document.body.appendChild(pop);
+    let idx = 0;
+    const cerrar = () => {
+      foco.remove(); pop.remove();
+      document.removeEventListener("keydown", teclado, true);
+      recuerda.guarda("patrimonio.tour", "hecho");
+    };
+    function teclado(e) {
+      if (e.key === "Escape") { e.preventDefault(); cerrar(); }
+      else if (e.key === "ArrowRight") ir(1);
+      else if (e.key === "ArrowLeft") ir(-1);
+    }
+    const ir = d => { idx = Math.max(0, Math.min(PASOS_TOUR.length - 1, idx + d)); muestra(); };
+    function muestra() {
+      const p = PASOS_TOUR[idx];
+      try { p.antes && p.antes(); } catch (e) { /* sigue */ }
+      setTimeout(() => {
+        const el = document.querySelector(p.sel);
+        if (!el) { if (idx < PASOS_TOUR.length - 1) { idx++; muestra(); } else cerrar(); return; }
+        el.scrollIntoView({ block: "center", behavior: reduce ? "auto" : "smooth" });
+        setTimeout(() => {
+          const r = el.getBoundingClientRect(), pad = 8;
+          foco.style.left = (r.left - pad) + "px"; foco.style.top = (r.top - pad) + "px";
+          foco.style.width = (r.width + pad * 2) + "px"; foco.style.height = (r.height + pad * 2) + "px";
+          pop.innerHTML = `<h3>${esc(p.tit)}</h3><p>${esc(p.txt)}</p>
+            <div class="tourPie"><span class="tourProg">${idx + 1} / ${PASOS_TOUR.length}</span>
+            <button class="btn" type="button" data-t="salir">Saltar</button>
+            ${idx > 0 ? '<button class="btn" type="button" data-t="prev">Atrás</button>' : ""}
+            <button class="btn prim" type="button" data-t="next">${idx === PASOS_TOUR.length - 1 ? "Listo" : "Siguiente"}</button></div>`;
+          pop.querySelector('[data-t="salir"]').onclick = cerrar;
+          const pv = pop.querySelector('[data-t="prev"]'); if (pv) pv.onclick = () => ir(-1);
+          pop.querySelector('[data-t="next"]').onclick = () => idx === PASOS_TOUR.length - 1 ? cerrar() : ir(1);
+          const pw = Math.min(340, innerWidth - 24), ph = pop.offsetHeight || 170;
+          let top = r.bottom + 12;
+          if (top + ph > innerHeight - 12) top = Math.max(12, r.top - ph - 12);
+          const left = Math.min(Math.max(12, r.left), innerWidth - pw - 12);
+          pop.style.maxWidth = pw + "px"; pop.style.left = left + "px"; pop.style.top = top + "px";
+        }, reduce ? 0 : 260);
+      }, 60);
+    }
+    document.addEventListener("keydown", teclado, true);
+    muestra();
+  }
+  // Autoarranque la primera vez (cuando hay panel y no hay otro diálogo delante).
+  function quizaArrancaTour() {
+    if (!D || recuerda.lee("patrimonio.tour") === "hecho") return;
+    if (document.querySelector("dialog[open]")) return;
+    if (estado.tab !== "panel") return;
+    iniciaTour();
+  }
+  { const bt = $("#btnTour"); if (bt) bt.onclick = () => iniciaTour(); }
+
+  /* ---------------------------------------------- informe para imprimir / PDF */
+  // Construye un informe autónomo (tablas, imprime limpio a varias páginas) a partir
+  // de DATOS. "resumen" = 1 página con lo esencial; "detalle" = todo (activos, deudas,
+  // ingresos/gastos e informe fiscal).
+  function construyeInforme(modo) {
+    const t = D.total || {}, f = D.flujos, fe = G.fmtFecha(D.fechaExtracto);
+    const pct = (v, d = 1) => v == null ? "—" : G.fmtPct(v, d);
+    const cif = (et, val) => `<div class="infCif"><span>${esc(et)}</span><b>${val}</b></div>`;
+    let h = `<header class="infPort">
+        <div class="infMarca">Liberty · Informe de patrimonio</div>
+        <h1>${esc(D.titular || "Mi patrimonio")}</h1>
+        <div class="infFecha">A fecha ${fe}</div>
+        <div class="infNeto"><span>Patrimonio neto</span><b>${G.fmtEur(t.patrimonioNeto)}</b></div>
+      </header>
+      <section class="infSec"><h2>Resumen</h2><div class="infCifras">
+        ${cif("Patrimonio bruto", G.fmtEur(t.patrimonioBruto))}
+        ${cif("Deudas", G.fmtEur(t.deudas || 0))}
+        ${cif("Disponible", G.fmtEur(t.disponible))}
+        ${cif("Dinero libre", G.fmtEur(t.dineroLibre))}
+        ${cif("Aportado", G.fmtEur(t.aportado))}
+        ${cif("Plusvalía", t.plusvalia != null ? `${G.fmtEurSigno(t.plusvalia)} (${pct(t.rentabilidad)})` : "—")}
+        ${cif("TIR anualizada", pct(t.tir))}
+        ${cif("Tasa de ahorro", pct(t.tasaAhorro, 0))}
+      </div></section>`;
+    const pt = t.porTipo || [];
+    if (pt.length) h += `<section class="infSec"><h2>Distribución por tipo</h2>
+      <table class="infTab"><thead><tr><th>Tipo</th><th>Valor</th><th>Peso</th></tr></thead><tbody>${
+        pt.map(x => `<tr><td>${esc(x.nombre)}</td><td>${G.fmtEur(x.valor)}</td><td>${pct(x.peso, 1)}</td></tr>`).join("")}</tbody></table></section>`;
+    const prods = (D.productos || []).concat(D.otrosActivos || []).filter(p => (p.valor || 0) > 0).sort((a, b) => (b.valor || 0) - (a.valor || 0));
+    const top = modo === "resumen" ? prods.slice(0, 8) : prods;
+    h += `<section class="infSec"><h2>${modo === "resumen" ? "Principales posiciones" : "Activos"}</h2>
+      <table class="infTab"><thead><tr><th>Activo</th><th>Tipo</th><th>Valor</th><th>Peso</th>${modo === "detalle" ? "<th>Rent.</th>" : ""}</tr></thead><tbody>${
+        top.map(p => `<tr><td>${esc(p.corto || p.nombre)}</td><td>${esc(p.tipo || "")}</td><td>${G.fmtEur(p.valor)}</td>
+          <td>${pct((p.valor || 0) / (t.patrimonioBruto || 1), 1)}</td>${modo === "detalle" ? `<td>${p.rentabilidad != null ? G.fmtPctSigno(p.rentabilidad) : "—"}</td>` : ""}</tr>`).join("")}</tbody></table></section>`;
+    if (modo === "detalle") {
+      const deu = D.deudas || [];
+      if (deu.length) h += `<section class="infSec pb"><h2>Deudas</h2>
+        <table class="infTab"><thead><tr><th>Deuda</th><th>Acreedor</th><th>Capital pend.</th><th>TAE</th><th>Cuota</th></tr></thead><tbody>${
+          deu.map(x => `<tr><td>${esc(x.nombre)}</td><td>${esc(x.acreedor || "")}</td><td>${G.fmtEur(x.capitalPendiente)}</td>
+            <td>${x.tae != null ? pct(x.tae, 2) : "—"}</td><td>${x.cuota != null ? G.fmtEur(x.cuota) : "—"}</td></tr>`).join("")}</tbody></table></section>`;
+      if (f && f.porCategoria) {
+        const cats = f.porCategoria.filter(c => (c.total12 || 0) > 0).sort((a, b) => b.total12 - a.total12);
+        if (cats.length) h += `<section class="infSec pb"><h2>Ingresos y gastos · últimos 12 meses</h2>
+          <table class="infTab"><thead><tr><th>Categoría</th><th>Tipo</th><th>Importe</th></tr></thead><tbody>${
+            cats.map(c => `<tr><td>${esc(c.categoria)}</td><td>${c.tipo === "ingreso" ? "Ingreso" : "Gasto"}</td><td>${G.fmtEur(c.total12)}</td></tr>`).join("")}</tbody></table></section>`;
+      }
+      const fis = D.fiscal || {}, anios = Object.keys(fis).sort();
+      if (anios.length) {
+        const y = anios[anios.length - 1], dat = fis[y], tot = dat.totales;
+        h += `<section class="infSec pb"><h2>Informe fiscal ${esc(y)}</h2>`;
+        if (dat.ventas.length) h += `<h3>Ganancias y pérdidas patrimoniales</h3>
+          <table class="infTab"><thead><tr><th>Producto</th><th>Fecha</th><th>Transmisión</th><th>Adquisición</th><th>Ganancia</th></tr></thead><tbody>${
+            dat.ventas.map(v => `<tr><td>${esc(v.producto)}</td><td>${G.fmtFecha(v.fecha)}</td><td>${G.fmtEur(v.transmision)}</td>
+              <td>${G.fmtEur(v.adquisicion)}</td><td>${G.fmtEurSigno(v.ganancia)}</td></tr>`).join("")}</tbody></table>
+            <p class="infNota">Ganancia neta del año: <b>${G.fmtEurSigno(tot.gananciaNeta)}</b></p>`;
+        if (dat.rendimientos.length) h += `<h3>Rendimientos del capital mobiliario</h3>
+          <table class="infTab"><thead><tr><th>Producto</th><th>Fecha</th><th>Importe</th><th>Retención</th></tr></thead><tbody>${
+            dat.rendimientos.map(r => `<tr><td>${esc(r.producto)}</td><td>${G.fmtFecha(r.fecha)}</td><td>${G.fmtEur(r.importe)}</td>
+              <td>${G.fmtEur(r.retencion || 0)}</td></tr>`).join("")}</tbody></table>
+            <p class="infNota">Rendimiento íntegro: <b>${G.fmtEur(tot.rendimientoIntegro)}</b> · Retenciones: <b>${G.fmtEur(tot.retenciones)}</b></p>`;
+        h += `</section>`;
+      }
+    }
+    h += `<footer class="infPie">Generado por Liberty · ${fe} · Herramienta informativa, no es asesoramiento financiero.</footer>`;
+    return h;
+  }
+  function imprimeInforme(modo) {
+    const hoja = $("#hojaInforme"); if (!hoja) return;
+    hoja.innerHTML = construyeInforme(modo);
+    document.body.dataset.impr = modo;
+    const limpia = () => { delete document.body.dataset.impr; window.removeEventListener("afterprint", limpia); };
+    window.addEventListener("afterprint", limpia);
+    window.print();
+  }
+  function menuImprimir() {
+    let dlg = $("#dlgImpr");
+    if (!dlg) {
+      dlg = document.createElement("dialog"); dlg.id = "dlgImpr"; dlg.className = "modal";
+      document.body.appendChild(dlg);
+      dlg.addEventListener("click", e => { if (e.target === dlg) { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } } });
+    }
+    dlg.innerHTML = `<div style="padding:4px 2px">
+      <h2 style="margin:0 0 4px">Imprimir o guardar como PDF</h2>
+      <p class="subt" style="margin:0 0 16px">Elige el nivel de detalle. En el diálogo del navegador, elige «Guardar como PDF» como destino.</p>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <button class="btn prim" type="button" data-m="resumen">📄 Resumen — 1 página</button>
+        <button class="btn" type="button" data-m="detalle">📑 Detallado — activos, deudas, ingresos/gastos e informe fiscal</button></div>
+      <div style="text-align:right;margin-top:16px"><button class="btn" type="button" data-cerrar>Cancelar</button></div></div>`;
+    dlg.querySelector("[data-cerrar]").onclick = () => { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } };
+    dlg.querySelectorAll("[data-m]").forEach(b => { b.onclick = () => { try { dlg.close(); } catch (_) { /* */ } imprimeInforme(b.dataset.m); }; });
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
 
@@ -2314,6 +2526,7 @@
     c.push({ ico: "⚡", label: "Anotar un gasto o ingreso", hint: "acción", run: irDatos("flujos") });
     c.push({ ico: "➕", label: "Añadir un activo", hint: "acción", run: irDatos("activos") });
     c.push({ ico: "📥", label: "Importar datos", hint: "acción", run: irDatos("importar") });
+    if ((D.asignacion || []).some(x => x.objetivo != null)) c.push({ ico: "⚖️", label: "Cómo rebalancear", hint: "acción", run: () => { if (estado.tab !== "panel") irA("panel"); irVista("distribucion"); muestraRebalanceo(); } });
     if ($("#btnPrecios") && !$("#btnPrecios").hidden) c.push({ ico: "↻", label: "Actualizar precios", hint: "acción", run: () => $("#btnPrecios").click() });
     const dv = { activos: "Activos", deudas: "Deudas", apartados: "Apartados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
@@ -2368,7 +2581,7 @@
   $("#metaFecha").textContent = "Datos a " + G.fmtFecha(D.fechaExtracto);
 
   _repinta = () => { try { pintar(); } catch (e) { /* al cambiar un ajuste */ } };
-  if ($("#btnImprimir")) $("#btnImprimir").onclick = () => window.print();
+  if ($("#btnImprimir")) $("#btnImprimir").onclick = () => menuImprimir();
   if ($("#btnPaleta")) $("#btnPaleta").onclick = () => abrePaleta();
   if ($("#btnPrecios")) $("#btnPrecios").onclick = async () => {
     const b = $("#btnPrecios");
@@ -2468,4 +2681,11 @@
   actualizaVivo();
   setInterval(actualizaVivo, 60000);
   muestraBienvenida(false);
+  // Tras cerrar la bienvenida (o directamente si ya se había visto), arranca el tour
+  // guiado la primera vez.
+  if ($("#bienvenida") && $("#bienvenida").open) {
+    $("#bienvenida").addEventListener("close", () => setTimeout(quizaArrancaTour, 500), { once: true });
+  } else {
+    setTimeout(quizaArrancaTour, 700);
+  }
 })();

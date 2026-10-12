@@ -139,14 +139,26 @@ test("la pestaña Ajustes muestra los controles y se aplican", () => {
   assert.strictEqual(errores.length, 0, "sin errores: " + errores.join(" | "));
 });
 
-test("el botón de imprimir existe y llama a window.print", () => {
+test("imprimir ofrece resumen/detallado y genera el informe", () => {
   const { window, errores } = montaPanel();
   let llamado = 0;
   window.print = () => { llamado++; };
   const b = window.document.getElementById("btnImprimir");
   assert.ok(b, "debería existir el botón de imprimir");
-  b.click();
-  assert.strictEqual(llamado, 1, "al pulsar debería llamar a window.print");
+  b.click();   // abre el menú
+  const dlg = window.document.getElementById("dlgImpr");
+  assert.ok(dlg, "debería abrirse el menú de impresión");
+  const resumen = dlg.querySelector('[data-m="resumen"]');
+  assert.ok(resumen, "debería haber opción de resumen");
+  resumen.click();   // elige resumen -> imprime
+  assert.strictEqual(llamado, 1, "al elegir un modo debería llamar a window.print");
+  const hoja = window.document.getElementById("hojaInforme");
+  assert.ok(/Patrimonio neto/.test(hoja.innerHTML), "el informe debería tener el patrimonio neto");
+  assert.ok(/Distribución por tipo/.test(hoja.innerHTML), "el informe debería tener la distribución");
+  // El detallado añade el informe fiscal.
+  window.document.getElementById("btnImprimir").click();
+  window.document.querySelector('#dlgImpr [data-m="detalle"]').click();
+  assert.ok(/Informe fiscal/.test(hoja.innerHTML), "el detallado debería incluir el informe fiscal");
   assert.strictEqual(errores.length, 0, "no debería haber errores: " + errores.join(" | "));
 });
 
