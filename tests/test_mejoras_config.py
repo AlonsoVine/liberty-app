@@ -166,6 +166,47 @@ def test_avisos_off_valida_claves():
     assert c["config"]["avisosOff"] == ["dinero-libre"]
 
 
+# ---------------------------------------------------------------- marcas de apuntes
+
+def test_marca_flujo_pone_y_quita():
+    c = cfg()
+    fl = almacen.guarda_flujo(c, {"fecha": "2025-03-01", "tipo": "gasto", "importe": "40"})
+    almacen.marca_flujo(c, fl["id"], "revisar")
+    assert c["flujos"][0]["marca"] == "revisar"
+    almacen.marca_flujo(c, fl["id"], "")   # quitar
+    assert "marca" not in c["flujos"][0]
+
+
+def test_marca_desconocida_no_se_aplica():
+    c = cfg()
+    fl = almacen.guarda_flujo(c, {"fecha": "2025-03-01", "tipo": "gasto", "importe": "40"})
+    almacen.marca_flujo(c, fl["id"], "inventada")
+    assert "marca" not in c["flujos"][0]
+
+
+def test_editar_flujo_conserva_la_marca():
+    c = cfg()
+    fl = almacen.guarda_flujo(c, {"fecha": "2025-03-01", "tipo": "gasto", "importe": "40"})
+    almacen.marca_flujo(c, fl["id"], "revisar")
+    # Editar el importe (el formulario no manda marca) no debe borrarla.
+    almacen.guarda_flujo(c, {"id": fl["id"], "fecha": "2025-03-01", "tipo": "gasto", "importe": "50"})
+    assert c["flujos"][0]["marca"] == "revisar"
+
+
+def test_config_marcas_se_guardan_con_id_y_color():
+    c = cfg()
+    almacen.guarda_config(c, {"marcas": [{"nombre": "A revisar", "color": "#e34948"},
+                                         {"nombre": "Duda", "color": "malo"}]})
+    ms = c["config"]["marcas"]
+    assert ms[0] == {"id": "a-revisar", "nombre": "A revisar", "color": "#e34948"}
+    assert ms[1]["color"] == "#e34948"   # color inválido -> por defecto
+
+
+def test_marcas_de_usa_defecto_si_vacio():
+    c = cfg()
+    assert almacen.marcas_de(c) == almacen.MARCAS_DEFECTO
+
+
 # ---------------------------------------------------------------- motor con tipo propio
 
 def test_motor_construye_con_un_tipo_propio(tmp_path):

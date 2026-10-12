@@ -20,6 +20,15 @@ TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cup
 TIPOS_FLUJO = {"ingreso": "Ingreso", "gasto": "Gasto"}   # flujo de caja del hogar (F3)
 SOLO_SALDO = ("efectivo", "deuda")   # tipos que se siguen solo con saldos anotados
 
+# Marcas para apuntes de ingresos/gastos (p. ej. «a revisar»). Se puede ampliar la
+# lista desde Configuración; si no hay ninguna definida, se usa esta por defecto.
+MARCAS_DEFECTO = [{"id": "revisar", "nombre": "A revisar", "color": "#e34948"}]
+
+
+def marcas_de(cfg):
+    ms = ((cfg.get("config") or {}).get("marcas")) or []
+    return ms or MARCAS_DEFECTO
+
 CARTERA_VACIA = {
     "version": 1, "titular": "Mi patrimonio",
     "productos": [], "movimientos": [], "valoraciones": [],
@@ -384,7 +393,7 @@ def guarda_apartado(cfg, datos):
     errores = []
     nombre = texto(datos.get("nombre"))
     if not nombre:
-        errores.append("Ponle un nombre al apartado.")
+        errores.append("Ponle un nombre al reservado.")
     importe = numero(datos.get("importe"), "el importe reservado", errores, minimo=0)
     if errores:
         raise ErrorValidacion(errores)
@@ -411,7 +420,7 @@ def borra_apartado(cfg, aid):
     antes = len(cfg.get("apartados", []))
     cfg["apartados"] = [a for a in cfg.get("apartados", []) if a.get("id") != aid]
     if len(cfg["apartados"]) == antes:
-        raise ErrorValidacion(["Ese apartado ya no existe."])
+        raise ErrorValidacion(["Ese reservado ya no existe."])
 
 
 def fecha_suave(valor):
@@ -508,6 +517,25 @@ def guarda_config(cfg, datos):
         # Tipos de BASE que el usuario no usa y prefiere no ver en los selectores.
         # Solo se ocultan (nunca se borran): los activos que los usen siguen igual.
         conf["tiposOcultos"] = [t for t in (datos.get("tiposOcultos") or []) if t in TIPOS]
+    if "marcas" in datos:
+        # Marcas para apuntes de ingresos/gastos: {id, nombre, color}. El id se deriva
+        # del nombre (estable). Si la lista queda vacía, se usará la de por defecto.
+        previo = {m.get("nombre", "").lower(): m.get("id") for m in (conf.get("marcas") or [])}
+        marcas, ids = [], set()
+        for it in (datos.get("marcas") or [])[:20]:
+            nombre = texto((it or {}).get("nombre"), 40)
+            if not nombre:
+                continue
+            mid = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "marca"
+            base, k = mid, 2
+            while mid in ids:
+                mid, k = f"{base}-{k}", k + 1
+            ids.add(mid)
+            color = texto((it or {}).get("color"), 9)
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                color = "#e34948"
+            marcas.append({"id": mid, "nombre": nombre, "color": color})
+        conf["marcas"] = marcas
     if "avisosOff" in datos:
         # Avisos automáticos que el usuario desactiva: el motor deja de generarlos.
         vistos, off = set(), []
@@ -646,9 +674,17 @@ def guarda_flujo(cfg, datos):
     importe = numero(datos.get("importe"), "el importe", errores, mayor_que=0)
     if errores:
         raise ErrorValidacion(errores)
+    # La marca se conserva al editar (el formulario no la manda); solo cambia si viene.
+    if "marca" in datos:
+        marca = texto(datos.get("marca"), 40)
+    else:
+        prev = next((x for x in cfg.get("flujos", []) if x.get("id") == datos.get("id")), None) if datos.get("id") else None
+        marca = (prev or {}).get("marca", "")
+    if marca and marca not in {m["id"] for m in marcas_de(cfg)}:
+        marca = ""
     fl = {"fecha": f, "tipo": tipo, "importe": round(importe, 2),
           "categoria": texto(datos.get("categoria"), 40), "titular": texto(datos.get("titular")),
-          "nota": texto(datos.get("nota"))}
+          "nota": texto(datos.get("nota")), "marca": marca}
     # Si escribes una categoría que no está en la lista maestra, se da de alta sola
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
@@ -672,3 +708,16 @@ def borra_flujo(cfg, fid):
     cfg["flujos"] = [x for x in cfg.get("flujos", []) if x.get("id") != fid]
     if len(cfg["flujos"]) == antes:
         raise ErrorValidacion(["Ese apunte ya no existe."])
+
+
+def marca_flujo(cfg, fid, marca):
+    """Pone o quita la marca de un apunte (ingreso/gasto). marca vacía = sin marca."""
+    fl = next((x for x in cfg.get("flujos", []) if x.get("id") == fid), None)
+    if not fl:
+        raise ErrorValidacion(["Ese apunte ya no existe."])
+    marca = texto(marca, 40)
+    if marca and marca in {m["id"] for m in marcas_de(cfg)}:
+        fl["marca"] = marca
+    else:
+        fl.pop("marca", None)
+    return fl

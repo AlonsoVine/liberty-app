@@ -49,7 +49,7 @@
   }
   async function carga() {
     const j = await api("GET", "api/cartera");
-    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, avisosCatalogo: j.avisosCatalogo || [], fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
+    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, avisosCatalogo: j.avisosCatalogo || [], marcas: j.marcas || [], fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
   }
   async function guarda(coleccion, datos) {
     const j = await api("POST", "api/" + coleccion, datos);
@@ -338,7 +338,7 @@
     // Tres áreas al mismo nivel pero visualmente distintas: lo que tienes,
     // el día a día (flujos y saldos) y las herramientas.
     const grupos = [
-      [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Apartados"]],
+      [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"]],
       [["flujos", "Ingresos y gastos"], ["saldos", "Saldos y movimientos"]],
       [["config", "Configuración"], ["importar", "Importar"], ["copias", "Copias y seguridad"]],
     ];
@@ -478,7 +478,7 @@
         ${campo("ISIN o ticker", '<input name="identificador">', "opcional")}
         ${campo("Banco o bróker", `<input name="entidad" list="edEntidades">
           <datalist id="edEntidades">${entidades.map(x => `<option value="${esc(x)}">`).join("")}</datalist>`, "opcional")}
-        ${(E.cfg.titulares || []).length > 1 ? campo("Titular", `<input name="titular" list="edTitulares" placeholder="Yo, Común…">
+        ${(E.cfg.titulares || []).length > 1 ? campo("Titular", `<input name="titular" list="edTitulares" value="${esc(nuevo ? (E.cfg.titulares || [])[0] || "" : "")}" placeholder="Yo, Común…">
           <datalist id="edTitulares">${(E.cfg.titulares || []).map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "de quién es") : ""}
         ${campo("Moneda", '<input name="moneda" maxlength="3" placeholder="EUR">', "EUR por defecto")}
       </div>
@@ -632,13 +632,13 @@
       <td>${eur(a.importe || 0)}</td><td>${a.fechaPrevista ? fecha(a.fechaPrevista) : ""}</td>
       <td class="acc"><button data-acc="editarApartado" data-id="${esc(a.id)}">Editar</button>
         <button data-acc="borrarApartado" data-id="${esc(a.id)}">Borrar</button></td></tr>`).join("");
-    return `<section class="tarjeta"><header><h2>Apartados</h2>
+    return `<section class="tarjeta"><header><h2>Reservados</h2>
         <span class="subt">Dinero reservado para un fin (impuestos, obras, fianzas…): no resta del patrimonio, pero sí del dinero libre para invertir</span>
-        <span class="sp"></span>${aps.length > 1 ? '<button class="btn" data-acc="repartirColoresApartados" title="Da a cada apartado un color distinto">Repartir colores</button>' : ""}
-        <button class="btn prim" data-acc="nuevoApartado">+ Añadir apartado</button></header>
-      ${filasAp ? envTabla("apartados", `<tr><th>Apartado</th><th>Finalidad</th><th>Titular</th>
+        <span class="sp"></span>${aps.length > 1 ? '<button class="btn" data-acc="repartirColoresApartados" title="Da a cada reservado un color distinto">Repartir colores</button>' : ""}
+        <button class="btn prim" data-acc="nuevoApartado">+ Añadir reservado</button></header>
+      ${filasAp ? envTabla("apartados", `<tr><th>Reservado</th><th>Finalidad</th><th>Titular</th>
         <th>Importe</th><th>Fecha prevista</th><th class="nosort"></th></tr>`, filasAp)
-        : '<p class="subt">Todavía no has creado ningún apartado.</p>'}</section>`;
+        : '<p class="subt">Todavía no has creado ningún reservado.</p>'}</section>`;
   }
 
   function vistaConfig() {
@@ -679,6 +679,7 @@
         ${fila("Monedas (cambio manual)", monedas.length ? monedas.map(m => `${esc(m.codigo)} = ${esc(String(m.tipo))}`).join(", ") : "EUR")}
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
+        ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.nombre)).join(", ") : sub("«A revisar» (por defecto)"))}
         ${fila("Dimensiones de clasificación", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
         ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
@@ -703,12 +704,12 @@
     const nuevo = !a;
     a = a || { slot: siguienteColor(E.cfg.apartados || []) };
     const tits = E.cfg.titulares || [];
-    const f = abreModal(nuevo ? "Añadir apartado" : "Editar " + esc(a.nombre || "apartado"), `
-      ${seccion("El apartado")}
+    const f = abreModal(nuevo ? "Añadir reservado" : "Editar " + esc(a.nombre || "reservado"), `
+      ${seccion("El reservado")}
       <div class="rejilla">
         ${campo("Nombre", '<input name="nombre" required>', "", "ancho")}
         ${campo("Finalidad", '<input name="finalidad">', "para qué es")}
-        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="apTitulares" placeholder="Común…">
+        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="apTitulares" value="${esc(nuevo ? tits[0] || "" : "")}" placeholder="Común…">
           <datalist id="apTitulares">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${campo("Importe reservado", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Fecha prevista de uso", '<input name="fechaPrevista" type="date">', "opcional")}
@@ -719,14 +720,14 @@
       const d = campos(f);
       if (!nuevo) d.id = a.id;
       await guarda("apartados", d);
-    }, nuevo ? "Guardar apartado" : "Guardar cambios");
+    }, nuevo ? "Guardar reservado" : "Guardar cambios");
     rellena(f, a);
     return f;
   }
 
   async function borrarApartado(id) {
     const a = (E.cfg.apartados || []).find(x => x.id === id);
-    if (!confirm(`¿Borrar el apartado «${a ? a.nombre : ""}»?\n\nHay copias automáticas en mis_datos/copias.`)) return;
+    if (!confirm(`¿Borrar el reservado «${a ? a.nombre : ""}»?\n\nHay copias automáticas en mis_datos/copias.`)) return;
     try { await borra("apartados", id); pinta(); } catch (x) { alert(x.message); }
   }
 
@@ -761,7 +762,7 @@
       </div>
       ${seccion("Titulares del hogar")}
       <div id="edTits" class="rejilla"></div>
-      <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y apartados.
+      <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y reservados.
         Añade más miembros con «+ Añadir titular». <b>Con un solo titular</b>, la app no te pregunta por titular en ningún sitio ni muestra los filtros por titular.</p>
       ${seccion("Tipos de activo")}
       <div class="campo ancho"><span class="et">Tipos de base <em>desmarca los que no uses</em></span>
@@ -802,6 +803,11 @@
       <p class="ayuda">Al <b>importar movimientos del banco</b>, si el concepto contiene esa palabra se asigna esa categoría
         (si existe y es del tipo correcto). Tienen prioridad sobre las que trae la app. Al importar puedes marcar
         «recordar mis correcciones» y se añaden aquí solas.</p>
+      ${seccion("Marcas de apuntes")}
+      <div class="rejilla">
+        ${campo("Una marca por línea: «Nombre» o «Nombre = #color»", '<textarea name="marcasTxt" rows="3" placeholder="A revisar = #e34948\nDuda\nImportante = #eda100"></textarea>', "", "ancho")}
+      </div>
+      <p class="ayuda">Sirven para marcar apuntes en <b>Ingresos y gastos</b> (la ☆ de cada fila) y luego ver solo los marcados. Si lo dejas vacío, se usa «A revisar».</p>
       ${seccion("Dimensiones de clasificación")}
       <div class="rejilla">
         ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
@@ -847,6 +853,10 @@
         const valores = i >= 0 ? l.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean) : [];
         return { nombre, valores };
       }).filter(dm => dm.nombre);
+      const marcas = lineas("marcasTxt").map(l => {
+        const i = l.indexOf("=");
+        return { nombre: (i >= 0 ? l.slice(0, i) : l).trim(), color: i >= 0 ? l.slice(i + 1).trim() : "" };
+      }).filter(m => m.nombre);
       // Titulares: filas del editor. El valor que tenía cada fila al abrir (data-de)
       // sirve para detectar renombrados y propagarlos a activos/apuntes/apartados.
       const filasTit = leeFilasEdit($("#edTits"));
@@ -869,7 +879,7 @@
         diasAviso: d.diasAviso,
         diasSinAnotar: d.diasSinAnotar,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
-        objetivos, monedas, categorias, dimensiones, reglasCategoria,
+        objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
       });
       // El nombre sale en el selector de arriba: recargar para que se vea al momento.
       location.reload();
@@ -899,6 +909,8 @@
       .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
     f.elements.reglasCat.value = (conf.reglasCategoria || [])
       .map(r => `${r.palabra} = ${r.categoria}`).join("\n");
+    f.elements.marcasTxt.value = (conf.marcas || [])
+      .map(m => m.color ? `${m.nombre} = ${m.color}` : m.nombre).join("\n");
     return f;
   }
 
@@ -969,9 +981,18 @@
   }
 
   function vistaFlujos() {
-    const fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    const marcas = E.marcas || [];
+    const marca0 = marcas[0] || { id: "revisar", nombre: "A revisar", color: "#e34948" };
+    const colorMarca = id => (marcas.find(m => m.id === id) || marca0).color;
+    let fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    const nMarc = fs.filter(x => x.marca).length;
+    const solo = !!E.soloMarcados;
+    if (solo) fs = fs.filter(x => x.marca);
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
+    const estrella = x => `<button class="marcaBtn${x.marca ? " on" : ""}" data-acc="marcarFlujo" data-id="${esc(x.id)}"
+        title="${x.marca ? "Quitar la marca" : "Marcar como «" + esc(marca0.nombre) + "»"}"${x.marca ? ` style="color:${esc(colorMarca(x.marca))}"` : ""}>${x.marca ? "★" : "☆"}</button>`;
     const filas = fs.map(x => `<tr>
+      <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
       <td>${esc(x.categoria || "")}</td>
@@ -980,14 +1001,18 @@
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
       <td class="acc"><button data-acc="editarFlujo" data-id="${esc(x.id)}">Editar</button>
         <button data-acc="borrarFlujo" data-id="${esc(x.id)}">Borrar</button></td></tr>`).join("");
+    const toggleMarc = (nMarc || solo)
+      ? `<button class="btn${solo ? " prim" : ""}" data-acc="toggleSoloMarcados" title="Ver solo los apuntes marcados">★ ${solo ? "Ver todos" : "Solo marcados (" + nMarc + ")"}</button>` : "";
     return `<section class="tarjeta"><header><h2>Anotar rápido</h2>
         <span class="subt">Un gasto o ingreso al vuelo, sin abrir el formulario completo. Pulsa un recurrente para rellenarlo (ajusta el importe si varía).</span></header>
       <div id="anotarRapido"></div></section>
       <section class="tarjeta"><header><h2>Ingresos y gastos</h2>
-        <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… No incluye compras de inversión ni traspasos entre tus cuentas.</span>
-        <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
-      ${filas ? envTabla("flujos", `<tr><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th>
-        ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
+        <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Pulsa la ☆ de un apunte para marcarlo (p. ej. «a revisar»).</span>
+        <span class="sp"></span>${toggleMarc}<button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
+      ${(E.cfg.flujos || []).length
+        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th><th>Nota</th>
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
+          : '<p class="subt">No hay apuntes marcados.</p>')
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
     </section>`;
   }
@@ -1008,7 +1033,7 @@
         ${campo("Importe", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Categoría", `<input name="categoria" list="flCats" placeholder="Nómina, Alimentación…">
           <datalist id="flCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>`, "opcional")}
-        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="flTits">
+        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="flTits" value="${esc(nuevo ? tits[0] || "" : "")}">
           <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
       </div>`,
@@ -1646,6 +1671,16 @@
     editarValor: soloPropio(id => formValor(E.cfg.valoraciones.find(v => v.id === id))),
     borrarValor: soloPropio(borrarValor),
     todosValores: soloPropio(todosValores),
+    marcarFlujo: soloPropio(async id => {
+      const fl = (E.cfg.flujos || []).find(x => x.id === id);
+      if (!fl) return;
+      const nueva = fl.marca ? "" : ((E.marcas || [])[0] || { id: "revisar" }).id;
+      try {
+        const j = await api("POST", "api/flujo-marca", { id, marca: nueva });
+        E.cfg = j.cartera; window.EDITOR_SUCIO = true; pinta();
+      } catch (x) { alert(x.message); }
+    }),
+    toggleSoloMarcados: () => { E.soloMarcados = !E.soloMarcados; pinta(); },
     nuevoApartado: soloPropio(() => formApartado(null)),
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
@@ -1668,7 +1703,7 @@
         E.cfg = j.cartera;
         window.EDITOR_SUCIO = true;
         pinta();
-        avisa(["✓ Colores repartidos entre los apartados."]);
+        avisa(["✓ Colores repartidos entre los reservados."]);
       } catch (x) { alert(x.message); }
     }),
     imDestino(id) {

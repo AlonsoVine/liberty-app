@@ -271,9 +271,10 @@
   const filtroDimPares = () => Object.entries(estado.filtroDim || {}).filter(([, v]) => v);
   const filtroDimAct = () => filtroDimPares().length > 0;
   const casaDim = p => filtroDimPares().every(([dim, val]) => (p.categorias || {})[dim] === val);
+  const titDe = p => (p.titular || "").trim() || D.titularDefecto || "Sin asignar";
   const visibles = () => TODOS().filter(p =>
     !estado.ocultos.has(p.id)
-    && (!filtroTit() || (p.titular || "Sin asignar") === estado.titular)
+    && (!filtroTit() || titDe(p) === estado.titular)
     && casaDim(p));
   const filtrando = () => estado.ocultos.size > 0 || filtroTit() || filtroDimAct();
 
@@ -560,7 +561,7 @@
       <div class="rmCifras">
         ${cif("Patrimonio este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes >= 0 ? "pos" : "neg", varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
         ${em ? cif("Ahorro del mes", G.fmtEurSigno(em.ahorro), em.ahorro >= 0 ? "pos" : "neg", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
-        ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − apartados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
+        ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
       </div>
       <div class="rmHacer"><span class="rmHacerEt">→ Qué conviene hacer</span> ${hacer}</div>
     </section>`;
@@ -648,11 +649,11 @@
       { e: "Patrimonio neto" + info("Todo lo que tienes menos lo que debes (patrimonio bruto − deudas)."), v: G.fmtEur(t.patrimonioNeto, 0), n: "bruto − deudas" },
       { e: "Disponible" + info("Dinero que puedes usar ya, sin penalización (cuentas, efectivo). Lo marcas en la ficha de cada producto."), v: G.fmtEur(t.disponible, 0), n: "liquidez inmediata" },
       { e: "No disponible", v: G.fmtEur(t.noDisponible, 0), n: "inversiones, inmuebles…" },
-      { e: "Apartados", v: G.fmtEur(t.apartadosTotal, 0), n: "dinero reservado" },
+      { e: "Reservados", v: G.fmtEur(t.apartadosTotal, 0), n: "dinero reservado" },
       { e: "Colchón", v: G.fmtEur(t.colchon, 0), n: "liquidez que quieres mantener" },
       {
-        e: "Dinero libre para invertir" + info("Lo que te queda de verdad para invertir: disponible − apartados − colchón."), v: G.fmtEur(t.dineroLibre, 0),
-        n: "disponible − apartados − colchón", cl: t.dineroLibre < 0 ? "neg" : "pos"
+        e: "Dinero libre para invertir" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), v: G.fmtEur(t.dineroLibre, 0),
+        n: "disponible − reservados − colchón", cl: t.dineroLibre < 0 ? "neg" : "pos"
       },
     ];
     $("#hogarGrid").innerHTML = tiles.map(k =>
@@ -2382,7 +2383,7 @@
     { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada tipo.", antes: () => irVista("distribucion") },
     { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo ha crecido tu patrimonio. Enciende y apaga componentes en la leyenda; las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
     { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (con coste FIFO) y los dividendos y cupones cobrados, por año, listos para la declaración.", antes: () => irVista("fiscal") },
-    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, apartados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
+    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, reservados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
     { sel: "#btnPaleta", tit: "Buscar (⌘K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
     { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100% en tu ordenador.", antes: () => irA("panel") },
   ];
@@ -2549,7 +2550,7 @@
     c.push({ ico: "📥", label: "Importar datos", hint: "acción", run: irDatos("importar") });
     if ((D.asignacion || []).some(x => x.objetivo != null)) c.push({ ico: "⚖️", label: "Cómo rebalancear", hint: "acción", run: () => { if (estado.tab !== "panel") irA("panel"); irVista("distribucion"); muestraRebalanceo(); } });
     if ($("#btnPrecios") && !$("#btnPrecios").hidden) c.push({ ico: "↻", label: "Actualizar precios", hint: "acción", run: () => $("#btnPrecios").click() });
-    const dv = { activos: "Activos", deudas: "Deudas", apartados: "Apartados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
+    const dv = { activos: "Activos", deudas: "Deudas", apartados: "Reservados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
     c.push({ ico: "❓", label: "Ayuda", run: () => irA("ayuda") });
     c.push({ ico: "⚙️", label: "Ajustes", run: () => irA("ajustes") });

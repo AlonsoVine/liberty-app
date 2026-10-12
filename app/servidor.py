@@ -314,6 +314,7 @@ def api_cartera():
     # selectores); tiposBase para que el editor sepa cuáles puede ocultar/renombrar.
     return jsonify(modo=modo(), cartera=cfg, tipos=motor.tipos_visibles(cfg),
                    tiposBase=motor.TIPOS, fuentes=motor.FUENTES, avisosCatalogo=motor.AVISOS_CATALOGO,
+                   marcas=almacen.marcas_de(cfg),
                    tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO)
 
 
@@ -384,6 +385,13 @@ def api_config():
     """Guarda los parámetros del hogar (colchón, titulares)."""
     datos = request.get_json(silent=True) or {}
     return cambia(lambda cfg: almacen.guarda_config(cfg, datos))
+
+
+@app.post("/api/flujo-marca")
+def api_flujo_marca():
+    """Pone o quita la marca de un apunte de ingreso/gasto (sin tocar el resto)."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.marca_flujo(cfg, d.get("id"), d.get("marca")))
 
 
 @app.post("/api/repartir-colores")

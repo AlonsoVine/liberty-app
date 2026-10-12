@@ -119,6 +119,11 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .tiposBase{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px}
 .chkTipo{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--tinta2);cursor:pointer}
 .chkTipo input{accent-color:var(--s1)}
+/* Marca de apuntes (★) en la tabla de ingresos y gastos */
+.marcaBtn{border:0;background:none;cursor:pointer;font-size:16px;line-height:1;color:var(--tinta3);padding:2px 5px;border-radius:6px;transition:.1s}
+.marcaBtn:hover{color:var(--aviso);background:color-mix(in srgb,var(--aviso) 16%,transparent)}
+.marcaBtn.on{color:var(--mal)}
+td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
 .recChips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 2px}
 .recHint{font-size:12.5px;color:var(--tinta3);margin-right:2px}
 .recChip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px 6px 11px;border-radius:999px;
@@ -1292,7 +1297,7 @@ body.video .tarjetaCanal{display:none}
 
   <section class="tarjeta ayudaTarjeta" style="border-left:4px solid var(--s1)">
     <header><h2>Explora un patrimonio de ejemplo</h2><span class="subt">Un hogar de muestra, para ver cómo se usa todo sin tocar tus datos</span></header>
-    <p>Crea un <b>patrimonio de ejemplo</b> (un hogar de muestra con inversiones, deudas, apartados, ingresos y gastos
+    <p>Crea un <b>patrimonio de ejemplo</b> (un hogar de muestra con inversiones, deudas, reservados, ingresos y gastos
       de un año) para <b>ver cómo está estructurado todo y cómo funcionan los gráficos</b>. Se crea como una
       <b>cartera aparte</b>: no toca la tuya, y puedes volver a la tuya cuando quieras desde el selector de arriba, o
       borrar el ejemplo cuando ya no lo necesites.</p>
@@ -1324,7 +1329,7 @@ body.video .tarjetaCanal{display:none}
     <ul>
       <li><b>Todo lo que tienes y lo que debes</b>: cuentas, efectivo, inmuebles, planes de pensiones y <b>deudas</b> (hipotecas, préstamos), con <b>patrimonio bruto y neto</b>.</li>
       <li><b>Varios titulares</b>: a quién pertenece cada cosa (tú, común, otra persona…) y cuánto corresponde a cada uno.</li>
-      <li><b>Disponible vs. no disponible</b>, <b>apartados</b> (dinero reservado), <b>colchón</b> de liquidez y el <b>«dinero libre para invertir»</b>.</li>
+      <li><b>Disponible vs. no disponible</b>, <b>reservados</b> (dinero apartado), <b>colchón</b> de liquidez y el <b>«dinero libre para invertir»</b>.</li>
       <li><b>Ingresos y gastos</b> con categorías y <b>presupuestos</b>, y tasa de ahorro.</li>
       <li><b>Deudas</b> con cuota, intereses estimados, ratio deuda/activos y fechas de revisión.</li>
     </ul>
@@ -1332,7 +1337,7 @@ body.video .tarjetaCanal{display:none}
     <p class="ayudaSub"><b>Análisis y control</b></p>
     <ul>
       <li><b>Objetivos de asignación</b> por tipo, <b>concentración</b> por tipo y entidad, y <b>alertas</b> automáticas.</li>
-      <li><b>Vencimientos</b> de depósitos, promociones, revisiones de deuda y apartados.</li>
+      <li><b>Vencimientos</b> de depósitos, promociones, revisiones de deuda y reservados.</li>
       <li><b>«Cómo ha cambiado»</b>: comparación con hace 1 mes y hace 12 meses.</li>
       <li><b>Ver el panel de un mes pasado</b> (cómo estaba tu patrimonio a fin de cualquier mes).</li>
       <li><b>Informe fiscal</b> anual para la renta (ganancias y pérdidas por FIFO y dividendos/cupones), <b>listo para imprimir</b>.</li>
@@ -1437,7 +1442,7 @@ body.video .tarjetaCanal{display:none}
           mapa de bloques), <b>Rentabilidad</b> (cuánto gana), <b>Evolución</b> (cómo cambia en el tiempo y el mes a
           mes), <b>Ingresos y gastos</b> (con sub-pestañas <b>Resumen · Categorías · Tendencias · Presupuesto</b>) y
           <b>Deudas y vencimientos</b>.</li>
-        <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Apartados, Ingresos y gastos,
+        <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, Ingresos y gastos,
           Saldos y movimientos, Configuración, Importar y Copias y seguridad.</li>
         <li><b>❓ Ayuda</b>: esto.</li>
       </ul></div></details>
@@ -1460,18 +1465,18 @@ body.video .tarjetaCanal{display:none}
 
     <details class="faq"><summary>¿Para qué sirven los titulares?</summary><div>
       <p>Son las personas del hogar (por ejemplo, Yo, Novia y «Común»). Se definen en <b>Configuración</b> y
-      luego asignas cada producto, deuda o apartado a un titular. El patrimonio sigue siendo uno solo, pero puedes
+      luego asignas cada producto, deuda o reservado a un titular. El patrimonio sigue siendo uno solo, pero puedes
       ver cuánto le corresponde a cada uno (Panel → Patrimonio).</p></div></details>
 
     <details class="faq"><summary>¿Qué es «disponible» y el «dinero libre para invertir»?</summary><div>
       <p><b>Disponible</b> es el dinero que puedes usar ya, sin penalización (cuentas, efectivo). Lo marcas en la
-      ficha de cada producto. El <b>dinero libre para invertir</b> = disponible − apartados − colchón: lo que te
+      ficha de cada producto. El <b>dinero libre para invertir</b> = disponible − reservados − colchón: lo que te
       queda de verdad para meter en inversiones.</p></div></details>
 
-    <details class="faq"><summary>¿Qué son los apartados y el colchón?</summary><div>
-      <p>Un <b>apartado</b> es dinero tuyo reservado para un fin concreto (impuestos, obras, una fianza que
+    <details class="faq"><summary>¿Qué son los reservados y el colchón?</summary><div>
+      <p>Un <b>reservado</b> es dinero tuyo apartado para un fin concreto (impuestos, obras, una fianza que
       devolverás…): no resta de tu patrimonio, pero sí del dinero libre. El <b>colchón</b> es la liquidez mínima que
-      quieres mantener siempre. Ambos se configuran en <b>Mis datos</b> (Apartados y Configuración).</p></div></details>
+      quieres mantener siempre. Ambos se configuran en <b>Mis datos</b> (Reservados y Configuración).</p></div></details>
 
     <details class="faq"><summary>Patrimonio bruto y patrimonio neto, ¿en qué se diferencian?</summary><div>
       <p><b>Bruto</b> = todo lo que tienes (activos). <b>Neto</b> = bruto − deudas. En el Panel → Patrimonio ves los dos.</p></div></details>
@@ -1587,7 +1592,7 @@ body.video .tarjetaCanal{display:none}
       <li><b>📊 Panel</b> — la foto de tu patrimonio y los análisis. Dentro tiene vistas: <i>Patrimonio,
         Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos</i> e <i>Informe fiscal</i>.
         Arriba puedes incluso ver cómo estaba tu patrimonio <i>a fin de un mes pasado</i>.</li>
-      <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, apartados, ingresos y gastos
+      <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, reservados, ingresos y gastos
         y saldos; también la configuración, importar y las copias de seguridad.</li>
       <li><b>❓ Ayuda</b> — dudas frecuentes y explicaciones (y aquí puedes volver a abrir esta presentación).</li>
       <li><b>⚙️ Ajustes</b> — cómo se ve la app: <b>tamaño del texto</b>, tema claro/oscuro, <b>vista amplia</b>,
@@ -1619,7 +1624,7 @@ body.video .tarjetaCanal{display:none}
       </div>
     </div>
     <p class="bvAviso"><b>Atención: esta acción es permanente.</b> Se borrarán <b>todos los datos</b> de este patrimonio
-      (productos, deudas, apartados, ingresos y gastos, saldos y movimientos). <b>No se puede deshacer</b>: la única
+      (productos, deudas, reservados, ingresos y gastos, saldos y movimientos). <b>No se puede deshacer</b>: la única
       forma de recuperarlos sería a partir de una copia que hayas descargado (el <i>.json</i> de «Copias de seguridad»
       o tus exportaciones/CSV).</p>
     <p>Para tu tranquilidad, al confirmar <b>se descargará primero una copia (.json)</b> de este patrimonio.</p>

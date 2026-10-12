@@ -1501,12 +1501,19 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     # Dinero libre para invertir = disponible − apartados − colchón (puede ser negativo).
     dinero_libre = round(disponible - apartados_total - colchon, 2)
 
+    # El primer titular es el "por defecto": lo que esté sin asignar cuenta bajo él al
+    # agrupar/filtrar (así no se pierde), aunque en los datos siga figurando sin titular.
+    titular_defecto = (cfg.get("titulares") or [None])[0]
+
+    def _tit(x):
+        return (str(x or "").strip()) or titular_defecto or "Sin asignar"
+
     # Patrimonio neto atribuido a cada titular (los activos suman; las deudas restan).
     tit_acc = defaultdict(float)
     for p in activos:
-        tit_acc[p.get("titular") or "Sin asignar"] += p["valor"]
+        tit_acc[_tit(p.get("titular"))] += p["valor"]
     for e in ser_pasivos:
-        tit_acc[e.get("titular") or "Sin asignar"] += e["valor"]
+        tit_acc[_tit(e.get("titular"))] += e["valor"]
     por_titular = []
     for i, (k, v) in enumerate(sorted(tit_acc.items(), key=lambda x: -x[1])):
         por_titular.append({"nombre": k, "valor": round(v, 2),
@@ -1594,7 +1601,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         clave = (fl.get("categoria") or "Sin categoría", t)
         imp = float(fl.get("importe") or 0)
         mkey = fl["fecha"][:7]
-        titular = (fl.get("titular") or "").strip() or "Sin asignar"
+        titular = _tit(fl.get("titular"))
         if mkey in meses_ig:
             cat12[clave] += imp
             cat_serie[clave][idx_mes[mkey]] += imp
@@ -1812,6 +1819,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "fiscal": detalle_fiscal(cfg),
         "titular": cfg.get("titular", "Mi patrimonio"),
         "titulares": cfg.get("titulares", []) or [],
+        "titularDefecto": titular_defecto,
         "categorias": [{"nombre": c.get("nombre"), "tipo": c.get("tipo")} for c in cats_cfg if c.get("nombre")],
         "recurrentes": (cfg.get("config") or {}).get("recurrentes", []) or [],
         "dimensiones": (cfg.get("config") or {}).get("dimensiones", []) or [],
@@ -1824,7 +1832,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "flujosLista": [{"fecha": f["fecha"], "tipo": f.get("tipo"),
                          "importe": round(float(f.get("importe") or 0), 2),
                          "categoria": f.get("categoria") or "Sin categoría",
-                         "titular": (f.get("titular") or "").strip()}
+                         "titular": _tit(f.get("titular"))}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
         "asignacion": asignacion,
         "concentracionEntidad": concentracion_entidad,

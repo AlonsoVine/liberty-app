@@ -158,9 +158,12 @@ def test_motor_desglose_por_titular(tmp_path):
     }
     d = motor.construir(cartera, str(tmp_path), descargar=False)
     pt = {x["titular"]: x for x in d["flujos"]["porTitular"]}
-    assert pt["Yo"]["total12"] == {"ingresos": 2000.0, "gastos": 500.0, "ahorro": 1500.0}
+    # Lo que está sin titular (f4) cuenta bajo el titular por defecto (el 1º: «Yo»),
+    # así no se pierde al filtrar: Yo = 500 (f2) + 100 (f4) = 600 de gastos.
+    assert pt["Yo"]["total12"] == {"ingresos": 2000.0, "gastos": 600.0, "ahorro": 1400.0}
     assert pt["Novia"]["total12"]["gastos"] == 300.0
-    assert pt["Sin asignar"]["total12"]["gastos"] == 100.0
+    assert "Sin asignar" not in pt   # ya no hay bucket huérfano
+    assert d["titularDefecto"] == "Yo"
 
 
 def test_motor_sin_flujos_deja_flujos_none(tmp_path):
