@@ -723,7 +723,9 @@ def api_copia_descargar():
         return jsonify(ok=False, errores=["Todavía no tienes una cartera propia que guardar."]), 400
     with open(os.path.join(carpeta(), "cartera.json"), "rb") as f:
         contenido = f.read()
-    nombre = f"copia_patrimonio_{dt.date.today().isoformat()}.json"
+    # Nombre del archivo: "copia_patrimonio_<nombre>_<fecha>.json" (el nombre, saneado a ASCII).
+    slug = almacen.slug(cartera().get("titular") or "patrimonio", set())
+    nombre = f"copia_patrimonio_{slug}_{dt.date.today().isoformat()}.json"
     return Response(contenido, mimetype="application/json",
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
 

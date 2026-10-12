@@ -1720,23 +1720,30 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             return
         alertas.append({"texto": txt, "n": n, "nivel": nivel, "pv": pv, "clave": clave})
 
+    def _nombres(xs, maxn=5):
+        # Lista legible de nombres: hasta 'maxn' y luego «y N más».
+        xs = [str(x) for x in xs if x]
+        if len(xs) <= maxn:
+            return ", ".join(xs)
+        return ", ".join(xs[:maxn]) + f" y {len(xs) - maxn} más"
+
     if objetivos and abs(suma_obj - 1.0) > 1e-6:
-        _al("Los objetivos de asignación no suman 100 %.", 1, pv="distribucion", clave="objetivos-suma")
-    nct = sum(1 for a in asignacion if a["concentracion"])
-    if nct:
-        _al("Tipos de activo por encima del umbral de concentración.", nct, pv="distribucion", clave="concentracion-tipo")
-    nce = sum(1 for e in concentracion_entidad if e["concentracion"])
-    if nce:
-        _al("Entidades por encima del umbral de concentración.", nce, pv="distribucion", clave="concentracion-entidad")
-    nfo = sum(1 for a in asignacion if a["estado"] in ("Sobreponderado", "Infraponderado"))
-    if nfo:
-        _al("Tipos de activo fuera del objetivo (más allá de la desviación máxima).", nfo, pv="distribucion", clave="fuera-objetivo")
-    nven = sum(1 for v in vencimientos if v["estado"] == "Vencido")
-    if nven:
-        _al("Fechas ya vencidas: revísalas y, si procede, da de baja.", nven, pv="deudas", clave="vencidos")
-    nprox = sum(1 for v in vencimientos if v["estado"] == "Próximo")
-    if nprox:
-        _al("Vencimientos dentro del plazo de aviso.", nprox, "info", pv="deudas", clave="proximos")
+        _al(f"Los objetivos de asignación no suman 100 % (suman {suma_obj * 100:.0f} %).", 1, pv="distribucion", clave="objetivos-suma")
+    conc_tipos = [a["tipo"] for a in asignacion if a["concentracion"]]
+    if conc_tipos:
+        _al(f"Por encima del umbral de concentración: {_nombres(conc_tipos)}.", len(conc_tipos), pv="distribucion", clave="concentracion-tipo")
+    conc_ents = [e["entidad"] for e in concentracion_entidad if e["concentracion"]]
+    if conc_ents:
+        _al(f"Entidades por encima del umbral de concentración: {_nombres(conc_ents)}.", len(conc_ents), pv="distribucion", clave="concentracion-entidad")
+    fuera = [a["tipo"] for a in asignacion if a["estado"] in ("Sobreponderado", "Infraponderado")]
+    if fuera:
+        _al(f"Fuera de tu objetivo (más de la desviación máxima): {_nombres(fuera)}.", len(fuera), pv="distribucion", clave="fuera-objetivo")
+    venc = [v["nombre"] for v in vencimientos if v["estado"] == "Vencido"]
+    if venc:
+        _al(f"Fechas ya vencidas ({_nombres(venc)}): revísalas y, si procede, da de baja.", len(venc), pv="deudas", clave="vencidos")
+    prox = [v["nombre"] for v in vencimientos if v["estado"] == "Próximo"]
+    if prox:
+        _al(f"Vencimientos dentro del plazo de aviso: {_nombres(prox)}.", len(prox), "info", pv="deudas", clave="proximos")
     if dinero_libre < 0:
         _al("Dinero libre para invertir negativo (apartados + colchón superan lo disponible).", 1, pv="patrimonio", clave="dinero-libre")
     if monedas_faltan:

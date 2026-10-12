@@ -2141,18 +2141,39 @@
   }
 
   /* ---------------------------------------------- avisos y pie */
+  // Versión de la app en el pie, con el estado de actualización si está activado.
+  let VERINFO = null;
+  function pintaPieVersion() {
+    const el = $("#pieVersion");
+    if (!el || !VERINFO) return;
+    let estado = "";
+    if (VERINFO.hayNueva) {
+      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="${esc(VERINFO.descarga || VERINFO.repo)}" target="_blank" rel="noopener">descargar</a></span>`;
+    } else if (VERINFO.desactivado) {
+      estado = ` · <span class="subt">comprobación de versiones desactivada</span>`;
+    } else if (VERINFO.ultima) {
+      estado = ` · <span class="pieAlDia">✓ al día</span>`;
+    }
+    el.innerHTML = `<b>Liberty v${esc(VERINFO.actual || "?")}</b>${estado}`;
+  }
+  (function cargaVersion() {
+    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); }).catch(() => { /* sin red: nada */ });
+  })();
+
   function pintaComun() {
     $("#avisos").innerHTML = (D.avisos || [])
       .map(a => `<div class="av"><span>⚠</span><span>${esc(a)}</span></div>`).join("");
     const pa = D.preciosActualizados;
     const fuentes = [...new Set(D.productos.map(p => p.fuentePrecio).filter(Boolean))];
     $("#pie").innerHTML =
-      `${pa ? `Precios actualizados el ${G.fmtFecha(pa.slice(0, 10))} a las ${pa.slice(11, 16)}` : "Precios sin actualizar"} ·
+      `<div id="pieVersion" class="pieVer"></div>
+       ${pa ? `Precios actualizados el ${G.fmtFecha(pa.slice(0, 10))} a las ${pa.slice(11, 16)}` : "Precios sin actualizar"} ·
        datos valorados a ${G.fmtFecha(D.fechaExtracto)} ·
        ${D.total.diasInvertido} días invertido.<br>
        Fuentes de precios: ${fuentes.join(", ") || "ninguna"}. En «Panel → Distribución» pulsa un producto para ver su ficha.<br>
        <b>Aviso:</b> herramienta informativa. No es asesoramiento financiero ni una recomendación de compra o venta.
        Los precios vienen de servicios públicos gratuitos y pueden tener errores o retrasos: no se garantiza su exactitud.`;
+    pintaPieVersion();
     // Los créditos viven al final de «Ayuda». En la web exportada (que no incluye
     // «Ayuda») se mantiene la atribución en el pie para no perderla al compartir.
     if (window.ESTATICO) {
@@ -2308,7 +2329,7 @@
             const blob = await r.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = "copia_" + nombre + ".json";
+            a.href = url; a.download = "copia_patrimonio_" + nombre.replace(/[^\w]+/g, "_") + "_" + new Date().toISOString().slice(0, 10) + ".json";
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 4000);
           }

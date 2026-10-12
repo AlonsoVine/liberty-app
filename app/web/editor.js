@@ -1571,18 +1571,31 @@
     const inp = $("#imArchivos"), fallo = $("#copFallo");
     fallo.hidden = true;
     if (!inp.files.length) { fallo.textContent = "Elige primero el archivo de la copia."; fallo.hidden = false; return; }
-    const fd = new FormData();
-    fd.append("archivo", inp.files[0]);
     if (destino === "nuevo") {
       const nombre = (prompt("Nombre del nuevo patrimonio (déjalo vacío para usar el de la copia):") || "").trim();
-      fd.append("destino", "nuevo");
-      if (nombre) fd.append("nombre", nombre);
-    } else {
-      if (E.modo === "propio" && !confirm("Esto SUSTITUYE el patrimonio que tienes abierto por el de la copia.\n\nEl actual se guarda antes en «Copias automáticas», así que podrás volver atrás. ¿Seguir?")) return;
+      return enviaCopia("nuevo", nombre);
     }
+    if (E.modo !== "propio") return enviaCopia("sustituir");
+    // Sustituir: modal de confirmación que NOMBRA el patrimonio que se va a reemplazar.
+    abreModal("Sustituir patrimonio", `
+      <p>Vas a <b>sustituir</b> por completo el patrimonio <b>«${esc(E.cfg.titular || "Mi patrimonio")}»</b> por el de la copia que has elegido.</p>
+      <p class="ayuda">El patrimonio actual se guarda antes en <b>«Copias automáticas»</b> (abajo), así que podrás volver atrás si te arrepientes.</p>`,
+    async () => { await enviaCopia("sustituir"); }, "Sustituir este patrimonio");
+  }
+
+  async function enviaCopia(destino, nombre) {
+    const inp = $("#imArchivos");
+    const fd = new FormData();
+    fd.append("archivo", inp.files[0]);
+    if (destino === "nuevo") { fd.append("destino", "nuevo"); if (nombre) fd.append("nombre", nombre); }
     const r = await fetch("api/copia/subir", { method: "POST", body: fd });
     const j = await r.json().catch(() => ({}));
-    if (!r.ok || !j.ok) { fallo.textContent = (j.errores || ["No he podido leer la copia."]).join("\n"); fallo.hidden = false; return; }
+    if (!r.ok || !j.ok) {
+      const msg = (j.errores || ["No he podido leer la copia."]).join("\n");
+      const fallo = $("#copFallo");
+      if (fallo) { fallo.textContent = msg; fallo.hidden = false; }
+      throw new Error(msg);   // si venimos de un modal, lo muestra ahí también
+    }
     recuerda.guarda("patrimonio.tab", "datos");
     recuerda.guarda("patrimonio.editor", "activos");
     location.reload();
