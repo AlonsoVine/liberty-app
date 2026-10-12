@@ -50,6 +50,16 @@ PALETA = {
     14: ("#a21caf", "#c026d3"),  # fucsia
     15: ("#d97706", "#f59e0b"),  # ámbar
     16: ("#4f46e5", "#6366f1"),  # índigo
+    # Ampliación complementaria: más tonos bien separados para que activos, deudas,
+    # apartados y demás se distingan aunque haya muchos.
+    17: ("#65a30d", "#a3e635"),  # lima
+    18: ("#e11d48", "#fb7185"),  # rosa coral
+    19: ("#0284c7", "#38bdf8"),  # celeste
+    20: ("#7e22ce", "#c084fc"),  # púrpura
+    21: ("#475569", "#94a3b8"),  # pizarra
+    22: ("#047857", "#34d399"),  # esmeralda
+    23: ("#be185d", "#f472b6"),  # frambuesa
+    24: ("#a16207", "#eab308"),  # mostaza
 }
 
 AVISOS = []
@@ -440,6 +450,35 @@ FUENTES = {"morningstar": "Morningstar", "yahoo": "Yahoo Finance",
            "coingecko": "CoinGecko", "manual": "Valor anotado a mano"}
 ORDEN_TIPO = {"compra": 0, "comision": 1, "dividendo": 2, "venta": 3}
 
+
+# -- Tipos de activo: los de base (TIPOS) más los que cree el usuario -----------
+# El usuario puede AÑADIR tipos propios (config.tipos: [{id, nombre}]) y OCULTAR
+# los de base que no use (config.tiposOcultos: [id]). Los personalizados se tratan
+# como activos de valor «a mano» (como «Inmueble» u «Otro»): su clase por defecto
+# es su propio nombre y se siguen con los saldos anotados.
+def tipos_personalizados(cfg):
+    out = {}
+    for t in ((cfg.get("config") or {}).get("tipos") or []):
+        tid, nom = (t or {}).get("id"), (t or {}).get("nombre")
+        if tid and nom and tid not in TIPOS:
+            out[tid] = nom
+    return out
+
+
+def tipos_todos(cfg):
+    """Mapa clave->nombre de TODOS los tipos válidos (base + propios). Para validar
+    y para resolver el nombre de un producto, sin ocultar ninguno."""
+    return {**TIPOS, **tipos_personalizados(cfg)}
+
+
+def tipos_visibles(cfg):
+    """Tipos para los selectores: los de base que no estén ocultos, más los propios.
+    Conserva el orden (primero los de base, luego los del usuario)."""
+    ocultos = set(((cfg.get("config") or {}).get("tiposOcultos")) or [])
+    out = {k: v for k, v in TIPOS.items() if k not in ocultos}
+    out.update(tipos_personalizados(cfg))
+    return out
+
 # Carteras de referencia para «¿y si lo hubieras metido en un indexado?». Son ETF
 # reales que cotizan en euros; las piezas son (ticker de Yahoo, peso).
 REFERENCIAS = {
@@ -680,6 +719,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     SOLO_FALTAN = descargar == "faltan"
     AVISOS.clear()
     _COTIZACIONES.clear()
+    TT = tipos_todos(cfg)   # tipos válidos: los de base + los que haya creado el usuario
 
     # Meses con datos (siempre la lista completa, aunque luego acotemos con «hasta»).
     meses_disp = sorted({str(x.get("fecha"))[:7]
@@ -753,10 +793,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     productos, otros, pasivos, primera = [], [], [], None
 
     for p in productos_cfg:
-        clave = p.get("tipo") if p.get("tipo") in TIPOS else "otro"
+        clave = p.get("tipo") if p.get("tipo") in TT else "otro"
         p["tipoClave"] = clave
-        p["tipo"] = p.get("tipoDetalle") or TIPOS[clave]
-        p.setdefault("clase", CLASE_DEFECTO[clave])
+        p["tipo"] = p.get("tipoDetalle") or TT[clave]
+        p.setdefault("clase", CLASE_DEFECTO.get(clave) or TT[clave])
         p.setdefault("categorias", {})   # dimensiones de clasificación del usuario
         p["fuentePrecio"] = FUENTES.get(p["fuente"], p["fuente"])
         etq = ETIQUETAS.get(clave, ("Precio", "Unidades", "El precio"))
@@ -1445,13 +1485,15 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     for i, (k, v) in enumerate(sorted(tit_acc.items(), key=lambda x: -x[1])):
         por_titular.append({"nombre": k, "valor": round(v, 2),
                             "peso": r4(v / neto) if neto else 0,
-                            "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                            "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     apartados_out = [{"id": a.get("id"), "nombre": a.get("nombre"),
                       "finalidad": a.get("finalidad", ""), "titular": a.get("titular", ""),
                       "importe": round(float(a.get("importe") or 0), 2),
-                      "fechaPrevista": a.get("fechaPrevista", "")}
-                     for a in apartados_cfg]
+                      "fechaPrevista": a.get("fechaPrevista", ""),
+                      "slot": a.get("slot"),
+                      "color": PALETA.get(a.get("slot") or (i % len(PALETA) + 1), PALETA[8])}
+                     for i, a in enumerate(apartados_cfg)]
 
     # ---- deudas (F2): detalle por deuda, cuota total, intereses y ratio ----
     # El capital pendiente es el último saldo anotado (ser_pasivos llega en negativo).
@@ -1594,11 +1636,11 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             estado = "OK" if abs(desv) <= desv_max else ("Sobreponderado" if desv > 0 else "Infraponderado")
             # Rebalanceo: euros que faltan (+) o sobran (-) para llegar al objetivo.
             ajuste = round(obj * bruto - val, 2)
-        asignacion.append({"tipoClave": clave, "tipo": TIPOS.get(clave, clave),
+        asignacion.append({"tipoClave": clave, "tipo": TT.get(clave, clave),
                            "valor": round(val, 2), "peso": r4(peso), "objetivo": obj,
                            "desviacion": r4(desv) if desv is not None else None,
                            "ajuste": ajuste, "estado": estado, "concentracion": peso > umbral,
-                           "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                           "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     val_por_ent = defaultdict(float)
     for p in activos:
@@ -1608,7 +1650,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         peso = v / bruto if bruto else 0
         concentracion_entidad.append({"entidad": k, "valor": round(v, 2), "peso": r4(peso),
                                       "concentracion": peso > umbral,
-                                      "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                                      "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     vencimientos = []
 
