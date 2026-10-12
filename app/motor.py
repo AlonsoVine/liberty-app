@@ -479,6 +479,32 @@ def tipos_visibles(cfg):
     out.update(tipos_personalizados(cfg))
     return out
 
+
+# Catálogo de TODOS los avisos automáticos que vigila la app. El usuario puede
+# desactivar cualquiera (config.avisosOff), y así saber de qué le avisa y de qué no.
+# 'umbral' nombra el parámetro de Configuración que ajusta cuándo salta (o None).
+AVISOS_CATALOGO = [
+    {"clave": "objetivos-suma", "nombre": "Objetivos de asignación incompletos",
+     "desc": "Avisa si tus objetivos por tipo no suman 100 %.", "pv": "distribucion", "umbral": None},
+    {"clave": "concentracion-tipo", "nombre": "Concentración por tipo",
+     "desc": "Avisa si un tipo de activo pesa más del umbral de concentración.", "pv": "distribucion", "umbral": "umbralConcentracion"},
+    {"clave": "concentracion-entidad", "nombre": "Concentración por entidad",
+     "desc": "Avisa si una entidad (banco o bróker) concentra demasiado patrimonio.", "pv": "distribucion", "umbral": "umbralConcentracion"},
+    {"clave": "fuera-objetivo", "nombre": "Desviación del objetivo",
+     "desc": "Avisa si un tipo se aleja de su objetivo más de la desviación máxima.", "pv": "distribucion", "umbral": "desviacionMax"},
+    {"clave": "vencidos", "nombre": "Fechas ya vencidas",
+     "desc": "Avisa de revisiones, renovaciones o vencimientos que ya han pasado.", "pv": "deudas", "umbral": None},
+    {"clave": "proximos", "nombre": "Vencimientos próximos",
+     "desc": "Avisa de fechas que vencen dentro del plazo de aviso.", "pv": "deudas", "umbral": "diasAviso"},
+    {"clave": "dinero-libre", "nombre": "Dinero libre negativo",
+     "desc": "Avisa si los apartados y el colchón superan lo que tienes disponible.", "pv": "patrimonio", "umbral": None},
+    {"clave": "monedas-sin-cambio", "nombre": "Monedas sin tipo de cambio",
+     "desc": "Avisa si tienes productos en otra divisa sin tipo de cambio configurado.", "pv": "distribucion", "umbral": None},
+    {"clave": "sin-anotar", "nombre": "Hace mucho que no anotas",
+     "desc": "Avisa si pasan muchos días sin anotar saldos, movimientos o gastos.", "pv": None, "umbral": "diasSinAnotar"},
+]
+AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
+
 # Carteras de referencia para «¿y si lo hubieras metido en un indexado?». Son ETF
 # reales que cotizan en euros; las piezas son (ticker de Yahoo, peso).
 REFERENCIAS = {
@@ -1685,33 +1711,37 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     vencimientos.sort(key=lambda x: x["fecha"])
 
     alertas = []
+    avisos_off = set((cfg.get("config") or {}).get("avisosOff") or [])
 
-    def _al(txt, n, nivel="aviso", pv=None):
+    def _al(txt, n, nivel="aviso", pv=None, clave=None):
         # pv = sub-pestaña del Panel a la que lleva la alerta al pulsarla (o None).
-        alertas.append({"texto": txt, "n": n, "nivel": nivel, "pv": pv})
+        # Si el usuario ha desactivado este aviso (config.avisosOff), no se genera.
+        if clave and clave in avisos_off:
+            return
+        alertas.append({"texto": txt, "n": n, "nivel": nivel, "pv": pv, "clave": clave})
 
     if objetivos and abs(suma_obj - 1.0) > 1e-6:
-        _al("Los objetivos de asignación no suman 100 %.", 1, pv="distribucion")
+        _al("Los objetivos de asignación no suman 100 %.", 1, pv="distribucion", clave="objetivos-suma")
     nct = sum(1 for a in asignacion if a["concentracion"])
     if nct:
-        _al("Tipos de activo por encima del umbral de concentración.", nct, pv="distribucion")
+        _al("Tipos de activo por encima del umbral de concentración.", nct, pv="distribucion", clave="concentracion-tipo")
     nce = sum(1 for e in concentracion_entidad if e["concentracion"])
     if nce:
-        _al("Entidades por encima del umbral de concentración.", nce, pv="distribucion")
+        _al("Entidades por encima del umbral de concentración.", nce, pv="distribucion", clave="concentracion-entidad")
     nfo = sum(1 for a in asignacion if a["estado"] in ("Sobreponderado", "Infraponderado"))
     if nfo:
-        _al("Tipos de activo fuera del objetivo (más allá de la desviación máxima).", nfo, pv="distribucion")
+        _al("Tipos de activo fuera del objetivo (más allá de la desviación máxima).", nfo, pv="distribucion", clave="fuera-objetivo")
     nven = sum(1 for v in vencimientos if v["estado"] == "Vencido")
     if nven:
-        _al("Fechas ya vencidas: revísalas y, si procede, da de baja.", nven, pv="deudas")
+        _al("Fechas ya vencidas: revísalas y, si procede, da de baja.", nven, pv="deudas", clave="vencidos")
     nprox = sum(1 for v in vencimientos if v["estado"] == "Próximo")
     if nprox:
-        _al("Vencimientos dentro del plazo de aviso.", nprox, "info", pv="deudas")
+        _al("Vencimientos dentro del plazo de aviso.", nprox, "info", pv="deudas", clave="proximos")
     if dinero_libre < 0:
-        _al("Dinero libre para invertir negativo (apartados + colchón superan lo disponible).", 1, pv="patrimonio")
+        _al("Dinero libre para invertir negativo (apartados + colchón superan lo disponible).", 1, pv="patrimonio", clave="dinero-libre")
     if monedas_faltan:
         _al("Monedas sin tipo de cambio configurado (se toman en euros): "
-            + ", ".join(sorted(monedas_faltan)) + ".", len(monedas_faltan), pv="distribucion")
+            + ", ".join(sorted(monedas_faltan)) + ".", len(monedas_faltan), pv="distribucion", clave="monedas-sin-cambio")
     # Recordatorio (B3): hace mucho que no anotas nada. Umbral configurable.
     # No tiene sentido en la vista «a fin de un mes pasado» (daría cifras absurdas).
     _ds = (cfg.get("config") or {}).get("diasSinAnotar")
@@ -1726,7 +1756,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         except ValueError:
             dias = 0
         if dias > dias_sin:
-            _al(f"Hace {dias} días que no anotas nada (saldos, movimientos o gastos).", 1, "info")
+            _al(f"Hace {dias} días que no anotas nada (saldos, movimientos o gastos).", 1, "info", clave="sin-anotar")
 
     control = {"umbral": r4(umbral), "desviacionMax": r4(desv_max), "diasAviso": dias_aviso,
                "sumaObjetivos": r4(suma_obj)}
@@ -1793,6 +1823,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "concentracionEntidad": concentracion_entidad,
         "vencimientos": vencimientos,
         "alertas": alertas,
+        "avisosCatalogo": AVISOS_CATALOGO,
+        "avisosOff": sorted(avisos_off),
         "control": control,
         "monedas": monedas_cfg,
         "moneda": cfg.get("moneda", "EUR"),
