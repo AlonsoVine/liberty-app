@@ -142,20 +142,33 @@
     const series = cfg.series.filter(s => s.valores.some(v => v));
     if (!n || !series.length) { cont.innerHTML = '<p class="vacio">Sin datos en este rango.</p>'; return; }
 
-    // acumulados
-    const acum = [];
+    // Apilado CON SIGNO: las series positivas (activos) se apilan hacia ARRIBA desde
+    // el 0 y las negativas (p. ej. deudas) hacia ABAJO. Así los valores por debajo de
+    // cero se representan bien en lugar de salirse del gráfico.
+    const signo = series.map(s => s.valores.reduce((a, b) => a + (b || 0), 0) < 0 ? -1 : 1);
+    const arribaA = [], abajoA = [];
+    const runPos = new Array(n).fill(0), runNeg = new Array(n).fill(0);
     for (let s = 0; s < series.length; s++) {
-      const prev = s === 0 ? new Array(n).fill(0) : acum[s - 1];
-      acum.push(series[s].valores.map((v, i) => prev[i] + (v || 0)));
+      const v = series[s].valores, ab = new Array(n), ar = new Array(n);
+      for (let i = 0; i < n; i++) {
+        const val = v[i] || 0;
+        if (val >= 0) { ab[i] = runPos[i]; runPos[i] += val; ar[i] = runPos[i]; }
+        else { ar[i] = runNeg[i]; runNeg[i] += val; ab[i] = runNeg[i]; }
+      }
+      abajoA.push(ab); arribaA.push(ar);
     }
-    const totales = acum[acum.length - 1];
-    let maxV = Math.max(...totales);
-    if (cfg.overlay) maxV = Math.max(maxV, ...cfg.overlay.valores.filter(v => v != null));
-    // Un apilado al 100% tiene que rematar justo en 100, no en el siguiente
-    // escalon "bonito".
+    const acum = arribaA;                                   // borde de cada banda (para los puntos)
+    const totales = runPos.map((p, i) => p + runNeg[i]);    // neto en cada punto
+    let maxV = Math.max(0, ...runPos), minV = Math.min(0, ...runNeg);
+    if (cfg.overlay) {
+      const ov = cfg.overlay.valores.filter(v => v != null);
+      if (ov.length) { maxV = Math.max(maxV, ...ov); minV = Math.min(minV, ...ov); }
+    }
+    // Un apilado al 100% remata justo en 100; si no, escala "bonita" que incluye los
+    // negativos (minV) cuando los hay.
     const esc = cfg.maxForzado
       ? { min: 0, max: cfg.maxForzado, paso: cfg.maxForzado / 4 }
-      : escalaBonita(maxV, 0);
+      : escalaBonita(maxV, minV);
 
     const x = i => P.l + (n === 1 ? iw / 2 : i * iw / (n - 1));
     const y = v => P.t + ih - ((v - esc.min) / (esc.max - esc.min)) * ih;
@@ -169,9 +182,11 @@
       svg.appendChild(el("line", { x1: P.l, x2: W - P.r, y1: y(v), y2: y(v), class: "rejilla" }));
       svg.appendChild(txt(P.l - 8, y(v) + 4, fY(v), "ejeY"));
     }
-    // areas
+    // línea del cero marcada cuando hay negativos (deudas por debajo)
+    if (esc.min < 0) svg.appendChild(el("line", { x1: P.l, x2: W - P.r, y1: y(0), y2: y(0), class: "ejeCero" }));
+    // areas (cada banda de su borde inferior a su borde superior)
     for (let s = series.length - 1; s >= 0; s--) {
-      const arriba = acum[s], abajo = s === 0 ? new Array(n).fill(0) : acum[s - 1];
+      const arriba = arribaA[s], abajo = abajoA[s];
       let dd = "";
       for (let i = 0; i < n; i++) dd += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(arriba[i]).toFixed(1) + " ";
       for (let i = n - 1; i >= 0; i--) dd += "L" + x(i).toFixed(1) + " " + y(abajo[i]).toFixed(1) + " ";
@@ -179,12 +194,16 @@
       // fondo y le da una estética más ligera, conservando el color de cada serie.
       svg.appendChild(el("path", { d: dd + "Z", fill: series[s].color, "fill-opacity": 0.5 }));
     }
-    // separadores de 2px del color del fondo
-    for (let s = 0; s < series.length - 1; s++) {
+    // separadores de 2px del color del fondo, entre bandas del mismo lado
+    const sepLinea = niveles => {
       let dd = "";
-      for (let i = 0; i < n; i++) dd += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(acum[s][i]).toFixed(1) + " ";
+      for (let i = 0; i < n; i++) dd += (i ? "L" : "M") + x(i).toFixed(1) + " " + y(niveles[i]).toFixed(1) + " ";
       svg.appendChild(el("path", { d: dd, fill: "none", class: "separador" }));
-    }
+    };
+    const idxPos = [], idxNeg = [];
+    series.forEach((_, i) => (signo[i] < 0 ? idxNeg : idxPos).push(i));
+    idxPos.slice(0, -1).forEach(s => sepLinea(arribaA[s]));
+    idxNeg.slice(0, -1).forEach(s => sepLinea(abajoA[s]));
     // linea de aportado
     if (cfg.overlay) {
       let dd = "", abierto = false;

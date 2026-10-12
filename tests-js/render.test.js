@@ -219,4 +219,12 @@ test("las funciones de gráfico dibujan un SVG sin lanzar", () => {
   assert.ok(d.querySelector("svg"), "areaApilada debería dibujar un SVG");
   d = div(); G.donut(d, { datos: [{ nombre: "A", valor: 3, color: "#2a78d6" }, { nombre: "B", valor: 1, color: "#eb6834" }], alto: 200 });
   assert.ok(d.querySelector("svg"), "donut debería dibujar un SVG");
+
+  // Área apilada CON una serie negativa (deuda): no debe romperse y debe pintar la
+  // línea del cero, con la banda negativa por debajo del eje.
+  const conDeuda = [{ nombre: "Activo", color: "#2a78d6", valores: [100, 120, 140] },
+                    { nombre: "Deuda", color: "#e34948", valores: [-40, -35, -30] }];
+  d = div(); G.areaApilada(d, { fechas, series: conDeuda, alto: 200, overlay: { nombre: "Aportado", valores: [80, 90, 100] } });
+  assert.ok(d.querySelector("svg"), "areaApilada con negativos debería dibujar un SVG");
+  assert.ok(d.querySelector(".ejeCero"), "con negativos debería pintar la línea del cero");
 });

@@ -388,6 +388,12 @@ def api_config():
 
 @app.post("/api/repartir-colores")
 def api_repartir_colores():
+    # Con {"que": "apartados"} reparte colores entre los reservados; por defecto,
+    # entre los productos (activos, cuentas y deudas), dando los colores más fáciles
+    # de distinguir a los de mayor valor.
+    que = (request.get_json(silent=True) or {}).get("que")
+    if que == "apartados":
+        return cambia(lambda cfg: almacen.reparte_colores_apartados(cfg))
     calc = lee_json(ruta_calculado()) or {}
     grandes = [p["id"] for p in sorted(calc.get("productos", []) + calc.get("otrosActivos", []),
                                        key=lambda p: -(p.get("valor") or 0))]

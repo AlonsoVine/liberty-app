@@ -8,6 +8,7 @@
   const $ = s => document.querySelector(s);
   const D = window.DATOS;
   const SOLO_SALDO = ["efectivo", "deuda"];
+  const NCOLORES = 24;   // tantos como colores hay en la paleta (var --s1…--s24)
   const E = { cfg: null, modo: "demo", tipos: {}, fuentes: {}, tiposMov: {}, vista: "activos", filtro: "todos", tablas: {} };
 
   /* ---------------------------------------------- utilidades */
@@ -405,7 +406,8 @@
     const filas = lista.map(filaProducto).join("");
     return `<section class="tarjeta"><header><h2>Deudas</h2>
         <span class="subt">Préstamos, hipoteca, tarjetas… El capital pendiente lo anotas cada mes en «Saldos y movimientos».</span>
-        <span class="sp"></span><button class="btn prim" data-acc="nuevaDeuda">+ Añadir deuda</button></header>
+        <span class="sp"></span>${lista.length > 1 ? '<button class="btn" data-acc="repartirColores" title="Da a cada elemento un color distinto">Repartir colores</button>' : ""}
+        <button class="btn prim" data-acc="nuevaDeuda">+ Añadir deuda</button></header>
       ${filas ? envTabla("deudas", `<tr><th>Deuda</th><th>Tipo</th><th>Último saldo</th>
         <th>Fuente</th><th>Datos</th><th class="nosort"></th></tr>`, filas)
         : '<p class="subt">No tienes deudas registradas.</p>'}</section>`;
@@ -415,13 +417,16 @@
     return vistaMovimientos() + vistaSaldos();
   }
 
-  function siguienteColor() {
-    const usos = Array(17).fill(0);
-    E.cfg.productos.forEach(p => { usos[p.slot || 1]++; });
+  function siguienteColor(lista) {
+    const usos = Array(NCOLORES + 1).fill(0);
+    (lista || E.cfg.productos).forEach(p => { usos[p.slot || 1]++; });
     let mejor = 1;
-    for (let i = 1; i <= 16; i++) if (usos[i] < usos[mejor]) mejor = i;
+    for (let i = 1; i <= NCOLORES; i++) if (usos[i] < usos[mejor]) mejor = i;
     return mejor;
   }
+  // Rejilla de radios de color reutilizable (ficha de activo y de apartado).
+  const rejillaColores = () => Array.from({ length: NCOLORES }, (_, i) =>
+    `<label class="color" style="--c:var(--s${i + 1})" title="Color ${i + 1}"><input type="radio" name="slot" value="${i + 1}"><i></i></label>`).join("");
 
   /* Piezas de formulario: todas las cajas iguales, con su etiqueta encima. */
   const campo = (et, control, pista = "", clase = "") =>
@@ -450,8 +455,7 @@
           "opcional")).join("")}
       </div>
       <p class="ayuda">Ejes para agrupar y filtrar el panel (Distribución, Reparto %, Estructura). Los defines en <b>Configuración → Dimensiones</b>.</p>` : "";
-    const colores = Array.from({ length: 16 }, (_, i) =>
-      `<label class="color" style="--c:var(--s${i + 1})" title="Color ${i + 1}"><input type="radio" name="slot" value="${i + 1}"><i></i></label>`).join("");
+    const colores = rejillaColores();
     const esDeuda = (tipoInicial === "deuda" || p.tipo === "deuda");
     const tituloNuevo = esDeuda ? "Añadir deuda" : "Añadir activo";
     const f = abreModal(nuevo ? tituloNuevo : "Editar " + esc(nombre(p)), `
@@ -624,13 +628,14 @@
   function vistaApartados() {
     const aps = E.cfg.apartados || [];
     const filasAp = aps.map(a => `<tr>
-      <td>${esc(a.nombre)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
+      <td><i class="pt" style="background:var(--s${a.slot || 8})"></i>${esc(a.nombre)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
       <td>${eur(a.importe || 0)}</td><td>${a.fechaPrevista ? fecha(a.fechaPrevista) : ""}</td>
       <td class="acc"><button data-acc="editarApartado" data-id="${esc(a.id)}">Editar</button>
         <button data-acc="borrarApartado" data-id="${esc(a.id)}">Borrar</button></td></tr>`).join("");
     return `<section class="tarjeta"><header><h2>Apartados</h2>
         <span class="subt">Dinero reservado para un fin (impuestos, obras, fianzas…): no resta del patrimonio, pero sí del dinero libre para invertir</span>
-        <span class="sp"></span><button class="btn prim" data-acc="nuevoApartado">+ Añadir apartado</button></header>
+        <span class="sp"></span>${aps.length > 1 ? '<button class="btn" data-acc="repartirColoresApartados" title="Da a cada apartado un color distinto">Repartir colores</button>' : ""}
+        <button class="btn prim" data-acc="nuevoApartado">+ Añadir apartado</button></header>
       ${filasAp ? envTabla("apartados", `<tr><th>Apartado</th><th>Finalidad</th><th>Titular</th>
         <th>Importe</th><th>Fecha prevista</th><th class="nosort"></th></tr>`, filasAp)
         : '<p class="subt">Todavía no has creado ningún apartado.</p>'}</section>`;
@@ -686,7 +691,7 @@
 
   function formApartado(a) {
     const nuevo = !a;
-    a = a || {};
+    a = a || { slot: siguienteColor(E.cfg.apartados || []) };
     const tits = E.cfg.titulares || [];
     const f = abreModal(nuevo ? "Añadir apartado" : "Editar " + esc(a.nombre || "apartado"), `
       ${seccion("El apartado")}
@@ -698,6 +703,7 @@
         ${campo("Importe reservado", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Fecha prevista de uso", '<input name="fechaPrevista" type="date">', "opcional")}
         ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
+        ${campo("Color", `<div class="colores">${rejillaColores()}</div>`, "", "ancho")}
       </div>`,
     async f => {
       const d = campos(f);
@@ -1619,7 +1625,16 @@
         E.cfg = j.cartera;
         window.EDITOR_SUCIO = true;
         pinta();
-        avisa(["✓ Colores repartidos: cada activo tiene ahora un color distinto. Se verá en el panel."]);
+        avisa(["✓ Colores repartidos: cada elemento tiene ahora un color distinto. Se verá en el panel."]);
+      } catch (x) { alert(x.message); }
+    }),
+    repartirColoresApartados: soloPropio(async () => {
+      try {
+        const j = await api("POST", "api/repartir-colores", { que: "apartados" });
+        E.cfg = j.cartera;
+        window.EDITOR_SUCIO = true;
+        pinta();
+        avisa(["✓ Colores repartidos entre los apartados."]);
       } catch (x) { alert(x.message); }
     }),
     imDestino(id) {

@@ -236,11 +236,20 @@ def guarda_producto(cfg, datos):
 
 def reparte_colores(cfg, orden=None):
     """Un color distinto para cada producto (los primeros de 'orden', los más grandes,
-    se quedan los colores más fáciles de distinguir). Con más de 12, se repiten."""
+    se quedan los colores más fáciles de distinguir). Con más productos que colores,
+    se repiten al dar la vuelta a la paleta."""
+    from .motor import PALETA
     ids = [p["id"] for p in cfg["productos"]]
     orden = [i for i in (orden or []) if i in ids] + [i for i in ids if i not in (orden or [])]
     for n, pid in enumerate(orden):
-        producto(cfg, pid)["slot"] = n % 16 + 1
+        producto(cfg, pid)["slot"] = n % len(PALETA) + 1
+
+
+def reparte_colores_apartados(cfg):
+    """Un color distinto para cada apartado (reservado), como en los productos."""
+    from .motor import PALETA
+    for n, a in enumerate(cfg.get("apartados", [])):
+        a["slot"] = n % len(PALETA) + 1
 
 
 def borra_producto(cfg, pid):
@@ -379,11 +388,13 @@ def guarda_apartado(cfg, datos):
     importe = numero(datos.get("importe"), "el importe reservado", errores, minimo=0)
     if errores:
         raise ErrorValidacion(errores)
+    slot = int(datos["slot"]) if str(datos.get("slot") or "").isdigit() else None
     ap = {"nombre": nombre, "importe": round(importe, 2),
           "finalidad": texto(datos.get("finalidad")),
           "titular": texto(datos.get("titular")),
           "fechaPrevista": fecha_suave(datos.get("fechaPrevista")),
-          "nota": texto(datos.get("nota"))}
+          "nota": texto(datos.get("nota")),
+          "slot": slot}
     lista = cfg.setdefault("apartados", [])
     existente = next((a for a in lista if a.get("id") == datos.get("id")), None) if datos.get("id") else None
     if existente:

@@ -50,6 +50,16 @@ PALETA = {
     14: ("#a21caf", "#c026d3"),  # fucsia
     15: ("#d97706", "#f59e0b"),  # ámbar
     16: ("#4f46e5", "#6366f1"),  # índigo
+    # Ampliación complementaria: más tonos bien separados para que activos, deudas,
+    # apartados y demás se distingan aunque haya muchos.
+    17: ("#65a30d", "#a3e635"),  # lima
+    18: ("#e11d48", "#fb7185"),  # rosa coral
+    19: ("#0284c7", "#38bdf8"),  # celeste
+    20: ("#7e22ce", "#c084fc"),  # púrpura
+    21: ("#475569", "#94a3b8"),  # pizarra
+    22: ("#047857", "#34d399"),  # esmeralda
+    23: ("#be185d", "#f472b6"),  # frambuesa
+    24: ("#a16207", "#eab308"),  # mostaza
 }
 
 AVISOS = []
@@ -1475,13 +1485,15 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     for i, (k, v) in enumerate(sorted(tit_acc.items(), key=lambda x: -x[1])):
         por_titular.append({"nombre": k, "valor": round(v, 2),
                             "peso": r4(v / neto) if neto else 0,
-                            "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                            "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     apartados_out = [{"id": a.get("id"), "nombre": a.get("nombre"),
                       "finalidad": a.get("finalidad", ""), "titular": a.get("titular", ""),
                       "importe": round(float(a.get("importe") or 0), 2),
-                      "fechaPrevista": a.get("fechaPrevista", "")}
-                     for a in apartados_cfg]
+                      "fechaPrevista": a.get("fechaPrevista", ""),
+                      "slot": a.get("slot"),
+                      "color": PALETA.get(a.get("slot") or (i % len(PALETA) + 1), PALETA[8])}
+                     for i, a in enumerate(apartados_cfg)]
 
     # ---- deudas (F2): detalle por deuda, cuota total, intereses y ratio ----
     # El capital pendiente es el último saldo anotado (ser_pasivos llega en negativo).
@@ -1628,7 +1640,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                            "valor": round(val, 2), "peso": r4(peso), "objetivo": obj,
                            "desviacion": r4(desv) if desv is not None else None,
                            "ajuste": ajuste, "estado": estado, "concentracion": peso > umbral,
-                           "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                           "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     val_por_ent = defaultdict(float)
     for p in activos:
@@ -1638,7 +1650,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         peso = v / bruto if bruto else 0
         concentracion_entidad.append({"entidad": k, "valor": round(v, 2), "peso": r4(peso),
                                       "concentracion": peso > umbral,
-                                      "color": PALETA.get(i % 12 + 1, PALETA[1])})
+                                      "color": PALETA.get(i % len(PALETA) + 1, PALETA[1])})
 
     vencimientos = []
 

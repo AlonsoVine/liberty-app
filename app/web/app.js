@@ -47,11 +47,31 @@
     const tx = pref("texto", "normal");
     document.body.classList.toggle("textoGrande", tx === "grande");
     document.body.classList.toggle("textoMuyGrande", tx === "muyGrande");
-    document.body.classList.toggle("video", pref("video", "0") === "1");
     document.body.classList.toggle("vistaAmplia", pref("amplia", "0") === "1");
     window.OCULTAR_IMPORTES = pref("ocultar", "0") === "1";
   }
   aplicaPrefs();
+
+  // Modo vídeo = pantalla completa (la vista no cambia, solo ocupa toda la pantalla,
+  // ideal para presentar o grabar). Se activa/sale con la tecla «V» o desde Ajustes.
+  const enPantallaCompleta = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
+  function alternaVideo() {
+    try {
+      if (enPantallaCompleta()) (document.exitFullscreen || document.webkitExitFullscreen).call(document);
+      else {
+        const el = document.documentElement;
+        (el.requestFullscreen || el.webkitRequestFullscreen).call(el);
+      }
+    } catch (e) { /* algunos navegadores pueden bloquearlo */ }
+  }
+  // Mantiene la clase body.video al día con el estado real (la usan otras partes,
+  // p. ej. para no mostrar avisos encima mientras grabas), sin cambiar el aspecto.
+  function sincronizaVideo() {
+    document.body.classList.toggle("video", enPantallaCompleta());
+    if (typeof pintaAjustes === "function") pintaAjustes();
+  }
+  document.addEventListener("fullscreenchange", sincronizaVideo);
+  document.addEventListener("webkitfullscreenchange", sincronizaVideo);
 
   let _repinta = null;   // se asigna a pintar() cuando hay datos; refresca al cambiar un ajuste
 
@@ -72,10 +92,11 @@
            [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
       fila("Ocultar importes", "Muestra «•••» en vez de las cantidades, para enseñar la pantalla sin revelar tu dinero.", "ocultar",
            [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
-      fila("Modo vídeo", "Cifras grandes y sin controles, para presentar o grabar.", "video",
-           [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
+      `<div class="ajusteFila"><div class="ajusteTxt"><b>Modo vídeo</b><small>Pantalla completa para presentar o grabar: la vista no cambia, solo ocupa toda la pantalla. También con la tecla V.</small></div>
+        <button class="btn" id="btnVideo">${enPantallaCompleta() ? "Salir de pantalla completa" : "Pantalla completa"}</button></div>` +
       fila("Pantalla de inicio", "Qué se abre al abrir la app.", "inicio",
            [{ v: "ultima", t: "La última que usaste" }, { v: "panel", t: "Siempre el Panel" }]);
+    const bv = $("#btnVideo"); if (bv) bv.onclick = alternaVideo;
     cont.querySelectorAll(".ajusteSeg").forEach(bar => {
       const nombre = bar.dataset.pref;
       bar.querySelectorAll("button").forEach(b => {
@@ -483,9 +504,15 @@
 
     const cortos = idsCorto();
     const todosIds = TODOS().map(p => p.id);
+    const deudaIds = (D.pasivos || []).map(p => p.id);
+    const noDeudaIds = todosIds.filter(id => !deudaIds.includes(id));
     const esLargo = cortos.length > 0 && cortos.length === estado.ocultos.size &&
       cortos.every(id => estado.ocultos.has(id));
     const esNada = todosIds.length > 0 && estado.ocultos.size >= todosIds.length;
+    const esQuitarDeudas = deudaIds.length > 0 && deudaIds.every(id => estado.ocultos.has(id)) &&
+      noDeudaIds.every(id => !estado.ocultos.has(id));
+    const esSoloDeudas = deudaIds.length > 0 && noDeudaIds.every(id => estado.ocultos.has(id)) &&
+      deudaIds.every(id => !estado.ocultos.has(id));
     [
       { id: "todo", et: "Ver todo", act: !filtrando(), ti: "Vuelve a mostrar todos los componentes",
         fn: () => { estado.ocultos.clear(); estado.titular = "todos"; estado.filtroDim = {}; } },
@@ -493,8 +520,13 @@
         fn: () => { estado.ocultos = new Set(todosIds); estado.titular = "todos"; } },
       { id: "largo", et: "Solo largo plazo", act: esLargo, ti: "Deja fuera el colchón y el efectivo: solo lo que tienes invertido a largo plazo",
         fn: () => { estado.ocultos = new Set(cortos); } },
+      { id: "quitarDeudas", et: "Quitar deudas", act: esQuitarDeudas, ti: "Oculta las deudas del gráfico: solo tus activos",
+        fn: () => { estado.ocultos = new Set(deudaIds); estado.titular = "todos"; } },
+      { id: "soloDeudas", et: "Solo deudas", act: esSoloDeudas, ti: "Muestra solo tus deudas (por debajo del cero)",
+        fn: () => { estado.ocultos = new Set(noDeudaIds); estado.titular = "todos"; } },
     ].forEach(pr => {
       if (pr.id === "largo" && !cortos.length) return;
+      if ((pr.id === "quitarDeudas" || pr.id === "soloDeudas") && !deudaIds.length) return;
       const b = document.createElement("button");
       b.className = "filtro preset";
       b.setAttribute("aria-pressed", String(pr.act));
@@ -2388,10 +2420,7 @@
     const t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
     if (e.key === "Escape" && filtrando()) { estado.ocultos.clear(); estado.titular = "todos"; estado.filtroDim = {}; pintaPatrimonio(); }
-    if (e.key === "v" && !e.metaKey && !e.ctrlKey) {
-      recuerda.guarda("patrimonio.video", document.body.classList.contains("video") ? "0" : "1");
-      aplicaPrefs(); pintaAjustes(); setTimeout(pintarTab, 60);
-    }
+    if (e.key === "v" && !e.metaKey && !e.ctrlKey) alternaVideo();
     if (e.key === "l" && !e.metaKey && !e.ctrlKey && estado.tab === "panel") {
       estado.ocultos = filtrando() ? new Set() : new Set(idsCorto());
       pintaPatrimonio();
