@@ -20,6 +20,15 @@ TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cup
 TIPOS_FLUJO = {"ingreso": "Ingreso", "gasto": "Gasto"}   # flujo de caja del hogar (F3)
 SOLO_SALDO = ("efectivo", "deuda")   # tipos que se siguen solo con saldos anotados
 
+# Marcas para apuntes de ingresos/gastos (p. ej. «a revisar»). Se puede ampliar la
+# lista desde Configuración; si no hay ninguna definida, se usa esta por defecto.
+MARCAS_DEFECTO = [{"id": "revisar", "nombre": "A revisar", "color": "#e34948"}]
+
+
+def marcas_de(cfg):
+    ms = ((cfg.get("config") or {}).get("marcas")) or []
+    return ms or MARCAS_DEFECTO
+
 CARTERA_VACIA = {
     "version": 1, "titular": "Mi patrimonio",
     "productos": [], "movimientos": [], "valoraciones": [],
@@ -384,7 +393,7 @@ def guarda_apartado(cfg, datos):
     errores = []
     nombre = texto(datos.get("nombre"))
     if not nombre:
-        errores.append("Ponle un nombre al apartado.")
+        errores.append("Ponle un nombre al reservado.")
     importe = numero(datos.get("importe"), "el importe reservado", errores, minimo=0)
     if errores:
         raise ErrorValidacion(errores)
@@ -411,7 +420,7 @@ def borra_apartado(cfg, aid):
     antes = len(cfg.get("apartados", []))
     cfg["apartados"] = [a for a in cfg.get("apartados", []) if a.get("id") != aid]
     if len(cfg["apartados"]) == antes:
-        raise ErrorValidacion(["Ese apartado ya no existe."])
+        raise ErrorValidacion(["Ese reservado ya no existe."])
 
 
 def fecha_suave(valor):
@@ -438,6 +447,30 @@ def sanea_recurrente(x):
     importe = round(importe, 2)
     return {"tipo": tipo, "importe": importe, "categoria": texto(x.get("categoria"), 40),
             "titular": texto(x.get("titular"), 40), "nota": texto(x.get("nota"), 120)}
+
+
+def sanea_dimensiones(lista, previas):
+    """Saneado común de dimensiones (para activos y para ingresos/gastos): id estable
+    derivado del nombre (reutilizado si ya existía), nombre y valores sugeridos."""
+    previo = {d.get("nombre", "").lower(): d.get("id") for d in (previas or [])}
+    dims, ids = [], set()
+    for it in (lista or [])[:8]:   # máximo razonable de ejes
+        nombre = texto((it or {}).get("nombre"), 40)
+        if not nombre:
+            continue
+        did = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "dim"
+        base, k = did, 2
+        while did in ids:
+            did, k = f"{base}-{k}", k + 1
+        ids.add(did)
+        valores, vv = [], set()
+        for v in ((it or {}).get("valores") or [])[:40]:
+            x = texto(v, 40)
+            if x and x.lower() not in vv:
+                vv.add(x.lower())
+                valores.append(x)
+        dims.append({"id": did, "nombre": nombre, "valores": valores})
+    return dims
 
 
 def guarda_config(cfg, datos):
@@ -508,6 +541,25 @@ def guarda_config(cfg, datos):
         # Tipos de BASE que el usuario no usa y prefiere no ver en los selectores.
         # Solo se ocultan (nunca se borran): los activos que los usen siguen igual.
         conf["tiposOcultos"] = [t for t in (datos.get("tiposOcultos") or []) if t in TIPOS]
+    if "marcas" in datos:
+        # Marcas para apuntes de ingresos/gastos: {id, nombre, color}. El id se deriva
+        # del nombre (estable). Si la lista queda vacía, se usará la de por defecto.
+        previo = {m.get("nombre", "").lower(): m.get("id") for m in (conf.get("marcas") or [])}
+        marcas, ids = [], set()
+        for it in (datos.get("marcas") or [])[:20]:
+            nombre = texto((it or {}).get("nombre"), 40)
+            if not nombre:
+                continue
+            mid = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "marca"
+            base, k = mid, 2
+            while mid in ids:
+                mid, k = f"{base}-{k}", k + 1
+            ids.add(mid)
+            color = texto((it or {}).get("color"), 9)
+            if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+                color = "#e34948"
+            marcas.append({"id": mid, "nombre": nombre, "color": color})
+        conf["marcas"] = marcas
     if "avisosOff" in datos:
         # Avisos automáticos que el usuario desactiva: el motor deja de generarlos.
         vistos, off = set(), []
@@ -573,28 +625,20 @@ def guarda_config(cfg, datos):
         # Dimensiones de clasificación del usuario: ejes con valor único por activo
         # (p. ej. «Clase de activo»: Renta variable / Renta fija / Liquidez). Cada
         # activo elige un valor por eje; luego se puede agrupar/filtrar por ellas.
-        previo = {d.get("nombre", "").lower(): d.get("id") for d in conf.get("dimensiones", [])}
-        dims, ids = [], set()
-        for it in (datos.get("dimensiones") or [])[:8]:   # máximo razonable de ejes
-            nombre = texto((it or {}).get("nombre"), 40)
-            if not nombre:
-                continue
-            # Id estable: se reutiliza el de una dimensión con el mismo nombre; si no,
-            # se deriva del nombre (así renombrar no rompe silenciosamente, y editar
-            # valores conserva la clasificación de los activos).
-            did = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "dim"
-            base, k = did, 2
-            while did in ids:
-                did, k = f"{base}-{k}", k + 1
-            ids.add(did)
-            valores, vv = [], set()
-            for v in ((it or {}).get("valores") or [])[:40]:
-                x = texto(v, 40)
-                if x and x.lower() not in vv:
-                    vv.add(x.lower())
-                    valores.append(x)
-            dims.append({"id": did, "nombre": nombre, "valores": valores})
-        conf["dimensiones"] = dims
+        conf["dimensiones"] = sanea_dimensiones(datos.get("dimensiones"), conf.get("dimensiones"))
+    if "dimensionesFlujos" in datos:
+        # Igual que arriba, pero para los apuntes de ingresos y gastos.
+        conf["dimensionesFlujos"] = sanea_dimensiones(datos.get("dimensionesFlujos"), conf.get("dimensionesFlujos"))
+    if "entidades" in datos:
+        # Lista maestra de entidades/bancos de los apuntes (para etiquetar al importar
+        # y poder filtrar/analizar los ingresos y gastos por banco).
+        ents, vistos = [], set()
+        for e in (datos.get("entidades") or [])[:100]:
+            nombre = texto(e, 40)
+            if nombre and nombre.lower() not in vistos:
+                vistos.add(nombre.lower())
+                ents.append(nombre)
+        conf["entidades"] = ents
     if "reglasCategoria" in datos:
         # Reglas propias para auto-categorizar la importación del banco: si el concepto
         # del movimiento contiene «palabra», se le asigna «categoria» (si existe para
@@ -646,9 +690,28 @@ def guarda_flujo(cfg, datos):
     importe = numero(datos.get("importe"), "el importe", errores, mayor_que=0)
     if errores:
         raise ErrorValidacion(errores)
+    # La marca se conserva al editar (el formulario no la manda); solo cambia si viene.
+    if "marca" in datos:
+        marca = texto(datos.get("marca"), 40)
+    else:
+        prev = next((x for x in cfg.get("flujos", []) if x.get("id") == datos.get("id")), None) if datos.get("id") else None
+        marca = (prev or {}).get("marca", "")
+    if marca and marca not in {m["id"] for m in marcas_de(cfg)}:
+        marca = ""
+    # Dimensiones de ingresos/gastos: el formulario manda un campo cat_<dimId> por eje.
+    dims_fl = {d["id"] for d in ((cfg.get("config") or {}).get("dimensionesFlujos") or [])}
+    cats = {}
+    for k, v in (datos or {}).items():
+        if isinstance(k, str) and k.startswith("cat_"):
+            did, val = k[4:], texto(v, 40)
+            if did in dims_fl and val:
+                cats[did] = val
     fl = {"fecha": f, "tipo": tipo, "importe": round(importe, 2),
           "categoria": texto(datos.get("categoria"), 40), "titular": texto(datos.get("titular")),
-          "nota": texto(datos.get("nota"))}
+          "entidad": texto(datos.get("entidad"), 40),
+          "nota": texto(datos.get("nota")), "marca": marca}
+    if cats:
+        fl["categorias"] = cats
     # Si escribes una categoría que no está en la lista maestra, se da de alta sola
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
@@ -667,8 +730,63 @@ def guarda_flujo(cfg, datos):
     return fl
 
 
+# ---------------------------------------------------------------- notas y tablero
+# Espacio libre del usuario (no afecta a las cifras): una lista de notas y un tablero
+# tipo Trello con columnas y tarjetas. Se guarda tal cual (el cliente manda el todo).
+
+def guarda_notas(cfg, notas):
+    out = []
+    for n in (notas or [])[:500]:
+        titulo = texto((n or {}).get("titulo"), 120)
+        cuerpo = texto((n or {}).get("texto"), 4000)
+        if not (titulo or cuerpo):
+            continue
+        out.append({"id": texto((n or {}).get("id"), 40) or siguiente_id(out, "n"),
+                    "titulo": titulo, "texto": cuerpo,
+                    "fecha": fecha_suave((n or {}).get("fecha")) or dt.date.today().isoformat()})
+    cfg["notas"] = out
+    return out
+
+
+def guarda_tablero(cfg, tablero):
+    tablero = tablero or {}
+    cols, cids = [], set()
+    for c in (tablero.get("columnas") or [])[:12]:
+        nombre = texto((c or {}).get("nombre"), 60) or "Columna"
+        cid = texto((c or {}).get("id"), 40) or slug(nombre, cids)
+        if cid in cids:
+            continue
+        cids.add(cid)
+        cols.append({"id": cid, "nombre": nombre})
+    tarjetas = []
+    for t in (tablero.get("tarjetas") or [])[:1000]:
+        txt = texto((t or {}).get("texto"), 2000)
+        if not txt:
+            continue
+        col = texto((t or {}).get("col"), 40)
+        if cols and col not in cids:
+            col = cols[0]["id"]
+        tarjetas.append({"id": texto((t or {}).get("id"), 40) or siguiente_id(tarjetas, "t"),
+                         "col": col, "texto": txt})
+    cfg["tablero"] = {"columnas": cols, "tarjetas": tarjetas}
+    return cfg["tablero"]
+
+
 def borra_flujo(cfg, fid):
     antes = len(cfg.get("flujos", []))
     cfg["flujos"] = [x for x in cfg.get("flujos", []) if x.get("id") != fid]
     if len(cfg["flujos"]) == antes:
         raise ErrorValidacion(["Ese apunte ya no existe."])
+
+
+def marca_flujo(cfg, fid, marca):
+    """Pone o quita la marca de un apunte (ingreso/gasto). marca vacía = sin marca."""
+    fl = next((x for x in cfg.get("flujos", []) if x.get("id") == fid), None)
+    if not fl:
+        raise ErrorValidacion(["Ese apunte ya no existe."])
+    marca = texto(marca, 40)
+    if marca and marca in {m["id"] for m in marcas_de(cfg)}:
+        fl["marca"] = marca
+    else:
+        fl.pop("marca", None)
+    return fl

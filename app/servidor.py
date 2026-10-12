@@ -314,6 +314,7 @@ def api_cartera():
     # selectores); tiposBase para que el editor sepa cuáles puede ocultar/renombrar.
     return jsonify(modo=modo(), cartera=cfg, tipos=motor.tipos_visibles(cfg),
                    tiposBase=motor.TIPOS, fuentes=motor.FUENTES, avisosCatalogo=motor.AVISOS_CATALOGO,
+                   marcas=almacen.marcas_de(cfg),
                    tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO)
 
 
@@ -332,8 +333,10 @@ AVISO_DEMO = ("Estás viendo el patrimonio de ejemplo. Pulsa «Empezar con mis d
               "para crear el tuyo y poder guardar cambios.")
 
 
-def cambia(fn):
-    """Aplica un cambio a la cartera, la guarda (con copia automática) y recalcula."""
+def cambia(fn, recalc=True):
+    """Aplica un cambio a la cartera, la guarda (con copia automática) y, si procede,
+    recalcula el panel. Con recalc=False (notas, tablero…) no se recalcula: esos datos
+    no afectan a las cifras del panel y así van más ágiles."""
     if modo() == "demo":
         return jsonify(ok=False, errores=[AVISO_DEMO]), 403
     with cerrojo:
@@ -344,7 +347,7 @@ def cambia(fn):
         except almacen.ErrorValidacion as e:
             return jsonify(ok=False, errores=e.errores), 400
         almacen.guarda(ruta, cfg)
-        datos = recalcula(descargar="faltan")
+        datos = recalcula(descargar="faltan") if recalc else None
     return jsonify(ok=True, item=item, cartera=cfg, avisos=(datos or {}).get("avisos", []))
 
 
@@ -384,6 +387,27 @@ def api_config():
     """Guarda los parámetros del hogar (colchón, titulares)."""
     datos = request.get_json(silent=True) or {}
     return cambia(lambda cfg: almacen.guarda_config(cfg, datos))
+
+
+@app.post("/api/flujo-marca")
+def api_flujo_marca():
+    """Pone o quita la marca de un apunte de ingreso/gasto (sin tocar el resto)."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.marca_flujo(cfg, d.get("id"), d.get("marca")))
+
+
+@app.post("/api/notas")
+def api_notas():
+    """Guarda la lista de notas (espacio libre del usuario). No recalcula el panel."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.guarda_notas(cfg, d.get("notas")), recalc=False)
+
+
+@app.post("/api/tablero")
+def api_tablero():
+    """Guarda el tablero tipo Trello (columnas y tarjetas). No recalcula el panel."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.guarda_tablero(cfg, d.get("tablero")), recalc=False)
 
 
 @app.post("/api/repartir-colores")
@@ -562,6 +586,11 @@ def api_importar_confirmar():
             key = str(fl.get("fila"))
             if key in cambios_cat:
                 fl["categoria"] = str(cambios_cat[key] or "")[:40]
+    # Entidad/banco de esta importación: se asigna a TODOS sus apuntes de una vez.
+    entidad = str(cuerpo.get("entidad") or "").strip()[:40]
+    if entidad and getattr(plan, "flujos", None):
+        for fl in plan.flujos:
+            fl["entidad"] = entidad
     aprender = bool(cuerpo.get("recordar")) and cambios_cat and getattr(plan, "flujos", None)
     informe = {}
 
@@ -723,7 +752,9 @@ def api_copia_descargar():
         return jsonify(ok=False, errores=["Todavía no tienes una cartera propia que guardar."]), 400
     with open(os.path.join(carpeta(), "cartera.json"), "rb") as f:
         contenido = f.read()
-    nombre = f"copia_patrimonio_{dt.date.today().isoformat()}.json"
+    # Nombre del archivo: "copia_patrimonio_<nombre>_<fecha>.json" (el nombre, saneado a ASCII).
+    slug = almacen.slug(cartera().get("titular") or "patrimonio", set())
+    nombre = f"copia_patrimonio_{slug}_{dt.date.today().isoformat()}.json"
     return Response(contenido, mimetype="application/json",
                     headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
 

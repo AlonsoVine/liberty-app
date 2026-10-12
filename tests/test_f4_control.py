@@ -135,11 +135,13 @@ def test_vencimientos_incluye_apartados_y_revision_de_deuda(tmp_path):
 def test_alertas_generadas(tmp_path):
     d = motor.construir(_cartera_control(), str(tmp_path), descargar=False)
     textos = " | ".join(a["texto"] for a in d["alertas"])
-    assert "fuera del objetivo" in textos
+    assert "Fuera de tu objetivo" in textos
     assert "vencidas" in textos
     assert "concentración" in textos
-    fuera = next(a for a in d["alertas"] if "fuera del objetivo" in a["texto"])
+    fuera = next(a for a in d["alertas"] if "Fuera de tu objetivo" in a["texto"])
     assert fuera["n"] == 2   # fondo (sobre) + efectivo (infra)
+    # Los avisos ahora nombran a qué se refieren (p. ej. el tipo concreto).
+    assert any(":" in a["texto"] and a["clave"] == "concentracion-tipo" for a in d["alertas"])
     # Las alertas llevan una sub-pestaña destino para poder pulsarlas.
     assert fuera["pv"] == "distribucion"
     assert next(a for a in d["alertas"] if "vencidas" in a["texto"])["pv"] == "deudas"

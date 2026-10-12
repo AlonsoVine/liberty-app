@@ -271,9 +271,10 @@
   const filtroDimPares = () => Object.entries(estado.filtroDim || {}).filter(([, v]) => v);
   const filtroDimAct = () => filtroDimPares().length > 0;
   const casaDim = p => filtroDimPares().every(([dim, val]) => (p.categorias || {})[dim] === val);
+  const titDe = p => (p.titular || "").trim() || D.titularDefecto || "Sin asignar";
   const visibles = () => TODOS().filter(p =>
     !estado.ocultos.has(p.id)
-    && (!filtroTit() || (p.titular || "Sin asignar") === estado.titular)
+    && (!filtroTit() || titDe(p) === estado.titular)
     && casaDim(p));
   const filtrando = () => estado.ocultos.size > 0 || filtroTit() || filtroDimAct();
 
@@ -560,7 +561,7 @@
       <div class="rmCifras">
         ${cif("Patrimonio este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes >= 0 ? "pos" : "neg", varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
         ${em ? cif("Ahorro del mes", G.fmtEurSigno(em.ahorro), em.ahorro >= 0 ? "pos" : "neg", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
-        ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − apartados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
+        ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
       </div>
       <div class="rmHacer"><span class="rmHacerEt">→ Qué conviene hacer</span> ${hacer}</div>
     </section>`;
@@ -648,11 +649,11 @@
       { e: "Patrimonio neto" + info("Todo lo que tienes menos lo que debes (patrimonio bruto − deudas)."), v: G.fmtEur(t.patrimonioNeto, 0), n: "bruto − deudas" },
       { e: "Disponible" + info("Dinero que puedes usar ya, sin penalización (cuentas, efectivo). Lo marcas en la ficha de cada producto."), v: G.fmtEur(t.disponible, 0), n: "liquidez inmediata" },
       { e: "No disponible", v: G.fmtEur(t.noDisponible, 0), n: "inversiones, inmuebles…" },
-      { e: "Apartados", v: G.fmtEur(t.apartadosTotal, 0), n: "dinero reservado" },
+      { e: "Reservados", v: G.fmtEur(t.apartadosTotal, 0), n: "dinero reservado" },
       { e: "Colchón", v: G.fmtEur(t.colchon, 0), n: "liquidez que quieres mantener" },
       {
-        e: "Dinero libre para invertir" + info("Lo que te queda de verdad para invertir: disponible − apartados − colchón."), v: G.fmtEur(t.dineroLibre, 0),
-        n: "disponible − apartados − colchón", cl: t.dineroLibre < 0 ? "neg" : "pos"
+        e: "Dinero libre para invertir" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), v: G.fmtEur(t.dineroLibre, 0),
+        n: "disponible − reservados − colchón", cl: t.dineroLibre < 0 ? "neg" : "pos"
       },
     ];
     $("#hogarGrid").innerHTML = tiles.map(k =>
@@ -916,17 +917,62 @@
       esteMes: bloque(eIng, eGas), anio: bloque(aIng, aGas), media12: bloque(sum(serIng) / 12, sum(serGas) / 12),
       porCategoria, porTitular: (D.flujos || {}).porTitular || [], presupuestoMensual: (D.flujos || {}).presupuestoMensual || 0 };
   }
-  // Los flujos a mostrar: todos, o reagregados para el titular filtrado.
+  // Los flujos a mostrar: todos, o reagregados según los filtros de ingresos/gastos
+  // (titular, entidad y dimensiones propias).
   function flujosSel() {
-    const tit = estado.titular;
-    if (!tit || tit === "todos" || !D.flujosLista || !D.flujos) return D.flujos;
-    return agregaFlujos(D.flujosLista.filter(f => (f.titular || "") === tit), D.flujos.meses);
+    if (!D.flujosLista || !D.flujos) return D.flujos;
+    const tit = estado.titular, ent = estado.igEntidad;
+    const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
+    const porTit = tit && tit !== "todos";
+    if (!porTit && !ent && !dimPares.length) return D.flujos;
+    const lista = D.flujosLista.filter(f =>
+      (!porTit || (f.titular || "") === tit)
+      && (!ent || (f.entidad || "Sin entidad") === ent)
+      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
+    return agregaFlujos(lista, D.flujos.meses);
+  }
+
+  // Filtros propios de Ingresos y gastos: por entidad/banco y por dimensiones de flujos.
+  function pintaIgFiltros() {
+    const cont = $("#igFiltros"); if (!cont) return;
+    const ents = D.entidades || [], dims = D.dimensionesFlujos || [];
+    if (!ents.length && !dims.length) { cont.innerHTML = ""; return; }
+    estado.igDim = estado.igDim || {};
+    const campos = [];
+    if (ents.length) {
+      const usadas = [...new Set((D.flujosLista || []).map(f => f.entidad).filter(e => e && e !== "Sin entidad"))];
+      const vals = [...new Set([...ents, ...usadas])];
+      const sel = estado.igEntidad || "";
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Entidad</label>
+        <select data-igf="ent"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
+    }
+    dims.forEach(dm => {
+      const usados = [...new Set((D.flujosLista || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean))];
+      const vals = [...new Set([...(dm.valores || []), ...usados])];
+      if (!vals.length) return;
+      const sel = estado.igDim[dm.id] || "";
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>${esc(dm.nombre)}</label>
+        <select data-igf="dim" data-dim="${esc(dm.id)}"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
+    });
+    const hayFiltro = estado.igEntidad || Object.values(estado.igDim).some(Boolean);
+    cont.innerHTML = `<span class="filtroTitulo">🔎 Filtrar apuntes:</span>${campos.join("")}` +
+      (hayFiltro ? `<button class="btn mini filtroQuitar" id="igQuitar">✕ Quitar</button>` : "");
+    cont.querySelectorAll("[data-igf]").forEach(s => {
+      s.onchange = e => {
+        if (e.target.dataset.igf === "ent") estado.igEntidad = e.target.value;
+        else estado.igDim[e.target.dataset.dim] = e.target.value;
+        pintaIngresos();
+      };
+    });
+    const bq = $("#igQuitar");
+    if (bq) bq.onclick = () => { estado.igEntidad = ""; estado.igDim = {}; pintaIngresos(); };
   }
 
   function pintaIngresos() {
     const f = D.flujos, hay = !!f;
     const nav = $("#igNav"); if (nav) nav.hidden = !hay;
     const vac = $("#igVacio"); if (vac) vac.hidden = hay;
+    pintaIgFiltros();
     document.querySelectorAll(".ig").forEach(el => { el.hidden = true; });
     if (!hay) return;
     const ig = estado.ig || "resumen";
@@ -2141,18 +2187,39 @@
   }
 
   /* ---------------------------------------------- avisos y pie */
+  // Versión de la app en el pie, con el estado de actualización si está activado.
+  let VERINFO = null;
+  function pintaPieVersion() {
+    const el = $("#pieVersion");
+    if (!el || !VERINFO) return;
+    let estado = "";
+    if (VERINFO.hayNueva) {
+      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="${esc(VERINFO.descarga || VERINFO.repo)}" target="_blank" rel="noopener">descargar</a></span>`;
+    } else if (VERINFO.desactivado) {
+      estado = ` · <span class="subt">comprobación de versiones desactivada</span>`;
+    } else if (VERINFO.ultima) {
+      estado = ` · <span class="pieAlDia">✓ al día</span>`;
+    }
+    el.innerHTML = `<b>Liberty v${esc(VERINFO.actual || "?")}</b>${estado}`;
+  }
+  (function cargaVersion() {
+    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); }).catch(() => { /* sin red: nada */ });
+  })();
+
   function pintaComun() {
     $("#avisos").innerHTML = (D.avisos || [])
       .map(a => `<div class="av"><span>⚠</span><span>${esc(a)}</span></div>`).join("");
     const pa = D.preciosActualizados;
     const fuentes = [...new Set(D.productos.map(p => p.fuentePrecio).filter(Boolean))];
     $("#pie").innerHTML =
-      `${pa ? `Precios actualizados el ${G.fmtFecha(pa.slice(0, 10))} a las ${pa.slice(11, 16)}` : "Precios sin actualizar"} ·
+      `<div id="pieVersion" class="pieVer"></div>
+       ${pa ? `Precios actualizados el ${G.fmtFecha(pa.slice(0, 10))} a las ${pa.slice(11, 16)}` : "Precios sin actualizar"} ·
        datos valorados a ${G.fmtFecha(D.fechaExtracto)} ·
        ${D.total.diasInvertido} días invertido.<br>
        Fuentes de precios: ${fuentes.join(", ") || "ninguna"}. En «Panel → Distribución» pulsa un producto para ver su ficha.<br>
        <b>Aviso:</b> herramienta informativa. No es asesoramiento financiero ni una recomendación de compra o venta.
        Los precios vienen de servicios públicos gratuitos y pueden tener errores o retrasos: no se garantiza su exactitud.`;
+    pintaPieVersion();
     // Los créditos viven al final de «Ayuda». En la web exportada (que no incluye
     // «Ayuda») se mantiene la atribución en el pie para no perderla al compartir.
     if (window.ESTATICO) {
@@ -2242,6 +2309,7 @@
       document.querySelectorAll(".pv").forEach(el => { el.hidden = el.id !== "pv-" + pv; });
       pintaPatrimonio();
     } else if (estado.tab === "datos" && window.Editor) window.Editor.mostrar();
+    else if (estado.tab === "notas" && window.Editor && window.Editor.notas) window.Editor.notas();
     else if (estado.tab === "ajustes") pintaAjustes();
   }
   function pintar() { pintaComun(); pintarTab(); }
@@ -2308,7 +2376,7 @@
             const blob = await r.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement("a");
-            a.href = url; a.download = "copia_" + nombre + ".json";
+            a.href = url; a.download = "copia_patrimonio_" + nombre.replace(/[^\w]+/g, "_") + "_" + new Date().toISOString().slice(0, 10) + ".json";
             document.body.appendChild(a); a.click(); a.remove();
             setTimeout(() => URL.revokeObjectURL(url), 4000);
           }
@@ -2361,7 +2429,7 @@
     { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada tipo.", antes: () => irVista("distribucion") },
     { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo ha crecido tu patrimonio. Enciende y apaga componentes en la leyenda; las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
     { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (con coste FIFO) y los dividendos y cupones cobrados, por año, listos para la declaración.", antes: () => irVista("fiscal") },
-    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, apartados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
+    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, reservados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
     { sel: "#btnPaleta", tit: "Buscar (⌘K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
     { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100% en tu ordenador.", antes: () => irA("panel") },
   ];
@@ -2528,7 +2596,7 @@
     c.push({ ico: "📥", label: "Importar datos", hint: "acción", run: irDatos("importar") });
     if ((D.asignacion || []).some(x => x.objetivo != null)) c.push({ ico: "⚖️", label: "Cómo rebalancear", hint: "acción", run: () => { if (estado.tab !== "panel") irA("panel"); irVista("distribucion"); muestraRebalanceo(); } });
     if ($("#btnPrecios") && !$("#btnPrecios").hidden) c.push({ ico: "↻", label: "Actualizar precios", hint: "acción", run: () => $("#btnPrecios").click() });
-    const dv = { activos: "Activos", deudas: "Deudas", apartados: "Apartados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
+    const dv = { activos: "Activos", deudas: "Deudas", apartados: "Reservados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
     c.push({ ico: "❓", label: "Ayuda", run: () => irA("ayuda") });
     c.push({ ico: "⚙️", label: "Ajustes", run: () => irA("ajustes") });
@@ -2650,7 +2718,7 @@
   window.addEventListener("resize", () => { clearTimeout(t); t = setTimeout(pintarTab, 140); });
 
   const tabGuardada = recuerda.lee("patrimonio.tab");
-  estado.tab = ["panel", "datos", "ayuda", "ajustes"].includes(tabGuardada) ? tabGuardada : "panel";
+  estado.tab = ["panel", "datos", "notas", "ayuda", "ajustes"].includes(tabGuardada) ? tabGuardada : "panel";
   // Preferencia «Pantalla de inicio»: siempre el Panel o la última que usaste.
   if (pref("inicio", "ultima") === "panel") estado.tab = "panel";
   let pvGuardada = recuerda.lee("patrimonio.pv");

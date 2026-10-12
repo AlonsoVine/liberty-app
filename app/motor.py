@@ -1501,12 +1501,19 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     # Dinero libre para invertir = disponible − apartados − colchón (puede ser negativo).
     dinero_libre = round(disponible - apartados_total - colchon, 2)
 
+    # El primer titular es el "por defecto": lo que esté sin asignar cuenta bajo él al
+    # agrupar/filtrar (así no se pierde), aunque en los datos siga figurando sin titular.
+    titular_defecto = (cfg.get("titulares") or [None])[0]
+
+    def _tit(x):
+        return (str(x or "").strip()) or titular_defecto or "Sin asignar"
+
     # Patrimonio neto atribuido a cada titular (los activos suman; las deudas restan).
     tit_acc = defaultdict(float)
     for p in activos:
-        tit_acc[p.get("titular") or "Sin asignar"] += p["valor"]
+        tit_acc[_tit(p.get("titular"))] += p["valor"]
     for e in ser_pasivos:
-        tit_acc[e.get("titular") or "Sin asignar"] += e["valor"]
+        tit_acc[_tit(e.get("titular"))] += e["valor"]
     por_titular = []
     for i, (k, v) in enumerate(sorted(tit_acc.items(), key=lambda x: -x[1])):
         por_titular.append({"nombre": k, "valor": round(v, 2),
@@ -1594,7 +1601,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         clave = (fl.get("categoria") or "Sin categoría", t)
         imp = float(fl.get("importe") or 0)
         mkey = fl["fecha"][:7]
-        titular = (fl.get("titular") or "").strip() or "Sin asignar"
+        titular = _tit(fl.get("titular"))
         if mkey in meses_ig:
             cat12[clave] += imp
             cat_serie[clave][idx_mes[mkey]] += imp
@@ -1720,23 +1727,30 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             return
         alertas.append({"texto": txt, "n": n, "nivel": nivel, "pv": pv, "clave": clave})
 
+    def _nombres(xs, maxn=5):
+        # Lista legible de nombres: hasta 'maxn' y luego «y N más».
+        xs = [str(x) for x in xs if x]
+        if len(xs) <= maxn:
+            return ", ".join(xs)
+        return ", ".join(xs[:maxn]) + f" y {len(xs) - maxn} más"
+
     if objetivos and abs(suma_obj - 1.0) > 1e-6:
-        _al("Los objetivos de asignación no suman 100 %.", 1, pv="distribucion", clave="objetivos-suma")
-    nct = sum(1 for a in asignacion if a["concentracion"])
-    if nct:
-        _al("Tipos de activo por encima del umbral de concentración.", nct, pv="distribucion", clave="concentracion-tipo")
-    nce = sum(1 for e in concentracion_entidad if e["concentracion"])
-    if nce:
-        _al("Entidades por encima del umbral de concentración.", nce, pv="distribucion", clave="concentracion-entidad")
-    nfo = sum(1 for a in asignacion if a["estado"] in ("Sobreponderado", "Infraponderado"))
-    if nfo:
-        _al("Tipos de activo fuera del objetivo (más allá de la desviación máxima).", nfo, pv="distribucion", clave="fuera-objetivo")
-    nven = sum(1 for v in vencimientos if v["estado"] == "Vencido")
-    if nven:
-        _al("Fechas ya vencidas: revísalas y, si procede, da de baja.", nven, pv="deudas", clave="vencidos")
-    nprox = sum(1 for v in vencimientos if v["estado"] == "Próximo")
-    if nprox:
-        _al("Vencimientos dentro del plazo de aviso.", nprox, "info", pv="deudas", clave="proximos")
+        _al(f"Los objetivos de asignación no suman 100 % (suman {suma_obj * 100:.0f} %).", 1, pv="distribucion", clave="objetivos-suma")
+    conc_tipos = [a["tipo"] for a in asignacion if a["concentracion"]]
+    if conc_tipos:
+        _al(f"Por encima del umbral de concentración: {_nombres(conc_tipos)}.", len(conc_tipos), pv="distribucion", clave="concentracion-tipo")
+    conc_ents = [e["entidad"] for e in concentracion_entidad if e["concentracion"]]
+    if conc_ents:
+        _al(f"Entidades por encima del umbral de concentración: {_nombres(conc_ents)}.", len(conc_ents), pv="distribucion", clave="concentracion-entidad")
+    fuera = [a["tipo"] for a in asignacion if a["estado"] in ("Sobreponderado", "Infraponderado")]
+    if fuera:
+        _al(f"Fuera de tu objetivo (más de la desviación máxima): {_nombres(fuera)}.", len(fuera), pv="distribucion", clave="fuera-objetivo")
+    venc = [v["nombre"] for v in vencimientos if v["estado"] == "Vencido"]
+    if venc:
+        _al(f"Fechas ya vencidas ({_nombres(venc)}): revísalas y, si procede, da de baja.", len(venc), pv="deudas", clave="vencidos")
+    prox = [v["nombre"] for v in vencimientos if v["estado"] == "Próximo"]
+    if prox:
+        _al(f"Vencimientos dentro del plazo de aviso: {_nombres(prox)}.", len(prox), "info", pv="deudas", clave="proximos")
     if dinero_libre < 0:
         _al("Dinero libre para invertir negativo (apartados + colchón superan lo disponible).", 1, pv="patrimonio", clave="dinero-libre")
     if monedas_faltan:
@@ -1805,19 +1819,24 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "fiscal": detalle_fiscal(cfg),
         "titular": cfg.get("titular", "Mi patrimonio"),
         "titulares": cfg.get("titulares", []) or [],
+        "titularDefecto": titular_defecto,
         "categorias": [{"nombre": c.get("nombre"), "tipo": c.get("tipo")} for c in cats_cfg if c.get("nombre")],
         "recurrentes": (cfg.get("config") or {}).get("recurrentes", []) or [],
         "dimensiones": (cfg.get("config") or {}).get("dimensiones", []) or [],
+        "dimensionesFlujos": (cfg.get("config") or {}).get("dimensionesFlujos", []) or [],
+        "entidades": (cfg.get("config") or {}).get("entidades", []) or [],
         "inflacion": (cfg.get("config") or {}).get("inflacion"),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
         "flujos": flujos_out,
-        # Flujos crudos (acotados a 'hasta') para filtrar por titular en el cliente,
-        # sin recalcular en el servidor: el Panel reagrega al vuelo.
+        # Flujos crudos (acotados a 'hasta') para filtrar por titular/entidad/dimensión
+        # en el cliente, sin recalcular en el servidor: el Panel reagrega al vuelo.
         "flujosLista": [{"fecha": f["fecha"], "tipo": f.get("tipo"),
                          "importe": round(float(f.get("importe") or 0), 2),
                          "categoria": f.get("categoria") or "Sin categoría",
-                         "titular": (f.get("titular") or "").strip()}
+                         "titular": _tit(f.get("titular")),
+                         "entidad": (f.get("entidad") or "").strip() or "Sin entidad",
+                         "categorias": f.get("categorias") or {}}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
         "asignacion": asignacion,
         "concentracionEntidad": concentracion_entidad,
