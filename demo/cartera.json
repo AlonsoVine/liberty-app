@@ -367,219 +367,12 @@
  ],
  "movimientos": [
   {
-   "id": "m1",
-   "producto": "world",
+   "id": "m49",
+   "producto": "emergentes",
    "tipo": "compra",
    "fecha": "2024-10-01",
-   "unidades": 22.943218,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m2",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2024-11-01",
-   "unidades": 22.668235,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m3",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2024-12-01",
-   "unidades": 21.178203,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m4",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-01-01",
-   "unidades": 21.322186,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m5",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-02-01",
-   "unidades": 20.678,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m6",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-03-01",
-   "unidades": 20.837999,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m7",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-04-01",
-   "unidades": 22.544477,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m8",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-05-01",
-   "unidades": 23.396016,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m9",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-06-01",
-   "unidades": 22.276912,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m10",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-07-01",
-   "unidades": 22.183168,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m11",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-08-01",
-   "unidades": 21.747021,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m12",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-09-01",
-   "unidades": 21.205392,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m13",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-10-01",
-   "unidades": 20.525541,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m14",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-11-01",
-   "unidades": 19.852869,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m15",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2025-12-01",
-   "unidades": 20.03913,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m16",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-01-01",
-   "unidades": 19.985788,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m17",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-02-01",
-   "unidades": 19.803677,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m18",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-03-01",
-   "unidades": 19.512034,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m19",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-04-01",
-   "unidades": 20.210768,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m20",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-05-01",
-   "unidades": 18.893077,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m21",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-06-01",
-   "unidades": 17.902009,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m22",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-07-01",
-   "unidades": 17.718931,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m23",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-08-01",
-   "unidades": 17.760846,
-   "importe": 247.77,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m24",
-   "producto": "world",
-   "tipo": "compra",
-   "fecha": "2026-09-01",
-   "unidades": 17.575641,
-   "importe": 247.77,
+   "unidades": 15.080576,
+   "importe": 92.91,
    "nota": "Aportación mensual"
   },
   {
@@ -592,219 +385,21 @@
    "nota": "Aportación mensual"
   },
   {
-   "id": "m26",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2024-11-01",
-   "unidades": 1.477176,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m27",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2024-12-01",
-   "unidades": 1.486678,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m28",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-01-01",
-   "unidades": 1.431433,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m29",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-02-01",
-   "unidades": 1.468561,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m30",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-03-01",
-   "unidades": 1.594362,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m31",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-04-01",
-   "unidades": 1.659192,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m32",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-05-01",
-   "unidades": 1.559832,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m33",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-06-01",
-   "unidades": 1.546282,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m34",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-07-01",
-   "unidades": 1.475698,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m35",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-08-01",
-   "unidades": 1.480566,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m36",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-09-01",
-   "unidades": 1.444249,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m37",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-10-01",
-   "unidades": 1.38527,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m38",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-11-01",
-   "unidades": 1.390057,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m39",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2025-12-01",
-   "unidades": 1.388437,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m40",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-01-01",
-   "unidades": 1.380269,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m41",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-02-01",
-   "unidades": 1.363437,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m42",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-03-01",
-   "unidades": 1.433089,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m43",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-04-01",
-   "unidades": 1.322903,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m44",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-05-01",
-   "unidades": 1.255085,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m45",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-06-01",
-   "unidades": 1.237532,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m46",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-07-01",
-   "unidades": 1.246497,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m47",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-08-01",
-   "unidades": 1.221426,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m48",
-   "producto": "etfworld",
-   "tipo": "compra",
-   "fecha": "2026-09-01",
-   "unidades": 1.199012,
-   "importe": 154.85,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m49",
-   "producto": "emergentes",
+   "id": "m73",
+   "producto": "monetario",
    "tipo": "compra",
    "fecha": "2024-10-01",
-   "unidades": 15.080576,
-   "importe": 92.91,
+   "unidades": 0.07265,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m1",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2024-10-01",
+   "unidades": 22.943218,
+   "importe": 247.77,
    "nota": "Aportación mensual"
   },
   {
@@ -817,12 +412,66 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m26",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2024-11-01",
+   "unidades": 1.477176,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m74",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2024-11-01",
+   "unidades": 0.072442,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m2",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2024-11-01",
+   "unidades": 22.668235,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m51",
    "producto": "emergentes",
    "tipo": "compra",
    "fecha": "2024-12-01",
    "unidades": 15.568268,
    "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m27",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2024-12-01",
+   "unidades": 1.486678,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m75",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2024-12-01",
+   "unidades": 0.072232,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m3",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2024-12-01",
+   "unidades": 21.178203,
+   "importe": 247.77,
    "nota": "Aportación mensual"
   },
   {
@@ -835,12 +484,66 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m28",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-01-01",
+   "unidades": 1.431433,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m76",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-01-01",
+   "unidades": 0.07204,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m4",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-01-01",
+   "unidades": 21.322186,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m53",
    "producto": "emergentes",
    "tipo": "compra",
    "fecha": "2025-02-01",
    "unidades": 15.065904,
    "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m29",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-02-01",
+   "unidades": 1.468561,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m77",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-02-01",
+   "unidades": 0.07186,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m5",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-02-01",
+   "unidades": 20.678,
+   "importe": 247.77,
    "nota": "Aportación mensual"
   },
   {
@@ -853,6 +556,33 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m30",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-03-01",
+   "unidades": 1.594362,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m78",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-03-01",
+   "unidades": 0.071694,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m6",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-03-01",
+   "unidades": 20.837999,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m55",
    "producto": "emergentes",
    "tipo": "compra",
@@ -862,12 +592,83 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m31",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-04-01",
+   "unidades": 1.659192,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m79",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-04-01",
+   "unidades": 0.071518,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m7",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-04-01",
+   "unidades": 22.544477,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m111",
+   "fecha": "2025-04-10",
+   "producto": "emergentes",
+   "tipo": "venta",
+   "unidades": 45,
+   "importe": 205.0
+  },
+  {
+   "id": "m113",
+   "fecha": "2025-04-15",
+   "producto": "acciones",
+   "tipo": "dividendo",
+   "unidades": 0,
+   "importe": 120.0,
+   "retencion": 28.0
+  },
+  {
    "id": "m56",
    "producto": "emergentes",
    "tipo": "compra",
    "fecha": "2025-05-01",
    "unidades": 15.986137,
    "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m32",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-05-01",
+   "unidades": 1.559832,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m80",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-05-01",
+   "unidades": 0.071371,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m8",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-05-01",
+   "unidades": 23.396016,
+   "importe": 247.77,
    "nota": "Aportación mensual"
   },
   {
@@ -880,6 +681,50 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m33",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-06-01",
+   "unidades": 1.546282,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m81",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-06-01",
+   "unidades": 0.071227,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m9",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-06-01",
+   "unidades": 22.276912,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m109",
+   "fecha": "2025-06-15",
+   "producto": "world",
+   "tipo": "venta",
+   "unidades": 30,
+   "importe": 520.0
+  },
+  {
+   "id": "m116",
+   "fecha": "2025-06-30",
+   "producto": "bono",
+   "tipo": "dividendo",
+   "unidades": 0,
+   "importe": 150.0,
+   "retencion": 35.0
+  },
+  {
    "id": "m58",
    "producto": "emergentes",
    "tipo": "compra",
@@ -889,12 +734,75 @@
    "nota": "Aportación mensual"
   },
   {
+   "id": "m34",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-07-01",
+   "unidades": 1.475698,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m82",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-07-01",
+   "unidades": 0.071099,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m10",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-07-01",
+   "unidades": 22.183168,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m115",
+   "fecha": "2025-07-10",
+   "producto": "etfworld",
+   "tipo": "dividendo",
+   "unidades": 0,
+   "importe": 72.0,
+   "retencion": 17.0
+  },
+  {
    "id": "m59",
    "producto": "emergentes",
    "tipo": "compra",
    "fecha": "2025-08-01",
    "unidades": 14.724473,
    "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m35",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-08-01",
+   "unidades": 1.480566,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m83",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-08-01",
+   "unidades": 0.070976,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m11",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-08-01",
+   "unidades": 21.747021,
+   "importe": 247.77,
    "nota": "Aportación mensual"
   },
   {
@@ -907,211 +815,13 @@
    "nota": "Aportación mensual"
   },
   {
-   "id": "m61",
-   "producto": "emergentes",
+   "id": "m36",
+   "producto": "etfworld",
    "tipo": "compra",
-   "fecha": "2025-10-01",
-   "unidades": 13.516355,
-   "importe": 92.91,
+   "fecha": "2025-09-01",
+   "unidades": 1.444249,
+   "importe": 154.85,
    "nota": "Aportación mensual"
-  },
-  {
-   "id": "m62",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2025-11-01",
-   "unidades": 12.83307,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m63",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2025-12-01",
-   "unidades": 13.237132,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m64",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-01-01",
-   "unidades": 12.996423,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m65",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-02-01",
-   "unidades": 12.089971,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m66",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-03-01",
-   "unidades": 11.398776,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m67",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-04-01",
-   "unidades": 12.337197,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m68",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-05-01",
-   "unidades": 11.362532,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m69",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-06-01",
-   "unidades": 10.108957,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m70",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-07-01",
-   "unidades": 10.182074,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m71",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-08-01",
-   "unidades": 10.613597,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m72",
-   "producto": "emergentes",
-   "tipo": "compra",
-   "fecha": "2026-09-01",
-   "unidades": 10.302886,
-   "importe": 92.91,
-   "nota": "Aportación mensual"
-  },
-  {
-   "id": "m73",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2024-10-01",
-   "unidades": 0.07265,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m74",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2024-11-01",
-   "unidades": 0.072442,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m75",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2024-12-01",
-   "unidades": 0.072232,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m76",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-01-01",
-   "unidades": 0.07204,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m77",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-02-01",
-   "unidades": 0.07186,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m78",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-03-01",
-   "unidades": 0.071694,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m79",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-04-01",
-   "unidades": 0.071518,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m80",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-05-01",
-   "unidades": 0.071371,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m81",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-06-01",
-   "unidades": 0.071227,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m82",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-07-01",
-   "unidades": 0.071099,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m83",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-08-01",
-   "unidades": 0.070976,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
   },
   {
    "id": "m84",
@@ -1123,112 +833,21 @@
    "nota": "Traspaso a liquidez"
   },
   {
-   "id": "m85",
-   "producto": "monetario",
+   "id": "m12",
+   "producto": "world",
    "tipo": "compra",
-   "fecha": "2025-10-01",
-   "unidades": 0.070727,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
+   "fecha": "2025-09-01",
+   "unidades": 21.205392,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
-   "id": "m86",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-11-01",
-   "unidades": 0.07061,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m87",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2025-12-01",
-   "unidades": 0.070484,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m88",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-01-01",
-   "unidades": 0.070361,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m89",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-02-01",
-   "unidades": 0.070236,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m90",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-03-01",
-   "unidades": 0.070123,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m91",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-04-01",
-   "unidades": 0.070005,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m92",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-05-01",
-   "unidades": 0.069888,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m93",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-06-01",
-   "unidades": 0.069752,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m94",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-07-01",
-   "unidades": 0.069627,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m95",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-08-01",
-   "unidades": 0.069495,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
-  },
-  {
-   "id": "m96",
-   "producto": "monetario",
-   "tipo": "compra",
-   "fecha": "2026-09-01",
-   "unidades": 0.069344,
-   "importe": 185.82,
-   "nota": "Traspaso a liquidez"
+   "id": "m110",
+   "fecha": "2025-09-20",
+   "producto": "etfworld",
+   "tipo": "venta",
+   "unidades": 4,
+   "importe": 480.0
   },
   {
    "id": "m97",
@@ -1240,6 +859,51 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m61",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2025-10-01",
+   "unidades": 13.516355,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m37",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-10-01",
+   "unidades": 1.38527,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m85",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-10-01",
+   "unidades": 0.070727,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m13",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-10-01",
+   "unidades": 20.525541,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m114",
+   "fecha": "2025-10-20",
+   "producto": "acciones",
+   "tipo": "dividendo",
+   "unidades": 0,
+   "importe": 135.0,
+   "retencion": 32.0
+  },
+  {
    "id": "m98",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1247,6 +911,42 @@
    "unidades": 0.000655,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m62",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2025-11-01",
+   "unidades": 12.83307,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m38",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-11-01",
+   "unidades": 1.390057,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m86",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-11-01",
+   "unidades": 0.07061,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m14",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-11-01",
+   "unidades": 19.852869,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
    "id": "m99",
@@ -1258,6 +958,58 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m63",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2025-12-01",
+   "unidades": 13.237132,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m39",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2025-12-01",
+   "unidades": 1.388437,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m117",
+   "fecha": "2025-12-01",
+   "producto": "etfworld",
+   "tipo": "comision",
+   "unidades": 0,
+   "importe": 9.0
+  },
+  {
+   "id": "m87",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2025-12-01",
+   "unidades": 0.070484,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m15",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2025-12-01",
+   "unidades": 20.03913,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m112",
+   "fecha": "2025-12-20",
+   "producto": "bitcoin",
+   "tipo": "venta",
+   "unidades": 0.001,
+   "importe": 118.0
+  },
+  {
    "id": "m100",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1265,6 +1017,42 @@
    "unidades": 0.000831,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m64",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-01-01",
+   "unidades": 12.996423,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m40",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-01-01",
+   "unidades": 1.380269,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m88",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-01-01",
+   "unidades": 0.070361,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m16",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-01-01",
+   "unidades": 19.985788,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
    "id": "m101",
@@ -1276,6 +1064,42 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m65",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-02-01",
+   "unidades": 12.089971,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m41",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-02-01",
+   "unidades": 1.363437,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m89",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-02-01",
+   "unidades": 0.070236,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m17",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-02-01",
+   "unidades": 19.803677,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m102",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1283,6 +1107,42 @@
    "unidades": 0.001087,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m66",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-03-01",
+   "unidades": 11.398776,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m42",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-03-01",
+   "unidades": 1.433089,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m90",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-03-01",
+   "unidades": 0.070123,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m18",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-03-01",
+   "unidades": 19.512034,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
    "id": "m103",
@@ -1294,6 +1154,42 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m67",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-04-01",
+   "unidades": 12.337197,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m43",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-04-01",
+   "unidades": 1.322903,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m91",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-04-01",
+   "unidades": 0.070005,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m19",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-04-01",
+   "unidades": 20.210768,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m104",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1301,6 +1197,42 @@
    "unidades": 0.000952,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m68",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-05-01",
+   "unidades": 11.362532,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m44",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-05-01",
+   "unidades": 1.255085,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m92",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-05-01",
+   "unidades": 0.069888,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m20",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-05-01",
+   "unidades": 18.893077,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
    "id": "m105",
@@ -1312,6 +1244,42 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m69",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-06-01",
+   "unidades": 10.108957,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m45",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-06-01",
+   "unidades": 1.237532,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m93",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-06-01",
+   "unidades": 0.069752,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m21",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-06-01",
+   "unidades": 17.902009,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m106",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1319,6 +1287,42 @@
    "unidades": 0.001204,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m70",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-07-01",
+   "unidades": 10.182074,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m46",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-07-01",
+   "unidades": 1.246497,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m94",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-07-01",
+   "unidades": 0.069627,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m22",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-07-01",
+   "unidades": 17.718931,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   },
   {
    "id": "m107",
@@ -1330,6 +1334,42 @@
    "nota": "Compra periódica"
   },
   {
+   "id": "m71",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-08-01",
+   "unidades": 10.613597,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m47",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-08-01",
+   "unidades": 1.221426,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m95",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-08-01",
+   "unidades": 0.069495,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m23",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-08-01",
+   "unidades": 17.760846,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
+  },
+  {
    "id": "m108",
    "producto": "bitcoin",
    "tipo": "compra",
@@ -1337,6 +1377,42 @@
    "unidades": 0.000916,
    "importe": 61.94,
    "nota": "Compra periódica"
+  },
+  {
+   "id": "m72",
+   "producto": "emergentes",
+   "tipo": "compra",
+   "fecha": "2026-09-01",
+   "unidades": 10.302886,
+   "importe": 92.91,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m48",
+   "producto": "etfworld",
+   "tipo": "compra",
+   "fecha": "2026-09-01",
+   "unidades": 1.199012,
+   "importe": 154.85,
+   "nota": "Aportación mensual"
+  },
+  {
+   "id": "m96",
+   "producto": "monetario",
+   "tipo": "compra",
+   "fecha": "2026-09-01",
+   "unidades": 0.069344,
+   "importe": 185.82,
+   "nota": "Traspaso a liquidez"
+  },
+  {
+   "id": "m24",
+   "producto": "world",
+   "tipo": "compra",
+   "fecha": "2026-09-01",
+   "unidades": 17.575641,
+   "importe": 247.77,
+   "nota": "Aportación mensual"
   }
  ],
  "valoraciones": [
@@ -1484,19 +1560,19 @@
    "id": "v212",
    "producto": "ahorro",
    "fecha": "2025-09-01",
-   "valor": 2477.64
+   "valor": 3544.64
   },
   {
    "id": "v213",
    "producto": "ahorro",
    "fecha": "2026-03-01",
-   "valor": 3406.75
+   "valor": 5197.75
   },
   {
    "id": "v214",
    "producto": "ahorro",
    "fecha": "2026-09-30",
-   "valor": 4335.87
+   "valor": 6126.87
   },
   {
    "id": "v215",

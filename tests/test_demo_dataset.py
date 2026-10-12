@@ -48,6 +48,21 @@ def test_demo_se_construye_sin_errores(tmp_path):
     assert any(c["tipo"] == "gasto" for c in d["categorias"])
 
 
+def test_demo_tiene_actividad_fiscal_2025(tmp_path):
+    # El ejemplo debe enseñar el Informe fiscal: ventas (con ganancia Y pérdida) y
+    # rendimientos (dividendos/cupones) en un año natural cerrado (2025).
+    d = motor.construir(_demo(), str(tmp_path), descargar=False)
+    fis = d.get("fiscal") or {}
+    assert "2025" in fis, "el ejemplo debería tener actividad fiscal en 2025"
+    y = fis["2025"]
+    assert len(y["ventas"]) >= 3, "debería haber varias ventas en 2025"
+    assert len(y["rendimientos"]) >= 2, "debería haber dividendos/cupones en 2025"
+    tot = y["totales"]
+    assert tot["ganancias"] > 0, "debería haber alguna venta con ganancia"
+    assert tot["perdidas"] < 0, "debería haber alguna venta con pérdida (para enseñar el caso)"
+    assert tot["rendimientoIntegro"] > 0 and tot["retenciones"] > 0
+
+
 def test_demo_esta_equilibrado(tmp_path):
     # Ningún activo debe dominar el patrimonio: evita regresiones como el pico de
     # vivienda que descuadraba la gráfica de evolución.
