@@ -12,7 +12,7 @@ import os
 import re
 import unicodedata
 
-from .motor import FUENTES, TIPOS, num_es, tipos_todos
+from .motor import AVISOS_CLAVES, FUENTES, TIPOS, num_es, tipos_todos
 
 COPIAS_MAX = 20
 TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cupón",
@@ -508,6 +508,14 @@ def guarda_config(cfg, datos):
         # Tipos de BASE que el usuario no usa y prefiere no ver en los selectores.
         # Solo se ocultan (nunca se borran): los activos que los usen siguen igual.
         conf["tiposOcultos"] = [t for t in (datos.get("tiposOcultos") or []) if t in TIPOS]
+    if "avisosOff" in datos:
+        # Avisos automáticos que el usuario desactiva: el motor deja de generarlos.
+        vistos, off = set(), []
+        for c in (datos.get("avisosOff") or []):
+            if c in AVISOS_CLAVES and c not in vistos:
+                vistos.add(c)
+                off.append(c)
+        conf["avisosOff"] = off
     if "renombresTitular" in datos:
         # Renombrar un titular propaga el nombre nuevo a todos sus activos, apuntes,
         # apartados y plantillas recurrentes, para que nada quede «huérfano».

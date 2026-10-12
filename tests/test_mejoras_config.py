@@ -133,6 +133,39 @@ def test_anotar_sin_categoria_no_crea_nada():
     assert c["config"]["categorias"] == []
 
 
+# ---------------------------------------------------------------- avisos activables
+
+def _cartera_dinero_libre_negativo():
+    c = cfg()
+    almacen.guarda_producto(c, {"nombre": "Cuenta", "tipo": "efectivo", "fuente": "manual"})
+    almacen.guarda_valoracion(c, {"producto": c["productos"][0]["id"],
+                                  "fecha": "2025-01-01", "valor": "1000"})
+    almacen.guarda_config(c, {"colchon": "5000"})   # colchón > disponible -> dinero libre < 0
+    return c
+
+
+def test_aviso_salta_por_defecto(tmp_path):
+    c = _cartera_dinero_libre_negativo()
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    assert "dinero-libre" in {a.get("clave") for a in d["alertas"]}
+
+
+def test_aviso_desactivado_no_salta(tmp_path):
+    c = _cartera_dinero_libre_negativo()
+    almacen.guarda_config(c, {"avisosOff": ["dinero-libre"]})
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    assert "dinero-libre" not in {a.get("clave") for a in d["alertas"]}
+    # el catálogo completo se expone igualmente
+    assert len(d["avisosCatalogo"]) == len(motor.AVISOS_CATALOGO)
+    assert d["avisosOff"] == ["dinero-libre"]
+
+
+def test_avisos_off_valida_claves():
+    c = cfg()
+    almacen.guarda_config(c, {"avisosOff": ["dinero-libre", "inventado", "dinero-libre"]})
+    assert c["config"]["avisosOff"] == ["dinero-libre"]
+
+
 # ---------------------------------------------------------------- motor con tipo propio
 
 def test_motor_construye_con_un_tipo_propio(tmp_path):

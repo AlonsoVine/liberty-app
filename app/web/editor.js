@@ -49,7 +49,7 @@
   }
   async function carga() {
     const j = await api("GET", "api/cartera");
-    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
+    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, avisosCatalogo: j.avisosCatalogo || [], fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
   }
   async function guarda(coleccion, datos) {
     const j = await api("POST", "api/" + coleccion, datos);
@@ -651,6 +651,9 @@
     const propios = conf.tipos || [];
     const ocultos = conf.tiposOcultos || [];
     const monedas = conf.monedas || [];
+    const catal = E.avisosCatalogo || [];
+    const avisosOff = conf.avisosOff || [];
+    const firing = new Set(((window.DATOS || {}).alertas || []).map(a => a.clave).filter(Boolean));
     const pct = v => v != null ? (v * 100).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " %" : "—";
     const sub = t => `<span class="subt">${t}</span>`;
     const fila = (et, val) => `<tr><td>${et}</td><td>${val}</td></tr>`;
@@ -677,6 +680,7 @@
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
         ${fila("Dimensiones de clasificación", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
+        ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
         ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
       </table>
       <p class="ayuda">El <b>colchón</b> es la liquidez mínima que quieres mantener; la <b>concentración</b> avisa cuando un tipo o entidad pesa demasiado;
@@ -686,6 +690,12 @@
           <td style="text-align:right">${c.presupuesto != null ? eur(c.presupuesto) : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
       ${dims.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Dimensión</th><th>Valores sugeridos</th></tr></thead>
         <tbody>${dims.map(d => `<tr><td>${esc(d.nombre)}</td><td>${(d.valores || []).map(esc).join(", ") || "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
+      ${catal.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Aviso</th><th>Estado</th><th>Ahora mismo</th></tr></thead>
+        <tbody>${catal.map(a => {
+          const activo = !avisosOff.includes(a.clave);
+          const ahora = !activo ? sub("—") : firing.has(a.clave) ? '<span class="neg">⚠ saltando</span>' : '<span class="pos">todo bien</span>';
+          return `<tr><td>${esc(a.nombre)}</td><td class="${activo ? "pos" : ""}">${activo ? "Activo" : sub("desactivado")}</td><td>${ahora}</td></tr>`;
+        }).join("")}</tbody></table></div>` : ""}
     </section>`;
   }
 
@@ -729,10 +739,12 @@
     if (window.toast) window.toast("Guardado ✓");
   }
 
+  const UMBRAL_NOMBRE = { umbralConcentracion: "Umbral de concentración", desviacionMax: "Desviación máxima", diasAviso: "Días de aviso", diasSinAnotar: "Recordatorio sin anotar" };
   function formHogar() {
     const conf = E.cfg.config || {};
     const obj = conf.objetivos || {};
     const ocultos = conf.tiposOcultos || [];
+    const avisosOffCfg = conf.avisosOff || [];
     const tiposPropios = (conf.tipos || []).map(t => t.nombre);
     const objInputs = Object.entries(E.tipos).map(([clave, label]) =>
       `<label class="campo"><span class="et">${esc(label)} <em>%</em></span><input name="obj_${clave}" inputmode="decimal" placeholder="0"></label>`).join("");
@@ -795,6 +807,12 @@
         ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
       </div>
       <p class="ayuda">Ejes propios para clasificar tus activos (además de Tipo y Entidad). A cada activo le asignas un valor por eje en su ficha; luego puedes agrupar y filtrar <b>Distribución</b>, <b>Reparto %</b> y <b>Estructura</b> por ellos. Los valores tras los dos puntos son sugerencias; en la ficha del activo puedes escribir otro.</p>
+      ${seccion("Avisos automáticos")}
+      <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
+      <div class="rejilla">
+        ${(E.avisosCatalogo || []).map(a => `<label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
+          <span><b>${esc(a.nombre)}</b><small>${esc(a.desc)}${a.umbral ? ` · Se ajusta con «${esc(UMBRAL_NOMBRE[a.umbral] || a.umbral)}»` : ""}</small></span></label>`).join("")}
+      </div>
       ${seccion("Privacidad")}
       <div class="rejilla">
         <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
@@ -837,12 +855,15 @@
       // Tipos propios (filas) + tipos de base ocultos (casillas desmarcadas).
       const tipos = leeFilasEdit($("#edTipos")).map(x => ({ nombre: x.a })).filter(t => t.nombre);
       const tiposOcultos = [...f.querySelectorAll(".tbChk")].filter(c => !c.checked).map(c => c.value);
+      // Avisos: los que quedan sin marcar se desactivan.
+      const avisosOff = (E.avisosCatalogo || []).map(a => a.clave)
+        .filter(c => { const el = f.elements["aviso_" + c]; return el && !el.checked; });
       await guardaConfig({
         titular: (d.nombreCartera || "").trim(),
         objetivoImporte: d.objetivoImporte,
         colchon: d.colchon,
         inflacion: d.inflacion,
-        titulares, renombresTitular, tipos, tiposOcultos,
+        titulares, renombresTitular, tipos, tiposOcultos, avisosOff,
         umbralConcentracion: d.umbralConcentracion,
         desviacionMax: d.desviacionMax,
         diasAviso: d.diasAviso,

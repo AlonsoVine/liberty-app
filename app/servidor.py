@@ -313,7 +313,7 @@ def api_cartera():
     # tipos = los de base no ocultos + los que haya creado el usuario (para los
     # selectores); tiposBase para que el editor sepa cuáles puede ocultar/renombrar.
     return jsonify(modo=modo(), cartera=cfg, tipos=motor.tipos_visibles(cfg),
-                   tiposBase=motor.TIPOS, fuentes=motor.FUENTES,
+                   tiposBase=motor.TIPOS, fuentes=motor.FUENTES, avisosCatalogo=motor.AVISOS_CATALOGO,
                    tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO)
 
 
