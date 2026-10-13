@@ -747,17 +747,71 @@ def guarda_flujo(cfg, datos):
 # Espacio libre del usuario (no afecta a las cifras): una lista de notas y un tablero
 # tipo Trello con columnas y tarjetas. Se guarda tal cual (el cliente manda el todo).
 
+def _etiquetas(valor):
+    """Lista de etiquetas saneada: hasta 8, cada una texto corto, sin repetir."""
+    out, vistas = [], set()
+    for e in (valor or [])[:20]:
+        t = texto(e, 30)
+        k = t.lower()
+        if t and k not in vistas:
+            vistas.add(k)
+            out.append(t)
+        if len(out) >= 8:
+            break
+    return out
+
+
+def _vinculo(valor):
+    """Enlace opcional de una nota a un activo/deuda/categoría: {tipo, ref}."""
+    v = valor or {}
+    tipo = texto(v.get("tipo"), 20)
+    ref = texto(v.get("ref"), 120)
+    if tipo in ("activo", "deuda", "categoria") and ref:
+        return {"tipo": tipo, "ref": ref}
+    return None
+
+
 def guarda_notas(cfg, notas):
     out = []
     for n in (notas or [])[:500]:
-        titulo = texto((n or {}).get("titulo"), 120)
-        cuerpo = texto((n or {}).get("texto"), 4000)
+        n = n or {}
+        titulo = texto(n.get("titulo"), 120)
+        cuerpo = texto(n.get("texto"), 4000)
         if not (titulo or cuerpo):
             continue
-        out.append({"id": texto((n or {}).get("id"), 40) or siguiente_id(out, "n"),
-                    "titulo": titulo, "texto": cuerpo,
-                    "fecha": fecha_suave((n or {}).get("fecha")) or dt.date.today().isoformat()})
+        nota = {"id": texto(n.get("id"), 40) or siguiente_id(out, "n"),
+                "titulo": titulo, "texto": cuerpo,
+                "fecha": fecha_suave(n.get("fecha")) or dt.date.today().isoformat(),
+                "editada": fecha_suave(n.get("editada")) or "",
+                "fijada": bool(n.get("fijada")),
+                "etiquetas": _etiquetas(n.get("etiquetas"))}
+        vinc = _vinculo(n.get("vinculo"))
+        if vinc:
+            nota["vinculo"] = vinc
+        out.append(nota)
     cfg["notas"] = out
+    return out
+
+
+REC_REPETIR = ("no", "mensual", "anual")
+
+
+def guarda_recordatorios(cfg, recordatorios):
+    """Agenda del usuario: recordatorios con fecha. {id, texto, fecha, hecho, repetir}.
+    No afecta a las cifras del panel (espacio libre, como notas y tablero)."""
+    out = []
+    for r in (recordatorios or [])[:500]:
+        r = r or {}
+        cuerpo = texto(r.get("texto"), 300)
+        fch = fecha_suave(r.get("fecha"))
+        if not cuerpo or not fch:
+            continue
+        rep = r.get("repetir")
+        out.append({"id": texto(r.get("id"), 40) or siguiente_id(out, "r"),
+                    "texto": cuerpo, "fecha": fch,
+                    "hecho": bool(r.get("hecho")),
+                    "repetir": rep if rep in REC_REPETIR else "no"})
+    cfg["recordatorios"] = out
     return out
 
 
@@ -773,14 +827,22 @@ def guarda_tablero(cfg, tablero):
         cols.append({"id": cid, "nombre": nombre})
     tarjetas = []
     for t in (tablero.get("tarjetas") or [])[:1000]:
-        txt = texto((t or {}).get("texto"), 2000)
+        t = t or {}
+        txt = texto(t.get("texto"), 2000)
         if not txt:
             continue
-        col = texto((t or {}).get("col"), 40)
+        col = texto(t.get("col"), 40)
         if cols and col not in cids:
             col = cols[0]["id"]
-        tarjetas.append({"id": texto((t or {}).get("id"), 40) or siguiente_id(tarjetas, "t"),
-                         "col": col, "texto": txt})
+        tarjeta = {"id": texto(t.get("id"), 40) or siguiente_id(tarjetas, "t"),
+                   "col": col, "texto": txt}
+        color = texto(t.get("color"), 12)
+        if color:                                  # etiqueta de color (una clave corta)
+            tarjeta["color"] = color
+        vence = fecha_suave(t.get("vence"))
+        if vence:
+            tarjeta["vence"] = vence
+        tarjetas.append(tarjeta)
     cfg["tablero"] = {"columnas": cols, "tarjetas": tarjetas}
     return cfg["tablero"]
 

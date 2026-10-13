@@ -1998,7 +1998,7 @@
     }, 6000);
   })();
 
-  /* ---------------------------------------------- Notas (lista + tablero Trello) */
+  /* ---------------------------------------------- Notas (lista + tablero + agenda) */
   async function guardaNotas(notas) {
     const j = await api("POST", "api/notas", { notas });
     E.cfg = j.cartera; pintarNotas();   // no marca EDITOR_SUCIO: no afecta al panel
@@ -2007,45 +2007,148 @@
     const j = await api("POST", "api/tablero", { tablero });
     E.cfg = j.cartera; pintarNotas();
   }
+  async function guardaRecordatorios(recordatorios) {
+    const j = await api("POST", "api/recordatorios", { recordatorios });
+    E.cfg = j.cartera; pintarNotas();
+  }
+  // Días desde hoy hasta una fecha ISO (negativo = ya pasó).
+  function diasHasta(iso) {
+    const h = new Date(); h.setHours(0, 0, 0, 0);
+    const d = new Date(iso + "T00:00:00");
+    return Math.round((d - h) / 86400000);
+  }
+  // Para recordatorios que se repiten: la próxima ocurrencia a partir de hoy.
+  function proximaFecha(iso, repetir) {
+    if (repetir === "no") return iso;
+    const d = new Date(iso + "T00:00:00"), h = new Date(); h.setHours(0, 0, 0, 0);
+    let guarda = 0;
+    while (d < h && guarda++ < 600) {
+      if (repetir === "mensual") d.setMonth(d.getMonth() + 1); else d.setFullYear(d.getFullYear() + 1);
+    }
+    return d.toISOString().slice(0, 10);
+  }
+  function nombreVinculo(v) {
+    if (!v) return "";
+    if (v.tipo === "categoria") return v.ref;
+    const p = (E.cfg.productos || []).find(x => x.id === v.ref);
+    return p ? nombre(p) : v.ref;
+  }
 
+  function opcionesRefNota(tipo, sel) {
+    const prods = E.cfg.productos || [];
+    const lista = tipo === "activo" ? prods.filter(p => p.tipo !== "deuda").map(p => ({ v: p.id, t: nombre(p) }))
+      : tipo === "deuda" ? prods.filter(p => p.tipo === "deuda").map(p => ({ v: p.id, t: nombre(p) }))
+      : tipo === "categoria" ? ((E.cfg.config || {}).categorias || []).map(c => ({ v: c.nombre, t: c.nombre })) : [];
+    return `<option value="">—</option>` + lista.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("");
+  }
   function formNota(n) {
     const nuevo = !n; n = n || {};
+    const vinc = n.vinculo || {};
     const f = abreModal(nuevo ? "Nueva nota" : "Editar nota", `
       <div class="rejilla">
         ${campo("Título", '<input name="titulo" maxlength="120">', "", "ancho")}
-        ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "", "ancho")}
+        ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "Para una lista de tareas, escribe «- [ ] comprar X» (se vuelve una casilla).", "ancho")}
+        ${campo("Etiquetas", '<input name="etiquetas" placeholder="casa, urgente, revisar">', "sepáralas por comas", "ancho")}
+        ${campo("Fijar arriba", '<label class="chkLinea"><input type="checkbox" name="fijada"> Mantener esta nota arriba del todo</label>', "", "ancho")}
+        ${campo("Relacionada con", `<select name="vinculoTipo">
+          <option value="">Nada</option>
+          <option value="activo"${vinc.tipo === "activo" ? " selected" : ""}>Un activo</option>
+          <option value="deuda"${vinc.tipo === "deuda" ? " selected" : ""}>Una deuda</option>
+          <option value="categoria"${vinc.tipo === "categoria" ? " selected" : ""}>Una categoría</option></select>`)}
+        ${campo("¿Cuál?", `<select name="vinculoRef">${opcionesRefNota(vinc.tipo || "", vinc.ref || "")}</select>`)}
       </div>`,
     async f => {
       const d = campos(f);
+      const etiquetas = (d.etiquetas || "").split(/[,\n;]/).map(s => s.trim()).filter(Boolean);
+      const vinculo = d.vinculoTipo && d.vinculoRef ? { tipo: d.vinculoTipo, ref: d.vinculoRef } : null;
+      const comun = { titulo: d.titulo, texto: d.texto, etiquetas, fijada: !!f.elements.fijada.checked, editada: hoy() };
+      if (vinculo) comun.vinculo = vinculo;
       const notas = (E.cfg.notas || []).slice();
-      if (nuevo) notas.push({ id: "n" + Date.now(), titulo: d.titulo, texto: d.texto, fecha: hoy() });
-      else { const i = notas.findIndex(x => x.id === n.id); if (i >= 0) notas[i] = { ...notas[i], titulo: d.titulo, texto: d.texto }; }
+      if (nuevo) notas.push({ id: "n" + Date.now(), fecha: hoy(), ...comun });
+      else { const i = notas.findIndex(x => x.id === n.id); if (i >= 0) { const { vinculo: _v, ...resto } = notas[i]; notas[i] = { ...resto, ...comun }; } }
       await guardaNotas(notas);
     }, "Guardar");
     rellena(f, n);
+    // Al cambiar el tipo de vínculo, repoblar el selector de «¿cuál?».
+    f.elements.vinculoTipo.onchange = () => { f.elements.vinculoRef.innerHTML = opcionesRefNota(f.elements.vinculoTipo.value, ""); };
+    f.elements.etiquetas.value = (n.etiquetas || []).join(", ");
+    f.elements.fijada.checked = !!n.fijada;
     return f;
   }
 
+  // Texto de una nota como HTML: las líneas «- [ ] algo» se vuelven casillas marcables.
+  function notaTextoHTML(n) {
+    return String(n.texto || "").split("\n").map((ln, i) => {
+      const m = ln.match(/^(\s*)[-*]\s+\[([ xX])\]\s?(.*)$/);
+      if (m) {
+        const hecha = m[2].toLowerCase() === "x";
+        return `<label class="notaChk${hecha ? " hecha" : ""}"><input type="checkbox"${hecha ? " checked" : ""} data-chk="${esc(n.id)}" data-ln="${i}"><span>${esc(m[3])}</span></label>`;
+      }
+      return `<div class="notaLn">${esc(ln) || "&nbsp;"}</div>`;
+    }).join("");
+  }
   function montaNotasLista() {
     const cont = $("#notasCuerpo"); if (!cont) return;
-    const notas = (E.cfg.notas || []).slice().sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
-    const cards = notas.map(n => `<div class="notaCard">
-      <div class="notaTit">${esc(n.titulo || "(sin título)")}</div>
-      <div class="notaTxt">${esc(n.texto || "").replace(/\n/g, "<br>")}</div>
-      <div class="notaPie"><span class="subt">${fecha(n.fecha)}</span><span class="sp"></span>
-        <button class="btn mini" data-nacc="editar" data-id="${esc(n.id)}">Editar</button>
-        <button class="btn mini" data-nacc="borrar" data-id="${esc(n.id)}">Borrar</button></div></div>`).join("");
+    const busca = (E.notaBusca || "").trim().toLowerCase();
+    const tagSel = E.notaTag || "";
+    const orden = E.notaOrden || "fecha";
+    const tagsTodas = [...new Set((E.cfg.notas || []).flatMap(n => n.etiquetas || []))].sort((a, b) => a.localeCompare(b));
+    let notas = (E.cfg.notas || []).slice();
+    if (busca) notas = notas.filter(n => ((n.titulo || "") + " " + (n.texto || "") + " " + (n.etiquetas || []).join(" ")).toLowerCase().includes(busca));
+    if (tagSel) notas = notas.filter(n => (n.etiquetas || []).includes(tagSel));
+    notas.sort((a, b) => {
+      if (!!b.fijada !== !!a.fijada) return a.fijada ? -1 : 1;    // fijadas primero
+      if (orden === "titulo") return (a.titulo || "").localeCompare(b.titulo || "");
+      return a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0;  // por fecha, recientes primero
+    });
+    const card = n => {
+      const tags = (n.etiquetas || []).map(t => `<button class="notaTag" data-tagf="${esc(t)}">${esc(t)}</button>`).join("");
+      const vinc = n.vinculo ? `<span class="notaVinc" title="Relacionada con ${esc(n.vinculo.tipo)}">🔗 ${esc(nombreVinculo(n.vinculo))}</span>` : "";
+      const ed = n.editada && n.editada !== n.fecha ? ` · editada ${fecha(n.editada)}` : "";
+      return `<div class="notaCard${n.fijada ? " fijada" : ""}">
+        <div class="notaCabe"><div class="notaTit">${esc(n.titulo || "(sin título)")}</div>
+          <button class="notaPin${n.fijada ? " on" : ""}" data-nacc="fijar" data-id="${esc(n.id)}" title="${n.fijada ? "Dejar de fijar" : "Fijar arriba"}" aria-label="Fijar">📌</button></div>
+        <div class="notaTxt">${notaTextoHTML(n)}</div>
+        ${(tags || vinc) ? `<div class="notaMeta">${vinc}${tags}</div>` : ""}
+        <div class="notaPie"><span class="subt">${fecha(n.fecha)}${ed}</span><span class="sp"></span>
+          <button class="btn mini" data-nacc="editar" data-id="${esc(n.id)}">Editar</button>
+          <button class="btn mini" data-nacc="borrar" data-id="${esc(n.id)}">Borrar</button></div></div>`;
+    };
+    const hayNotas = (E.cfg.notas || []).length > 0;
+    const herramientas = hayNotas ? `<div class="notasTools">
+        <label class="buscaTabla">${LUPA}<input type="search" data-nbusca placeholder="Buscar en notas…" value="${esc(E.notaBusca || "")}" aria-label="Buscar notas"></label>
+        ${tagsTodas.length ? `<select data-ntag aria-label="Filtrar por etiqueta"><option value="">Todas las etiquetas</option>${tagsTodas.map(t => `<option value="${esc(t)}"${t === tagSel ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>` : ""}
+        <select data-norden aria-label="Ordenar"><option value="fecha"${orden === "fecha" ? " selected" : ""}>Más recientes</option><option value="titulo"${orden === "titulo" ? " selected" : ""}>Por título</option></select>
+      </div>` : "";
+    const cards = notas.map(card).join("");
     cont.innerHTML = `<section class="tarjeta"><header><h2>Notas</h2>
-        <span class="subt">Apuntes libres: ideas, recordatorios, cosas pendientes… (no afectan a tus cifras)</span>
+        <span class="subt">Apuntes libres: ideas, pendientes, enlaces… (no afectan a tus cifras)</span>
         <span class="sp"></span><button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>
-      ${cards ? `<div class="notasGrid">${cards}</div>` : '<p class="subt">Todavía no has escrito ninguna nota.</p>'}</section>`;
+      ${herramientas}
+      ${!hayNotas ? '<p class="subt">Todavía no has escrito ninguna nota.</p>'
+        : cards ? `<div class="notasGrid">${cards}</div>` : '<p class="subt">Ninguna nota coincide con la búsqueda.</p>'}</section>`;
+    const refiltra = () => montaNotasLista();
+    const bq = cont.querySelector("[data-nbusca]");
+    if (bq) bq.oninput = e => { E.notaBusca = e.target.value; const pos = bq.selectionStart; refiltra(); const nb = $("[data-nbusca]"); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (_) { /* */ } } };
+    const tsel = cont.querySelector("[data-ntag]"); if (tsel) tsel.onchange = e => { E.notaTag = e.target.value; refiltra(); };
+    const osel = cont.querySelector("[data-norden]"); if (osel) osel.onchange = e => { E.notaOrden = e.target.value; recuerda.guarda("patrimonio.notaOrden", e.target.value); refiltra(); };
+    cont.querySelectorAll("[data-tagf]").forEach(b => b.onclick = () => { E.notaTag = b.dataset.tagf; refiltra(); });
+    cont.querySelectorAll("[data-chk]").forEach(cb => cb.onchange = () => {
+      const notas = (E.cfg.notas || []).slice();
+      const i = notas.findIndex(x => x.id === cb.dataset.chk); if (i < 0) return;
+      const ls = String(notas[i].texto || "").split("\n"); const k = +cb.dataset.ln;
+      ls[k] = ls[k].replace(/\[([ xX])\]/, (mm, c) => c.toLowerCase() === "x" ? "[ ]" : "[x]");
+      notas[i] = { ...notas[i], texto: ls.join("\n"), editada: hoy() };
+      guardaNotas(notas);
+    });
     cont.querySelectorAll("[data-nacc]").forEach(b => {
       b.onclick = () => {
-        const id = b.dataset.id;
-        if (b.dataset.nacc === "nueva") return formNota(null);
+        const id = b.dataset.id, acc = b.dataset.nacc;
+        if (acc === "nueva") return formNota(null);
         const n = (E.cfg.notas || []).find(x => x.id === id);
-        if (b.dataset.nacc === "editar") return formNota(n);
-        if (b.dataset.nacc === "borrar" && confirm(`¿Borrar la nota «${n ? (n.titulo || "sin título") : ""}»?`)) {
+        if (acc === "editar") return formNota(n);
+        if (acc === "fijar") { const l = (E.cfg.notas || []).map(x => x.id === id ? { ...x, fijada: !x.fijada } : x); return guardaNotas(l); }
+        if (acc === "borrar" && confirm(`¿Borrar la nota «${n ? (n.titulo || "sin título") : ""}»?`)) {
           guardaNotas((E.cfg.notas || []).filter(x => x.id !== id));
         }
       };
@@ -2053,35 +2156,72 @@
   }
 
   const TABLERO_DEFECTO = () => ({ columnas: [{ id: "porhacer", nombre: "Por hacer" }, { id: "encurso", nombre: "En curso" }, { id: "hecho", nombre: "Hecho" }], tarjetas: [] });
+  const COLORES_TARJETA = ["", "s6", "s2", "s8", "s14", "s11"];   // "" = sin color
   function montaTablero() {
     const cont = $("#notasCuerpo"); if (!cont) return;
     let tab = E.cfg.tablero;
     if (!tab || !(tab.columnas || []).length) tab = TABLERO_DEFECTO();
+    const guardar = () => guardaTablero(tab);
+    const tarjetaHTML = t => {
+      const borde = t.color ? ` style="border-left:4px solid var(--${esc(t.color)})"` : "";
+      let venceChip = "";
+      if (t.vence) { const d = diasHasta(t.vence); venceChip = `<span class="kVence${d < 0 ? " vencido" : d <= 7 ? " cerca" : ""}">📅 ${fecha(t.vence)}</span>`; }
+      return `<div class="kCard" draggable="true" data-id="${esc(t.id)}"${borde}>
+        <div class="kTxt" data-tedit="${esc(t.id)}" title="Doble clic para editar">${esc(t.texto).replace(/\n/g, "<br>")}</div>
+        <button class="kDel" data-tdel="${esc(t.id)}" title="Borrar tarjeta" aria-label="Borrar">×</button>
+        ${venceChip ? `<div class="kMeta">${venceChip}</div>` : ""}</div>`;
+    };
     const cols = tab.columnas.map(c => {
-      const cards = (tab.tarjetas || []).filter(t => t.col === c.id).map(t => `<div class="kCard" draggable="true" data-id="${esc(t.id)}">
-        <span class="kTxt">${esc(t.texto).replace(/\n/g, "<br>")}</span>
-        <button class="kDel" data-tdel="${esc(t.id)}" title="Borrar tarjeta" aria-label="Borrar">×</button></div>`).join("");
-      return `<div class="kCol"><div class="kColHead"><b>${esc(c.nombre)}</b><span class="sp"></span>
+      const dec = (tab.tarjetas || []).filter(t => t.col === c.id);
+      return `<div class="kCol"><div class="kColHead"><b>${esc(c.nombre)}</b><span class="kCount">${dec.length}</span><span class="sp"></span>
           <button class="kIco" data-cren="${esc(c.id)}" title="Renombrar columna">✎</button>
           <button class="kIco" data-cdel="${esc(c.id)}" title="Borrar columna">🗑</button></div>
-        <div class="kCards" data-col="${esc(c.id)}">${cards}</div>
+        <div class="kCards" data-col="${esc(c.id)}">${dec.map(tarjetaHTML).join("")}</div>
         <button class="kAdd" data-cadd="${esc(c.id)}">+ Tarjeta</button></div>`;
     }).join("");
     cont.innerHTML = `<section class="tarjeta"><header><h2>Tablero</h2>
-        <span class="subt">Tipo Trello: arrastra las tarjetas entre columnas.</span>
+        <span class="subt">Tipo Trello: arrastra para mover u ordenar. Doble clic en una tarjeta para editarla.</span>
         <span class="sp"></span><button class="btn" data-knuevacol>+ Columna</button></header>
       <div class="kBoard">${cols}</div></section>`;
-    const guardar = () => guardaTablero(tab);
-    // Acciones
+
+    // Editor inline de tarjeta (nueva o existente): textarea + colores + fecha.
+    function abreEditorTarjeta(ancla, colId, t) {
+      if (cont.querySelector(".kEditor")) return;        // uno a la vez
+      const ed = document.createElement("div");
+      ed.className = "kEditor";
+      ed.innerHTML = `<textarea class="kEdTxt" rows="2" placeholder="Texto de la tarjeta">${t ? esc(t.texto) : ""}</textarea>
+        <div class="kEdColores">${COLORES_TARJETA.map(c => `<button type="button" class="kColor${(t && t.color || "") === c ? " sel" : ""}" data-color="${c}" title="${c ? "Color" : "Sin color"}"${c ? ` style="background:var(--${c})"` : ""}>${c ? "" : "∅"}</button>`).join("")}
+          <input type="date" class="kEdVence" value="${t && t.vence ? esc(t.vence) : ""}" title="Fecha de vencimiento (opcional)"></div>
+        <div class="kEdAcc"><button type="button" class="btn mini prim" data-edok>Guardar</button><button type="button" class="btn mini" data-edcancel>Cancelar</button></div>`;
+      if (t) { ancla.replaceWith(ed); } else { ancla.before(ed); }
+      let color = (t && t.color) || "";
+      ed.querySelectorAll("[data-color]").forEach(b => b.onclick = () => { color = b.dataset.color; ed.querySelectorAll("[data-color]").forEach(x => x.classList.toggle("sel", x === b)); });
+      const ta = ed.querySelector(".kEdTxt"); ta.focus();
+      const cancelar = () => montaTablero();
+      const ok = () => {
+        const txt = ta.value.trim(); if (!txt) return cancelar();
+        const vence = ed.querySelector(".kEdVence").value || "";
+        if (t) {
+          const i = (tab.tarjetas || []).findIndex(x => x.id === t.id);
+          if (i >= 0) { const { color: _c, vence: _v, ...resto } = tab.tarjetas[i]; tab.tarjetas[i] = { ...resto, texto: txt, ...(color ? { color } : {}), ...(vence ? { vence } : {}) }; }
+        } else {
+          (tab.tarjetas = tab.tarjetas || []).push({ id: "t" + Date.now(), col: colId, texto: txt, ...(color ? { color } : {}), ...(vence ? { vence } : {}) });
+        }
+        guardar();
+      };
+      ed.querySelector("[data-edok]").onclick = ok;
+      ed.querySelector("[data-edcancel]").onclick = cancelar;
+      ta.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ok(); } if (e.key === "Escape") cancelar(); };
+    }
     cont.querySelector("[data-knuevacol]").onclick = () => {
       const nombre = (prompt("Nombre de la nueva columna:") || "").trim();
       if (!nombre) return;
       tab.columnas.push({ id: "c" + Date.now(), nombre }); guardar();
     };
-    cont.querySelectorAll("[data-cadd]").forEach(b => b.onclick = () => {
-      const txt = (prompt("Texto de la tarjeta:") || "").trim();
-      if (!txt) return;
-      (tab.tarjetas = tab.tarjetas || []).push({ id: "t" + Date.now(), col: b.dataset.cadd, texto: txt }); guardar();
+    cont.querySelectorAll("[data-cadd]").forEach(b => b.onclick = () => abreEditorTarjeta(b, b.dataset.cadd, null));
+    cont.querySelectorAll("[data-tedit]").forEach(el => el.ondblclick = () => {
+      const t = (tab.tarjetas || []).find(x => x.id === el.dataset.tedit);
+      if (t) abreEditorTarjeta(el.closest(".kCard"), t.col, t);
     });
     cont.querySelectorAll("[data-tdel]").forEach(b => b.onclick = () => {
       tab.tarjetas = (tab.tarjetas || []).filter(t => t.id !== b.dataset.tdel); guardar();
@@ -2096,8 +2236,16 @@
       tab.columnas = tab.columnas.filter(x => x.id !== b.dataset.cdel);
       tab.tarjetas = (tab.tarjetas || []).filter(t => t.col !== b.dataset.cdel); guardar();
     });
-    // Arrastrar y soltar entre columnas.
+    // Arrastrar: mover entre columnas Y reordenar dentro de una columna.
     let dragId = null;
+    function mueve(id, col, antesId) {
+      const arr = tab.tarjetas || [], card = arr.find(t => t.id === id); if (!card) return;
+      card.col = col;
+      const sin = arr.filter(t => t.id !== id), out = []; let ins = false;
+      for (const t of sin) { if (t.id === antesId) { out.push(card); ins = true; } out.push(t); }
+      if (!ins) out.push(card);
+      tab.tarjetas = out; guardar();
+    }
     cont.querySelectorAll(".kCard").forEach(card => {
       card.addEventListener("dragstart", e => { dragId = card.dataset.id; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
       card.addEventListener("dragend", () => card.classList.remove("dragging"));
@@ -2107,11 +2255,76 @@
       zone.addEventListener("dragleave", () => zone.classList.remove("over"));
       zone.addEventListener("drop", e => {
         e.preventDefault(); zone.classList.remove("over");
-        const card = (tab.tarjetas || []).find(t => t.id === dragId);
-        if (card && card.col !== zone.dataset.col) { card.col = zone.dataset.col; guardar(); }
-        dragId = null;
+        if (!dragId) return;
+        let antes = null;
+        for (const el of zone.querySelectorAll(".kCard:not(.dragging)")) {
+          const r = el.getBoundingClientRect();
+          if (e.clientY < r.top + r.height / 2) { antes = el.dataset.id; break; }
+        }
+        mueve(dragId, zone.dataset.col, antes); dragId = null;
       });
     });
+  }
+
+  function formRecordatorio(r) {
+    const nuevo = !r; r = r || {};
+    const f = abreModal(nuevo ? "Nuevo recordatorio" : "Editar recordatorio", `
+      <div class="rejilla">
+        ${campo("Qué", '<input name="texto" maxlength="300" placeholder="Renovar el seguro del coche">', "", "ancho")}
+        ${campo("Fecha", '<input name="fecha" type="date" required>')}
+        ${campo("Repetir", `<select name="repetir"><option value="no">No se repite</option><option value="mensual">Cada mes</option><option value="anual">Cada año</option></select>`)}
+      </div>`,
+    async f => {
+      const d = campos(f);
+      const lista = (E.cfg.recordatorios || []).slice();
+      if (nuevo) lista.push({ id: "r" + Date.now(), texto: d.texto, fecha: d.fecha, repetir: d.repetir, hecho: false });
+      else { const i = lista.findIndex(x => x.id === r.id); if (i >= 0) lista[i] = { ...lista[i], texto: d.texto, fecha: d.fecha, repetir: d.repetir }; }
+      await guardaRecordatorios(lista);
+    }, "Guardar");
+    rellena(f, r);
+    return f;
+  }
+  function montaAgenda() {
+    const cont = $("#notasCuerpo"); if (!cont) return;
+    const recs = E.cfg.recordatorios || [];
+    const vencs = (window.DATOS && window.DATOS.vencimientos) || [];
+    const items = [];
+    recs.forEach(r => {
+      const fEff = (r.repetir !== "no" && !r.hecho) ? proximaFecha(r.fecha, r.repetir) : r.fecha;
+      items.push({ clase: "rec", id: r.id, texto: r.texto, fecha: fEff, hecho: !!r.hecho, repetir: r.repetir });
+    });
+    vencs.forEach(v => items.push({ clase: "venc", texto: v.nombre, fecha: v.fecha,
+      meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado }));
+    const pend = items.filter(i => !(i.clase === "rec" && i.hecho)).sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0);
+    const hechos = items.filter(i => i.clase === "rec" && i.hecho).sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    const fila = i => {
+      const d = diasHasta(i.fecha);
+      const etqD = d < 0 ? `hace ${-d} d` : d === 0 ? "hoy" : d === 1 ? "mañana" : `en ${d} d`;
+      const clD = d < 0 ? "neg" : d <= 7 ? "aviso" : "";
+      if (i.clase === "venc") {
+        return `<div class="agItem venc"><span class="agFecha">${fecha(i.fecha)}</span>
+          <span class="agDias ${clD}">${etqD}</span>
+          <span class="agTxt">${esc(i.texto)}${i.meta ? ` <span class="agMeta">${esc(i.meta)}</span>` : ""}</span>
+          <span class="agBadge" title="Se gestiona en Mis datos">${esc(i.tipo || "Vencimiento")}</span></div>`;
+      }
+      const rep = i.repetir !== "no" ? `<span class="agRep">🔁 ${i.repetir === "mensual" ? "mensual" : "anual"}</span>` : "";
+      return `<div class="agItem${i.hecho ? " hecha" : ""}"><span class="agFecha">${fecha(i.fecha)}</span>
+        <span class="agDias ${i.hecho ? "" : clD}">${i.hecho ? "hecho" : etqD}</span>
+        <span class="agTxt">${esc(i.texto)} ${rep}</span>
+        ${i.repetir === "no" ? `<input type="checkbox" class="agChk"${i.hecho ? " checked" : ""} data-rdone="${esc(i.id)}" title="Marcar como hecho">` : ""}
+        <button class="btn mini" data-redit="${esc(i.id)}">Editar</button>
+        <button class="btn mini" data-rdel="${esc(i.id)}">Borrar</button></div>`;
+    };
+    cont.innerHTML = `<section class="tarjeta"><header><h2>Agenda</h2>
+        <span class="subt">Tus recordatorios y los vencimientos que la app detecta (depósitos, deudas, reservados), ordenados por fecha.</span>
+        <span class="sp"></span><button class="btn prim" data-rnuevo>+ Recordatorio</button></header>
+      ${pend.length ? `<div class="agLista">${pend.map(fila).join("")}</div>` : '<p class="subt">No hay nada pendiente en la agenda.</p>'}
+      ${hechos.length ? `<details class="agHechos"><summary>${hechos.length} hecho${hechos.length === 1 ? "" : "s"}</summary><div class="agLista">${hechos.map(fila).join("")}</div></details>` : ""}
+    </section>`;
+    cont.querySelector("[data-rnuevo]").onclick = () => formRecordatorio(null);
+    cont.querySelectorAll("[data-redit]").forEach(b => b.onclick = () => formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.redit)));
+    cont.querySelectorAll("[data-rdel]").forEach(b => b.onclick = () => { if (confirm("¿Borrar este recordatorio?")) guardaRecordatorios((E.cfg.recordatorios || []).filter(x => x.id !== b.dataset.rdel)); });
+    cont.querySelectorAll("[data-rdone]").forEach(cb => cb.onchange = () => guardaRecordatorios((E.cfg.recordatorios || []).map(x => x.id === cb.dataset.rdone ? { ...x, hecho: cb.checked } : x)));
   }
 
   function pintarNotas() {
@@ -2124,14 +2337,16 @@
     const v = E.notasVista || "lista";
     cont.innerHTML = `<div class="segm notasNav">
         <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
-        <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button></div>
+        <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button>
+        <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button></div>
       <div id="notasCuerpo"></div>`;
     cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
       E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
     });
-    if (v === "lista") montaNotasLista(); else montaTablero();
+    if (v === "tablero") montaTablero(); else if (v === "agenda") montaAgenda(); else montaNotasLista();
   }
   E.notasVista = recuerda.lee("patrimonio.notasVista") || "lista";
+  E.notaOrden = recuerda.lee("patrimonio.notaOrden") || "fecha";
 
   window.Editor = {
     mostrar: pinta,

@@ -152,13 +152,60 @@ td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
 .kIco:hover{color:var(--tinta);background:var(--sup3)}
 .kCards{display:flex;flex-direction:column;gap:8px;min-height:40px;border-radius:8px;transition:.1s}
 .kCards.over{background:color-mix(in srgb,var(--s1) 14%,transparent);outline:2px dashed var(--s1)}
-.kCard{background:var(--sup);border:1px solid var(--borde);border-radius:9px;padding:9px 10px;font-size:13.5px;cursor:grab;display:flex;gap:6px;align-items:flex-start}
+.kCard{background:var(--sup);border:1px solid var(--borde);border-radius:9px;padding:9px 10px;font-size:13.5px;cursor:grab;display:flex;flex-wrap:wrap;gap:6px;align-items:flex-start}
 .kCard.dragging{opacity:.5}
 .kTxt{flex:1;overflow-wrap:anywhere;line-height:1.45}
 .kDel{border:0;background:none;color:var(--tinta3);cursor:pointer;font-size:16px;line-height:1;padding:0 2px;border-radius:6px}
 .kDel:hover{color:var(--mal)}
 .kAdd{border:1px dashed var(--borde);background:none;color:var(--tinta2);cursor:pointer;padding:7px;border-radius:8px;font-size:13px}
 .kAdd:hover{border-color:var(--s1);color:var(--tinta)}
+/* Notas: herramientas, fijar, etiquetas, vínculo y checklists */
+.notasTools{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:2px 0 4px}
+.notaCabe{display:flex;align-items:flex-start;gap:6px}
+.notaCabe .notaTit{flex:1}
+.notaPin{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;opacity:.3;filter:grayscale(1);padding:2px;border-radius:6px}
+.notaPin:hover{opacity:.7}
+.notaPin.on{opacity:1;filter:none}
+.notaCard.fijada{border-color:var(--s1);box-shadow:0 0 0 1px color-mix(in srgb,var(--s1) 35%,transparent)}
+.notaMeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:2px}
+.notaTag{border:1px solid var(--borde);background:var(--sup);color:var(--tinta2);font-size:11.5px;padding:2px 8px;border-radius:999px;cursor:pointer}
+.notaTag:hover{border-color:var(--s1);color:var(--tinta)}
+.notaVinc{font-size:11.5px;color:var(--tinta3);background:var(--sup);border:1px solid var(--borde);padding:2px 8px;border-radius:999px}
+.notaLn{min-height:1.3em}
+.notaChk{display:flex;gap:7px;align-items:flex-start;font-size:13.5px;color:var(--tinta2);line-height:1.4;cursor:pointer}
+.notaChk input{margin-top:2px}
+.notaChk.hecha span{text-decoration:line-through;color:var(--tinta3)}
+.chkLinea{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--tinta2);cursor:pointer}
+/* Tablero: contador, color, vencimiento y editor inline */
+.kCount{font-size:11.5px;color:var(--tinta3);background:var(--sup);border:1px solid var(--borde);border-radius:999px;padding:0 7px;line-height:17px}
+.kMeta{display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;width:100%}
+.kVence{font-size:11px;color:var(--tinta3);background:var(--sup2);border:1px solid var(--borde);border-radius:6px;padding:1px 6px}
+.kVence.cerca{color:var(--aviso);border-color:color-mix(in srgb,var(--aviso) 40%,var(--borde))}
+.kVence.vencido{color:var(--mal);border-color:color-mix(in srgb,var(--mal) 40%,var(--borde))}
+.kEditor{background:var(--sup);border:1px solid var(--s1);border-radius:9px;padding:8px;display:flex;flex-direction:column;gap:7px}
+.kEdTxt{width:100%;resize:vertical;font:inherit;font-size:13.5px;border:1px solid var(--borde);border-radius:7px;background:var(--sup2);color:var(--tinta);padding:7px}
+.kEdColores{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.kColor{width:22px;height:22px;border-radius:50%;border:2px solid transparent;cursor:pointer;background:var(--sup2);color:var(--tinta3);font-size:12px;line-height:1;display:inline-flex;align-items:center;justify-content:center}
+.kColor.sel{border-color:var(--tinta)}
+.kEdVence{font:inherit;font-size:12.5px;border:1px solid var(--borde);border-radius:7px;background:var(--sup2);color:var(--tinta);padding:4px 6px;margin-left:auto}
+.kEdAcc{display:flex;gap:8px}
+/* Agenda */
+.agLista{display:flex;flex-direction:column;gap:2px;margin-top:10px}
+.agItem{display:flex;align-items:center;gap:10px;padding:9px 6px;border-bottom:1px solid var(--borde)}
+.agItem:last-child{border-bottom:0}
+.agFecha{flex:0 0 96px;font-size:13px;color:var(--tinta2)}
+.agDias{flex:0 0 72px;font-size:12px;color:var(--tinta3)}
+.agDias.aviso{color:var(--aviso)}
+.agDias.neg{color:var(--mal)}
+.agTxt{flex:1;font-size:13.5px;overflow-wrap:anywhere}
+.agMeta{color:var(--tinta3);font-size:12px}
+.agRep{color:var(--tinta3);font-size:11.5px;margin-left:4px}
+.agBadge{font-size:11px;color:var(--tinta3);background:var(--sup);border:1px solid var(--borde);border-radius:6px;padding:1px 7px}
+.agItem.venc{opacity:.92}
+.agItem.hecha .agTxt{text-decoration:line-through;color:var(--tinta3)}
+.agChk{margin:0 2px}
+.agHechos{margin-top:12px}
+.agHechos summary{cursor:pointer;color:var(--tinta3);font-size:13px}
 .recChips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 2px}
 .recHint{font-size:12.5px;color:var(--tinta3);margin-right:2px}
 .recChip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px 6px 11px;border-radius:999px;
@@ -1398,7 +1445,7 @@ body.video .tarjetaCanal{display:none}
       <li><b>Periodo a medida</b>: ver el patrimonio a un <b>día concreto</b>, a fin de cualquier mes o lo obtenido en un <b>rango</b>.</li>
       <li><b>Ingresos y gastos con filtros potentes</b> (categoría, entidad, titular, marca, importe o fechas) y <b>marcas</b> para señalar apuntes.</li>
       <li><b>Ayuda para rebalancear</b> hacia tus objetivos y <b>centro de avisos</b> configurable.</li>
-      <li><b>Notas y un tablero tipo Trello</b> para tus pendientes, y un <b>tour guiado</b> la primera vez.</li>
+      <li><b>Notas</b> (con etiquetas y tareas), <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos; y un <b>tour guiado</b> la primera vez.</li>
       <li><b>Informe fiscal</b> anual para la renta (ganancias y pérdidas por FIFO y dividendos/cupones), <b>listo para imprimir</b>.</li>
       <li><b>Multidivisa</b>, y la base que ya traía Rumbo: precios automáticos, TIR/XIRR, FIFO y comparador con índices.</li>
     </ul>
@@ -1504,7 +1551,7 @@ body.video .tarjetaCanal{display:none}
           mes o un rango).</li>
         <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, <b>Saldos y movimientos</b>,
           <b>Ingresos y gastos</b>, Configuración, Importar y Copias y seguridad.</li>
-        <li><b>🗒️ Notas</b>: tus notas sueltas y un <b>tablero tipo Trello</b> (columnas y tarjetas) para organizar pendientes.</li>
+        <li><b>🗒️ Notas</b>: tus notas (con etiquetas y listas de tareas), un <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos.</li>
         <li><b>❓ Ayuda</b>: esto.</li>
         <li><b>⚙️ Ajustes</b>: tamaño de texto, tema claro/oscuro, vista amplia, modo vídeo y ocultar importes.</li>
       </ul></div></details>
@@ -1596,10 +1643,17 @@ body.video .tarjetaCanal{display:none}
       esa cantidad dando prioridad a lo que llevas por debajo del objetivo.</p></div></details>
 
     <details class="faq"><summary>¿Para qué sirve la pestaña «Notas»?</summary><div>
-      <p>Es tu espacio para apuntes y pendientes, separado de los datos del patrimonio. Tiene dos vistas: <b>Lista de
-      notas</b> (crear, editar y borrar notas) y un <b>tablero tipo Trello</b> con columnas y tarjetas que puedes
-      arrastrar de una a otra (por ejemplo «Por hacer / En curso / Hecho»). Útil para seguir trámites, aportaciones
-      pendientes o ideas.</p></div></details>
+      <p>Es tu espacio para apuntes, pendientes y fechas, separado de los datos del patrimonio. Tiene tres vistas:</p>
+      <ul>
+        <li><b>📝 Lista de notas</b>: crea notas con <b>etiquetas</b>, <b>fíjalas</b> arriba, <b>búscalas</b> y añade
+          <b>listas de tareas</b> dentro (escribe <code>- [ ] comprar X</code> y se vuelve una casilla marcable). Puedes
+          <b>relacionar</b> una nota con un activo, una deuda o una categoría.</li>
+        <li><b>📋 Tablero</b> tipo Trello: columnas y tarjetas que arrastras para mover u <b>ordenar</b>; doble clic para
+          editar una tarjeta, con <b>color</b> y <b>fecha de vencimiento</b> opcionales.</li>
+        <li><b>🗓️ Agenda</b>: tus <b>recordatorios</b> con fecha (y que se repiten, si quieres) junto con los
+          <b>vencimientos que la app detecta</b> (depósitos, deudas, reservados), todo ordenado por fecha con los días
+          que faltan.</li>
+      </ul></div></details>
 
     <details class="faq"><summary>¿Puedo elegir qué avisos me muestra la app?</summary><div>
       <p>Sí. En <b>Mis datos → Configuración → «Avisos automáticos»</b> tienes la lista de avisos (concentración,
