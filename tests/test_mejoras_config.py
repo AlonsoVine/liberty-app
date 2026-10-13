@@ -269,6 +269,39 @@ def test_guarda_notas():
     assert c["notas"][0]["titulo"] == "Idea" and c["notas"][0]["fecha"]
 
 
+def test_guarda_notas_campos_nuevos():
+    c = cfg()
+    almacen.guarda_notas(c, [{
+        "titulo": "Hipoteca", "texto": "Revisar",
+        "fijada": True, "etiquetas": ["Casa", "casa", "Urgente", ""],   # dedup sin mayúsculas + vacía fuera
+        "vinculo": {"tipo": "deuda", "ref": "p3"},
+        "editada": "2026-10-10",
+    }, {
+        "titulo": "Suelta", "texto": "x",
+        "vinculo": {"tipo": "inventado", "ref": "p9"},   # tipo inválido -> sin vínculo
+    }])
+    n0, n1 = c["notas"]
+    assert n0["fijada"] is True
+    assert n0["etiquetas"] == ["Casa", "Urgente"]
+    assert n0["vinculo"] == {"tipo": "deuda", "ref": "p3"}
+    assert n0["editada"] == "2026-10-10"
+    assert "vinculo" not in n1
+
+
+def test_guarda_recordatorios():
+    c = cfg()
+    almacen.guarda_recordatorios(c, [
+        {"texto": "Renovar seguro", "fecha": "2026-12-01", "repetir": "anual"},
+        {"texto": "Sin fecha", "fecha": ""},            # sin fecha -> fuera
+        {"texto": "", "fecha": "2026-11-01"},           # sin texto -> fuera
+        {"texto": "Aportación", "fecha": "2026-11-15", "hecho": True, "repetir": "raro"},
+    ])
+    rs = c["recordatorios"]
+    assert len(rs) == 2
+    assert rs[0]["texto"] == "Renovar seguro" and rs[0]["repetir"] == "anual" and rs[0]["id"]
+    assert rs[1]["hecho"] is True and rs[1]["repetir"] == "no"   # repetir inválido -> "no"
+
+
 def test_guarda_tablero_sanea_columnas_y_tarjetas():
     c = cfg()
     almacen.guarda_tablero(c, {"columnas": [{"id": "a", "nombre": "Por hacer"}, {"id": "b", "nombre": "Hecho"}],
@@ -279,6 +312,16 @@ def test_guarda_tablero_sanea_columnas_y_tarjetas():
     assert [col["id"] for col in tb["columnas"]] == ["a", "b"]
     assert len(tb["tarjetas"]) == 2            # la vacía se descarta
     assert tb["tarjetas"][1]["col"] == "a"     # la de columna inexistente va a la primera
+
+
+def test_guarda_tablero_tarjeta_con_color_y_vence():
+    c = cfg()
+    almacen.guarda_tablero(c, {"columnas": [{"id": "a", "nombre": "Por hacer"}],
+                               "tarjetas": [{"col": "a", "texto": "Con extras", "color": "s3", "vence": "2026-12-20"},
+                                            {"col": "a", "texto": "Simple"}]})
+    t0, t1 = c["tablero"]["tarjetas"]
+    assert t0["color"] == "s3" and t0["vence"] == "2026-12-20"
+    assert "color" not in t1 and "vence" not in t1   # opcionales: no se inventan
 
 
 # ---------------------------------------------------------------- motor con tipo propio

@@ -410,6 +410,13 @@ def api_tablero():
     return cambia(lambda cfg: almacen.guarda_tablero(cfg, d.get("tablero")), recalc=False)
 
 
+@app.post("/api/recordatorios")
+def api_recordatorios():
+    """Guarda la agenda de recordatorios del usuario. No recalcula el panel."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.guarda_recordatorios(cfg, d.get("recordatorios")), recalc=False)
+
+
 @app.post("/api/repartir-colores")
 def api_repartir_colores():
     # Con {"que": "apartados"} reparte colores entre los reservados; por defecto,

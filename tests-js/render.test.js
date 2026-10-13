@@ -239,4 +239,16 @@ test("las funciones de gráfico dibujan un SVG sin lanzar", () => {
   d = div(); G.areaApilada(d, { fechas, series: conDeuda, alto: 200, overlay: { nombre: "Aportado", valores: [80, 90, 100] } });
   assert.ok(d.querySelector("svg"), "areaApilada con negativos debería dibujar un SVG");
   assert.ok(d.querySelector(".ejeCero"), "con negativos debería pintar la línea del cero");
+
+  // multiLinea con «desdeCero» pero una serie negativa (ahorro del mes cuando se gasta
+  // más de lo que se ingresa): el eje debe BAJAR por debajo de 0, no recortarse en 0
+  // dejando la línea fuera de la gráfica por abajo.
+  const conAhorroNeg = [{ nombre: "Ingresos", color: "#2a78d6", valores: [1000, 900, 800] },
+                        { nombre: "Gastos", color: "#eb6834", valores: [700, 950, 1100] },
+                        { nombre: "Ahorro", color: "#2a78d6", valores: [300, -50, -300], destacado: true }];
+  d = div(); G.multiLinea(d, { fechas, series: conAhorroNeg, alto: 200, desdeCero: true });
+  assert.ok(d.querySelector("svg"), "multiLinea con negativos debería dibujar un SVG");
+  assert.ok(d.querySelector(".ejeCero"), "con ahorro negativo y desdeCero debería pintar la línea del cero");
+  const etiqY = [...d.querySelectorAll(".ejeY")].map(t => t.textContent);
+  assert.ok(etiqY.some(s => /^-/.test(s.trim())), "el eje Y debería mostrar algún valor negativo: " + etiqY.join(", "));
 });
