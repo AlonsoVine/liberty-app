@@ -25,6 +25,22 @@ def test_flujo_ingreso_se_guarda():
     assert cfg["flujos"][0]["id"] == fl["id"]
 
 
+def test_flujo_observaciones_opcionales():
+    cfg = cfg_vacia()
+    # Con observaciones: se guardan; el «concepto» sigue en `nota`.
+    fl = almacen.guarda_flujo(cfg, {"tipo": "gasto", "fecha": "2024-06-30", "importe": "40",
+                                    "nota": "PAGO TARJETA COMERCIO SL", "observaciones": "Cena del aniversario"})
+    assert fl["nota"] == "PAGO TARJETA COMERCIO SL"
+    assert fl["observaciones"] == "Cena del aniversario"
+    # Sin observaciones: no se inventa la clave (apunte limpio).
+    fl2 = almacen.guarda_flujo(cfg, {"tipo": "gasto", "fecha": "2024-07-01", "importe": "10", "nota": "X"})
+    assert "observaciones" not in fl2
+    # Editar quitando las observaciones (se mandan vacías) las borra.
+    fl3 = almacen.guarda_flujo(cfg, {"id": fl["id"], "tipo": "gasto", "fecha": "2024-06-30",
+                                     "importe": "40", "nota": "X", "observaciones": ""})
+    assert "observaciones" not in fl3
+
+
 def test_flujo_tipo_invalido_falla():
     with pytest.raises(ErrorValidacion):
         almacen.guarda_flujo(cfg_vacia(), {"tipo": "otro", "fecha": "2024-06-30", "importe": "10"})

@@ -724,6 +724,12 @@ def guarda_flujo(cfg, datos):
           "nota": texto(datos.get("nota")), "marca": marca}
     if cats:
         fl["categorias"] = cats
+    # «Observaciones»: nota libre del apunte (distinta del «Concepto», que es el texto del
+    # banco en el campo `nota`). Opcional; solo se guarda si tiene contenido. No tiene
+    # nada que ver con la sección Notas.
+    obs = texto(datos.get("observaciones"), 2000)
+    if obs:
+        fl["observaciones"] = obs
     # Si escribes una categoría que no está en la lista maestra, se da de alta sola
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
