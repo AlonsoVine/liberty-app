@@ -115,6 +115,9 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .filaEdit .inEdit{flex:1;font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;
   border:1px solid var(--borde);background:var(--sup);color:var(--tinta)}
 .filaEdit .filaX{color:var(--tinta3);padding:6px 10px}
+.defRadio{display:inline-flex;align-items:center;gap:4px;font-size:11.5px;color:var(--tinta3);cursor:pointer;white-space:nowrap;border:1px solid var(--borde);border-radius:8px;padding:4px 8px;flex:0 0 auto}
+.defRadio input{accent-color:var(--s1);margin:0}
+.defRadio:has(input:checked){color:var(--s1);border-color:var(--s1);font-weight:600}
 .filaEdit .filaX:hover{color:var(--mal);border-color:var(--mal)}
 .tiposBase{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:4px}
 .chkTipo{display:inline-flex;align-items:center;gap:6px;font-size:13.5px;color:var(--tinta2);cursor:pointer}
@@ -124,6 +127,22 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .marcaBtn:hover{color:var(--aviso);background:color-mix(in srgb,var(--aviso) 16%,transparent)}
 .marcaBtn.on{color:var(--mal)}
 td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
+/* Editor de marcas (emoji + nombre + color) */
+.filaMarca{align-items:center}
+.filaMarca .mEmoji,.filaMarca .mNombre{font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;border:1px solid var(--borde);background:var(--sup);color:var(--tinta)}
+.filaMarca .mEmoji{width:52px;text-align:center;font-size:16px}
+.filaMarca .mNombre{flex:1}
+.filaMarca .mColor{width:42px;height:36px;padding:2px;border:1px solid var(--borde);border-radius:8px;background:var(--sup);cursor:pointer;flex:0 0 auto}
+/* Desplegable de marca en la tabla de ingresos y gastos */
+.marcaMenu{position:fixed;z-index:210;background:var(--sup);border:1px solid var(--borde);border-radius:10px;padding:5px;box-shadow:0 14px 40px rgba(0,0,0,.4);min-width:180px;display:flex;flex-direction:column;gap:2px}
+.marcaOpt{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--tinta);text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:13.5px}
+.marcaOpt:hover{background:var(--sup3)}
+.marcaOpt.sel{background:color-mix(in srgb,var(--s1) 16%,transparent);color:var(--s1);font-weight:600}
+.marcaOpt .mE{width:20px;text-align:center}
+/* Inputs dentro de los filtros (importe, fechas) */
+.filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
+.filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
+.filtroCampo .fSep{color:var(--tinta3)}
 /* Notas: lista de notas y tablero tipo Trello */
 .notasNav{margin:4px 0 14px}
 .notasGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
@@ -257,15 +276,15 @@ body.vistaAmplia .segm button{padding:10px 16px}
 .vacioGraf{display:flex;align-items:center;justify-content:center;min-height:330px;padding:20px;text-align:center;color:var(--tinta3);font-size:13.5px}
 #filtroTitular{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
 #filtroTitular:empty{display:none}
-#filtroTitular .filtroTitulo{font-size:13px;font-weight:600;color:var(--tinta2)}
-#filtroTitular .filtroCampo{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--tinta3);border:1px solid var(--borde);border-radius:9px;padding:3px 6px 3px 10px;background:var(--sup)}
-#filtroTitular .filtroCampo label{white-space:nowrap}
-#filtroTitular .filtroCampo select{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;cursor:pointer;padding:2px 2px}
-#filtroTitular .filtroCampo select option{background:var(--sup);color:var(--tinta)}
-#filtroTitular .filtroCampo.activo{border-color:var(--s1);box-shadow:0 0 0 2px color-mix(in srgb,var(--s1) 18%,transparent)}
-#filtroTitular .filtroCampo.activo label{color:var(--s1);font-weight:600}
-#filtroTitular .filtroQuitar{color:var(--mal);border-color:transparent}
-#filtroTitular .filtroQuitar:hover{background:color-mix(in srgb,var(--mal) 12%,transparent)}
+.filtroTitulo{font-size:13px;font-weight:600;color:var(--tinta2)}
+.filtroCampo{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--tinta3);border:1px solid var(--borde);border-radius:9px;padding:3px 6px 3px 10px;background:var(--sup)}
+.filtroCampo label{white-space:nowrap}
+.filtroCampo select{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;cursor:pointer;padding:2px 2px}
+.filtroCampo select option{background:var(--sup);color:var(--tinta)}
+.filtroCampo.activo{border-color:var(--s1);box-shadow:0 0 0 2px color-mix(in srgb,var(--s1) 18%,transparent)}
+.filtroCampo.activo label{color:var(--s1);font-weight:600}
+.filtroQuitar{color:var(--mal);border-color:transparent}
+.filtroQuitar:hover{background:color-mix(in srgb,var(--mal) 12%,transparent)}
 /* Treemap (Estructura) */
 .treemap .tmGrupo{fill:none;stroke:var(--borde);stroke-width:1}
 .treemap .tmGrupoLbl{font-size:11px;font-weight:700;fill:var(--tinta2);letter-spacing:.02em}
@@ -533,6 +552,12 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 .modal{border:0;border-radius:18px;background:var(--sup);color:var(--tinta);padding:0;text-align:left;
   width:min(640px,calc(100vw - 24px));max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);
   box-shadow:0 30px 90px rgba(0,0,0,.45),0 0 0 1px var(--borde)}
+.modal.rebal{width:min(820px,calc(100vw - 24px))}
+.rebalCuerpo{padding:22px 26px;overflow:auto}
+.rebalCuerpo .tablaEnv{margin-top:6px}
+.rebalCuerpo .dt th,.rebalCuerpo .dt td{padding:9px 12px}
+.rebalCuerpo .secc{margin-top:22px;margin-bottom:10px;font-weight:650;color:var(--tinta2)}
+.rebalCuerpo #rebalReparto{margin-top:14px}
 .modal[open]{animation:entra .18s ease-out}
 @keyframes entra{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .modal::backdrop{background:rgba(6,6,6,.55);backdrop-filter:blur(4px)}

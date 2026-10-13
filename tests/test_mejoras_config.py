@@ -195,10 +195,10 @@ def test_editar_flujo_conserva_la_marca():
 
 def test_config_marcas_se_guardan_con_id_y_color():
     c = cfg()
-    almacen.guarda_config(c, {"marcas": [{"nombre": "A revisar", "color": "#e34948"},
+    almacen.guarda_config(c, {"marcas": [{"nombre": "A revisar", "emoji": "🚩", "color": "#e34948"},
                                          {"nombre": "Duda", "color": "malo"}]})
     ms = c["config"]["marcas"]
-    assert ms[0] == {"id": "a-revisar", "nombre": "A revisar", "color": "#e34948"}
+    assert ms[0] == {"id": "a-revisar", "nombre": "A revisar", "emoji": "🚩", "color": "#e34948"}
     assert ms[1]["color"] == "#e34948"   # color inválido -> por defecto
 
 
@@ -226,6 +226,36 @@ def test_flujo_guarda_entidad_y_dimension():
                                   "entidad": "BBVA", f"cat_{did}": "Fijo"})
     assert fl["entidad"] == "BBVA"
     assert fl["categorias"] == {did: "Fijo"}
+
+
+# ---------------------------------------------------------------- titular por defecto elegible
+
+def test_titular_defecto_elegible(tmp_path):
+    c = cfg()
+    almacen.guarda_config(c, {"titulares": ["Yo", "Novia", "Común"], "titularDefecto": "Común"})
+    assert c["config"]["titularDefecto"] == "Común"
+    # lo sin asignar cuenta bajo el por defecto elegido, no bajo el 1º
+    almacen.guarda_producto(c, {"nombre": "Fondo", "tipo": "otro", "fuente": "manual"})
+    almacen.guarda_valoracion(c, {"producto": c["productos"][0]["id"], "fecha": "2025-01-01", "valor": "1000"})
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    assert d["titularDefecto"] == "Común"
+    pt = {x["nombre"]: x for x in d["total"]["porTitular"]}
+    assert "Común" in pt and "Sin asignar" not in pt
+
+
+def test_titular_defecto_invalido_se_ignora():
+    c = cfg()
+    almacen.guarda_config(c, {"titulares": ["Yo"], "titularDefecto": "Noexiste"})
+    assert c["config"]["titularDefecto"] == ""
+
+
+# ---------------------------------------------------------------- entidad autoregistro
+
+def test_entidad_se_autoregistra_al_anotar():
+    c = cfg()
+    almacen.guarda_flujo(c, {"fecha": "2025-03-01", "tipo": "gasto", "importe": "40", "entidad": "BBVA"})
+    almacen.guarda_flujo(c, {"fecha": "2025-03-02", "tipo": "gasto", "importe": "20", "entidad": "bbva"})
+    assert c["config"]["entidades"] == ["BBVA"]   # no duplica
 
 
 # ---------------------------------------------------------------- notas y tablero

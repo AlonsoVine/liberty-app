@@ -921,13 +921,14 @@
   // (titular, entidad y dimensiones propias).
   function flujosSel() {
     if (!D.flujosLista || !D.flujos) return D.flujos;
-    const tit = estado.titular, ent = estado.igEntidad;
+    const tit = estado.titular, ent = estado.igEntidad, mar = estado.igMarca;
     const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
     const porTit = tit && tit !== "todos";
-    if (!porTit && !ent && !dimPares.length) return D.flujos;
+    if (!porTit && !ent && !mar && !dimPares.length) return D.flujos;
     const lista = D.flujosLista.filter(f =>
       (!porTit || (f.titular || "") === tit)
       && (!ent || (f.entidad || "Sin entidad") === ent)
+      && (!mar || (mar === "__con__" ? !!f.marca : mar === "__sin__" ? !f.marca : f.marca === mar))
       && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
     return agregaFlujos(lista, D.flujos.meses);
   }
@@ -935,8 +936,9 @@
   // Filtros propios de Ingresos y gastos: por entidad/banco y por dimensiones de flujos.
   function pintaIgFiltros() {
     const cont = $("#igFiltros"); if (!cont) return;
-    const ents = D.entidades || [], dims = D.dimensionesFlujos || [];
-    if (!ents.length && !dims.length) { cont.innerHTML = ""; return; }
+    const ents = D.entidades || [], dims = D.dimensionesFlujos || [], marcas = D.marcas || [];
+    const hayMarcados = (D.flujosLista || []).some(f => f.marca);
+    if (!ents.length && !dims.length && !hayMarcados) { cont.innerHTML = ""; return; }
     estado.igDim = estado.igDim || {};
     const campos = [];
     if (ents.length) {
@@ -946,6 +948,13 @@
       campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Entidad</label>
         <select data-igf="ent"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
     }
+    if (hayMarcados) {
+      const sel = estado.igMarca || "";
+      const ops = [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" }]
+        .concat(marcas.map(m => ({ v: m.id, t: (m.emoji ? m.emoji + " " : "") + m.nombre })));
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Marca</label>
+        <select data-igf="marca"><option value="">Todas</option>${ops.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`);
+    }
     dims.forEach(dm => {
       const usados = [...new Set((D.flujosLista || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean))];
       const vals = [...new Set([...(dm.valores || []), ...usados])];
@@ -954,18 +963,20 @@
       campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>${esc(dm.nombre)}</label>
         <select data-igf="dim" data-dim="${esc(dm.id)}"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
     });
-    const hayFiltro = estado.igEntidad || Object.values(estado.igDim).some(Boolean);
+    const hayFiltro = estado.igEntidad || estado.igMarca || Object.values(estado.igDim).some(Boolean);
     cont.innerHTML = `<span class="filtroTitulo">🔎 Filtrar apuntes:</span>${campos.join("")}` +
       (hayFiltro ? `<button class="btn mini filtroQuitar" id="igQuitar">✕ Quitar</button>` : "");
     cont.querySelectorAll("[data-igf]").forEach(s => {
       s.onchange = e => {
-        if (e.target.dataset.igf === "ent") estado.igEntidad = e.target.value;
+        const k = e.target.dataset.igf;
+        if (k === "ent") estado.igEntidad = e.target.value;
+        else if (k === "marca") estado.igMarca = e.target.value;
         else estado.igDim[e.target.dataset.dim] = e.target.value;
         pintaIngresos();
       };
     });
     const bq = $("#igQuitar");
-    if (bq) bq.onclick = () => { estado.igEntidad = ""; estado.igDim = {}; pintaIngresos(); };
+    if (bq) bq.onclick = () => { estado.igEntidad = ""; estado.igMarca = ""; estado.igDim = {}; pintaIngresos(); };
   }
 
   function pintaIngresos() {
@@ -1177,7 +1188,7 @@
     let dlg = $("#dlgRebal");
     if (!dlg) {
       dlg = document.createElement("dialog");
-      dlg.id = "dlgRebal"; dlg.className = "modal";
+      dlg.id = "dlgRebal"; dlg.className = "modal rebal";
       document.body.appendChild(dlg);
       dlg.addEventListener("click", e => { if (e.target === dlg) { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } } });
     }

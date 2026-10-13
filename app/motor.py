@@ -505,6 +505,16 @@ AVISOS_CATALOGO = [
 ]
 AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
 
+# Marcas por defecto para los apuntes de ingresos/gastos (editables/ampliables en Config).
+MARCAS_DEFECTO = [
+    {"id": "revisar", "nombre": "Revisar", "emoji": "🚩", "color": "#e34948"},
+    {"id": "importante", "nombre": "Importante", "emoji": "⭐", "color": "#eda100"},
+    {"id": "urgente", "nombre": "Urgente", "emoji": "❗", "color": "#d6455d"},
+    {"id": "duda", "nombre": "Duda", "emoji": "❓", "color": "#2a78d6"},
+    {"id": "comprobado", "nombre": "Comprobado", "emoji": "✅", "color": "#1baf7a"},
+    {"id": "vigilar", "nombre": "Vigilar", "emoji": "👀", "color": "#9a6a3a"},
+]
+
 # Carteras de referencia para «¿y si lo hubieras metido en un indexado?». Son ETF
 # reales que cotizan en euros; las piezas son (ticker de Yahoo, peso).
 REFERENCIAS = {
@@ -1501,9 +1511,12 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     # Dinero libre para invertir = disponible − apartados − colchón (puede ser negativo).
     dinero_libre = round(disponible - apartados_total - colchon, 2)
 
-    # El primer titular es el "por defecto": lo que esté sin asignar cuenta bajo él al
-    # agrupar/filtrar (así no se pierde), aunque en los datos siga figurando sin titular.
-    titular_defecto = (cfg.get("titulares") or [None])[0]
+    # Titular "por defecto" (el que elija el usuario, o el 1º): lo que esté sin asignar
+    # cuenta bajo él al agrupar/filtrar (así no se pierde), aunque en los datos siga
+    # figurando sin titular.
+    _tits = cfg.get("titulares") or []
+    _td = (cfg.get("config") or {}).get("titularDefecto")
+    titular_defecto = _td if _td in _tits else (_tits[0] if _tits else None)
 
     def _tit(x):
         return (str(x or "").strip()) or titular_defecto or "Sin asignar"
@@ -1825,6 +1838,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "dimensiones": (cfg.get("config") or {}).get("dimensiones", []) or [],
         "dimensionesFlujos": (cfg.get("config") or {}).get("dimensionesFlujos", []) or [],
         "entidades": (cfg.get("config") or {}).get("entidades", []) or [],
+        "marcas": ((cfg.get("config") or {}).get("marcas")) or MARCAS_DEFECTO,
         "inflacion": (cfg.get("config") or {}).get("inflacion"),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
@@ -1836,6 +1850,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                          "categoria": f.get("categoria") or "Sin categoría",
                          "titular": _tit(f.get("titular")),
                          "entidad": (f.get("entidad") or "").strip() or "Sin entidad",
+                         "marca": f.get("marca") or "",
                          "categorias": f.get("categorias") or {}}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
         "asignacion": asignacion,
