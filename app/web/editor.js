@@ -262,11 +262,13 @@
       ? ` <button class="notaInd" data-acc="verNotas" data-id="${esc(ref)}" title="Tiene una nota — pulsa para verla" aria-label="Ver nota">📝</button>` : "";
   }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
-  function envTabla(key, thead, filas, alto, toolsExtra) {
+  function envTabla(key, thead, filas, alto, toolsExtra, sinBuscar) {
+    // sinBuscar: el propio toolsExtra ya incluye el input [data-buscar] donde quiera (p. ej.
+    // Ingresos y gastos lo pone tras los filtros). Si no, se pinta el buscador al principio.
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
       <div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <label class="buscaTabla">${LUPA}<input type="search" data-buscar
-          placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>
+        ${sinBuscar ? "" : `<label class="buscaTabla">${LUPA}<input type="search" data-buscar
+          placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>`}
         ${toolsExtra || '<span class="ordenaHint">↕ Ordena pulsando una columna</span>'}
         <span class="sp"></span>
         <button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button></div>
@@ -326,6 +328,7 @@
       .tablaTools{margin:0 0 10px}
       .buscaTabla{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--borde);
         border-radius:9px;padding:6px 11px;background:var(--sup);max-width:280px;color:var(--tinta3)}
+      .buscaTabla.media{flex:1 1 360px;max-width:none;min-width:240px}
       .buscaTabla input{border:0;background:transparent;font:inherit;font-size:14px;color:var(--tinta);outline:none;width:100%}
       table.dt.orden thead th{cursor:pointer;user-select:none}
       table.dt.orden thead th:not(.nosort):hover{color:var(--tinta)}
@@ -1136,10 +1139,24 @@
       <select data-ff="impOp"><option value="">—</option><option value="mayor"${F.impOp === "mayor" ? " selected" : ""}>mayor que</option><option value="menor"${F.impOp === "menor" ? " selected" : ""}>menor que</option><option value="entre"${F.impOp === "entre" ? " selected" : ""}>entre</option></select>
       ${F.impOp ? `<input class="fImp" data-ff="importe1" inputmode="decimal" value="${esc(F.importe1 || "")}" placeholder="€">` : ""}
       ${F.impOp === "entre" ? `<input class="fImp" data-ff="importe2" inputmode="decimal" value="${esc(F.importe2 || "")}" placeholder="€">` : ""}</span>`;
-    h += `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
+    return h;
+  }
+  // El buscador de texto de la tabla, ancho, para ponerlo DESPUÉS de los filtros.
+  function buscadorFlujosHTML() {
+    return `<label class="buscaTabla media">${LUPA}<input type="search" data-buscar
+      placeholder="Buscar en la tabla…" aria-label="Buscar en la tabla" autocomplete="off"></label>`;
+  }
+  // El filtro de fechas va el último (tras el buscador), con el botón de limpiar.
+  function filtroFechasFlujosHTML() {
+    const F = filtrosFlujos();
+    let h = `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
       <input type="date" class="fFecha" data-ff="fdesde" value="${esc(F.fdesde || "")}"><span class="fSep">–</span><input type="date" class="fFecha" data-ff="fhasta" value="${esc(F.fhasta || "")}"></span>`;
     if (hayFiltroFlujos()) h += `<button type="button" class="btn mini filtroQuitar" data-ff-limpiar>✕ Limpiar filtros</button>`;
     return h;
+  }
+  // Barra de herramientas completa de Ingresos y gastos: filtros, buscador y fechas.
+  function toolsFlujosHTML() {
+    return filtrosFlujosHTML() + buscadorFlujosHTML() + filtroFechasFlujosHTML();
   }
   function montaFiltrosFlujos() {
     const F = filtrosFlujos();
@@ -1212,9 +1229,9 @@
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Busca y filtra arriba; marca apuntes con el desplegable de su fila.</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${total
-        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort" title="Observaciones"></th>
-          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, filtrosFlujosHTML())
-          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${filtrosFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
+        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort">Observaciones</th>
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, toolsFlujosHTML(), true)
+          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${toolsFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
       <div id="flujosContador">${contador}</div>
     </section>`;
