@@ -531,9 +531,16 @@ body.sinDatos #tabs button:not([data-tab="datos"]):not([data-tab="ayuda"]):not([
   height:34px;padding:0 32px 0 11px;cursor:pointer}
 table.dt td small{color:var(--tinta3);font-size:11.5px}
 table.dt td .idp{display:block;margin-left:17px}
-table.dt td.acc button{font:inherit;font-size:12.5px;background:none;border:0;color:var(--s1);cursor:pointer;padding:2px 5px}
-table.dt td.acc button:hover{text-decoration:underline}
-table.dt td.acc button[data-acc^="borrar"]{color:var(--mal)}
+table.dt td.acc{white-space:nowrap;text-align:right}
+table.dt td.acc button.accIco{background:none;border:0;cursor:pointer;padding:5px;margin:0 1px;border-radius:7px;
+  color:var(--s1);display:inline-flex;align-items:center;justify-content:center;vertical-align:middle;transition:background .12s,color .12s}
+table.dt td.acc button.accIco svg{display:block}
+table.dt td.acc button.accIco:hover{background:color-mix(in srgb,var(--s1) 18%,transparent)}
+table.dt td.acc button.accIco[data-acc^="borrar"]{color:var(--mal)}
+table.dt td.acc button.accIco[data-acc^="borrar"]:hover{background:color-mix(in srgb,var(--mal) 18%,transparent)}
+/* botones de texto antiguos que aún queden dentro de .acc (p. ej. «Recuperar» copia) */
+table.dt td.acc button:not(.accIco){font:inherit;font-size:12.5px;background:none;border:0;color:var(--s1);cursor:pointer;padding:2px 5px}
+table.dt td.acc button:not(.accIco):hover{text-decoration:underline}
 table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-align:left;color:var(--tinta3)}
 .saldos{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
 .saldos .tarjeta + .tarjeta{margin-top:0}
@@ -1384,7 +1391,10 @@ body.video .tarjetaCanal{display:none}
       <li><b>Objetivos de asignación</b> por tipo, <b>concentración</b> por tipo y entidad, y <b>alertas</b> automáticas.</li>
       <li><b>Vencimientos</b> de depósitos, promociones, revisiones de deuda y reservados.</li>
       <li><b>«Cómo ha cambiado»</b>: comparación con hace 1 mes y hace 12 meses.</li>
-      <li><b>Ver el panel de un mes pasado</b> (cómo estaba tu patrimonio a fin de cualquier mes).</li>
+      <li><b>Periodo a medida</b>: ver el patrimonio a un <b>día concreto</b>, a fin de cualquier mes o lo obtenido en un <b>rango</b>.</li>
+      <li><b>Ingresos y gastos con filtros potentes</b> (categoría, entidad, titular, marca, importe o fechas) y <b>marcas</b> para señalar apuntes.</li>
+      <li><b>Ayuda para rebalancear</b> hacia tus objetivos y <b>centro de avisos</b> configurable.</li>
+      <li><b>Notas y un tablero tipo Trello</b> para tus pendientes, y un <b>tour guiado</b> la primera vez.</li>
       <li><b>Informe fiscal</b> anual para la renta (ganancias y pérdidas por FIFO y dividendos/cupones), <b>listo para imprimir</b>.</li>
       <li><b>Multidivisa</b>, y la base que ya traía Rumbo: precios automáticos, TIR/XIRR, FIFO y comparador con índices.</li>
     </ul>
@@ -1462,34 +1472,37 @@ body.video .tarjetaCanal{display:none}
 
     <details class="faq"><summary>¿Cómo actualizo a una versión nueva sin perder mis datos?</summary><div>
       <ol>
-        <li>Cierra la app (la ventana negra).</li>
-        <li>Descarga el ZIP nuevo desde la página del proyecto en GitHub y descomprímelo.</li>
-        <li>Copia tu carpeta <code>mis_datos</code> de la versión antigua a la nueva (o copia todo lo nuevo encima de lo viejo, menos <code>mis_datos</code>).</li>
-        <li>Abre la app con «Iniciar» como siempre.</li>
+        <li>Cierra la app (la pestaña del navegador y la ventana negra).</li>
+        <li>Descarga el nuevo <code>Liberty.exe</code> desde la <a href="https://alonsovine.github.io/liberty/#descarga" target="_blank" rel="noopener">web oficial</a> y ponlo en una carpeta.</li>
+        <li>Copia tu carpeta <code>mis_datos</code> de la versión antigua <b>junto al nuevo</b> <code>Liberty.exe</code>.</li>
+        <li>Abre el nuevo <code>Liberty.exe</code>. Tus datos, carteras y copias siguen ahí.</li>
       </ol>
-      <p>Por si acaso, antes descarga una copia en <b>Mis datos → Copias y seguridad</b>.</p></div></details>
+      <p>Si enciendes <b>«Buscar actualizaciones»</b> en Configuración, la app te avisará cuando haya versión nueva. Por si acaso, antes puedes descargar una copia en <b>Mis datos → Copias y seguridad</b>.</p></div></details>
 
     <details class="faq"><summary>¿Cómo lo paso a otro ordenador?</summary><div>
-      <p>En el ordenador viejo, <b>Mis datos → Copias y seguridad → Descargar copia</b>. En el nuevo, instala la app, ábrela y, en ese mismo sitio, sube el archivo con <b>«Recuperar desde un archivo»</b>. También vale copiar la carpeta <code>mis_datos</code> entera.</p></div></details>
+      <p>Copia el <code>Liberty.exe</code> y, a su lado, tu carpeta <code>mis_datos</code> (ahí están todos tus datos y copias). O bien, en <b>Mis datos → Copias y seguridad</b>, pulsa <b>«Descargar copia»</b> en el ordenador viejo y <b>«Recuperar desde un archivo»</b> en el nuevo.</p></div></details>
 
-    <details class="faq"><summary>Windows o Mac me dicen que el archivo puede ser peligroso</summary><div>
-      <p>Pasa con cualquier archivo descargado de internet que no viene de una tienda de apps. <code>Iniciar.bat</code> e <code>Iniciar.command</code> son texto plano: puedes abrirlos con el Bloc de notas o TextEdit y leer todo lo que hacen.</p>
+    <details class="faq"><summary>Windows me dice que el archivo puede ser peligroso</summary><div>
+      <p>Es normal con un programa descargado de internet que no viene de una tienda de apps ni está firmado con un certificado de pago. <b>Liberty es 100 % local y de código abierto</b>: puedes revisarlo en <a href="https://github.com/AlonsoVine/rumboExito" target="_blank" rel="noopener">GitHub</a>.</p>
       <ul>
-        <li><b>Windows</b>: en el aviso azul, pulsa «Más información» y luego «Ejecutar de todas formas».</li>
-        <li><b>Mac</b>: la primera vez, clic derecho sobre <code>Iniciar.command</code> → «Abrir» → «Abrir».</li>
+        <li><b>SmartScreen de Windows</b>: en el aviso azul, pulsa <b>«Más información»</b> y luego <b>«Ejecutar de todas formas»</b>.</li>
+        <li><b>Antivirus</b>: algún antivirus puede marcar un <b>falso positivo</b> (habitual en ejecutables de Python sin firmar). Para asegurarte de que es el archivo original, compara su <b>huella SHA-256</b> con la publicada en la web oficial.</li>
       </ul></div></details>
 
     <details class="faq"><summary>¿Cómo está organizada la app ahora?</summary><div>
-      <p>Arriba hay solo tres botones grandes:</p>
+      <p>Arriba tienes estos botones:</p>
       <ul>
         <li><b>📊 Panel</b>: mirar tus números. Dentro tiene pestañas: <b>Patrimonio</b> (tu foto de hoy),
           <b>Distribución</b> (en qué está el dinero, con un botón <b>Anillo / Mapa</b> para verlo como anillo o como
           mapa de bloques), <b>Rentabilidad</b> (cuánto gana), <b>Evolución</b> (cómo cambia en el tiempo y el mes a
           mes), <b>Ingresos y gastos</b> (con sub-pestañas <b>Resumen · Categorías · Tendencias · Presupuesto</b>) y
-          <b>Deudas y vencimientos</b>.</li>
-        <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, Ingresos y gastos,
-          Saldos y movimientos, Configuración, Importar y Copias y seguridad.</li>
+          <b>Deudas y vencimientos</b>. Arriba del Panel puedes fijar el <b>Periodo</b> (un día concreto, el fin de un
+          mes o un rango).</li>
+        <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, <b>Saldos y movimientos</b>,
+          <b>Ingresos y gastos</b>, Configuración, Importar y Copias y seguridad.</li>
+        <li><b>🗒️ Notas</b>: tus notas sueltas y un <b>tablero tipo Trello</b> (columnas y tarjetas) para organizar pendientes.</li>
         <li><b>❓ Ayuda</b>: esto.</li>
+        <li><b>⚙️ Ajustes</b>: tamaño de texto, tema claro/oscuro, vista amplia, modo vídeo y ocultar importes.</li>
       </ul></div></details>
 
     <details class="faq"><summary>¿Puedo tener varias carteras y cambiar entre ellas?</summary><div>
@@ -1511,7 +1524,8 @@ body.video .tarjetaCanal{display:none}
     <details class="faq"><summary>¿Para qué sirven los titulares?</summary><div>
       <p>Son las personas del hogar (por ejemplo, Yo, Novia y «Común»). Se definen en <b>Configuración</b> y
       luego asignas cada producto, deuda o reservado a un titular. El patrimonio sigue siendo uno solo, pero puedes
-      ver cuánto le corresponde a cada uno (Panel → Patrimonio).</p></div></details>
+      ver cuánto le corresponde a cada uno (Panel → Patrimonio). Puedes marcar un <b>titular por defecto</b>: lo que
+      dejes sin asignar cuenta bajo él. Si solo hay un titular, la app oculta los filtros y columnas de titular para no meter ruido.</p></div></details>
 
     <details class="faq"><summary>¿Qué es «disponible» y el «dinero libre para invertir»?</summary><div>
       <p><b>Disponible</b> es el dinero que puedes usar ya, sin penalización (cuentas, efectivo). Lo marcas en la
@@ -1549,6 +1563,44 @@ body.video .tarjetaCanal{display:none}
       pegando directamente el <b>Excel/CSV que exporta tu banco</b>, o con ayuda de una <b>IA</b> (copias un prompt,
       le pasas el extracto y pegas el resultado). La app <b>adivina la categoría</b> de cada movimiento por el concepto
       y, antes de guardar, te enseña una <b>vista previa donde puedes corregir cada categoría</b>. No duplica lo que ya tengas.</p></div></details>
+
+    <details class="faq"><summary>¿Cómo filtro y busco en Ingresos y gastos?</summary><div>
+      <p>En <b>Mis datos → Ingresos y gastos</b>, encima de la tabla tienes filtros potentes: por <b>tipo</b> (ingreso/gasto),
+      <b>categoría</b>, <b>entidad</b>, <b>titular</b>, <b>marca</b>, tus <b>dimensiones</b>, por <b>importe</b>
+      (mayor que, menor que o entre dos cifras) y por <b>rango de fechas</b>. Abajo verás «Mostrando N de M apuntes» y un
+      botón <b>«✕ Limpiar filtros»</b>. Los mismos filtros, más resumidos, están en <b>Panel → Ingresos y gastos</b>.</p></div></details>
+
+    <details class="faq"><summary>¿Para qué sirven las marcas de los apuntes?</summary><div>
+      <p>Son etiquetas rápidas con un emoji para señalar apuntes (por ejemplo «👁️ Revisar», «📎 Justificante» o
+      «✅ Verificado»). En la tabla de <b>Ingresos y gastos</b>, pulsa la <b>estrella</b> de una fila y elige la marca en
+      el desplegable (solo iconos). Luego puedes <b>filtrar por marca</b>. Las marcas se personalizan en
+      <b>Configuración</b>: una por línea, como <code>emoji</code> o <code>emoji = nombre</code> (el nombre es opcional).</p></div></details>
+
+    <details class="faq"><summary>¿Qué es la «entidad» en un ingreso o gasto?</summary><div>
+      <p>Es el banco o la cuenta de origen del apunte (por ejemplo «BBVA» o «Cuenta nómina»). Es opcional y de texto libre:
+      si escribes una nueva, se guarda sola para la próxima vez. Sirve para filtrar y para ver en qué cuenta se mueve tu
+      dinero. Las gestionas también en <b>Configuración</b>.</p></div></details>
+
+    <details class="faq"><summary>¿Cómo veo mi patrimonio a una fecha o en un rango de tiempo?</summary><div>
+      <p>Arriba del <b>Panel</b> tienes el control de <b>Periodo</b>. Puedes elegir un <b>día concreto</b> («¿cuánto tenía
+      el 31/12?»), el <b>fin de un mes</b> pasado o un <b>rango</b> X→Y. Con un rango, el Panel te muestra lo del tramo:
+      cuánto cambió tu patrimonio, lo aportado y la rentabilidad de ese periodo.</p></div></details>
+
+    <details class="faq"><summary>¿Cómo sé cuánto aportar para reequilibrar mi cartera?</summary><div>
+      <p>En <b>Panel → Distribución</b>, pulsa <b>«⚖️ Cómo rebalancear»</b>. Partiendo de tus <b>objetivos de asignación</b>
+      por tipo, la app te dice en qué estás sobre o infraponderado; y si le indicas cuánto dinero quieres aportar, reparte
+      esa cantidad dando prioridad a lo que llevas por debajo del objetivo.</p></div></details>
+
+    <details class="faq"><summary>¿Para qué sirve la pestaña «Notas»?</summary><div>
+      <p>Es tu espacio para apuntes y pendientes, separado de los datos del patrimonio. Tiene dos vistas: <b>Lista de
+      notas</b> (crear, editar y borrar notas) y un <b>tablero tipo Trello</b> con columnas y tarjetas que puedes
+      arrastrar de una a otra (por ejemplo «Por hacer / En curso / Hecho»). Útil para seguir trámites, aportaciones
+      pendientes o ideas.</p></div></details>
+
+    <details class="faq"><summary>¿Puedo elegir qué avisos me muestra la app?</summary><div>
+      <p>Sí. En <b>Mis datos → Configuración → «Avisos automáticos»</b> tienes la lista de avisos (concentración,
+      vencimientos cercanos, desviación de objetivos, recordatorio de anotar…) con un interruptor para activar o
+      desactivar cada uno. Los que dejes activos salen en la franja de avisos del Panel.</p></div></details>
 
     <details class="faq"><summary>¿Qué son las dimensiones de clasificación?</summary><div>
       <p>Además del tipo, la entidad y los titulares, puedes crear tus propias <b>dimensiones</b> para clasificar los

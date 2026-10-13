@@ -236,6 +236,25 @@
     });
   }
   const _estTabla = key => (E.tablas[key] || (E.tablas[key] = { q: "", col: null, dir: 1 }));
+  // Acciones de fila como iconos: lápiz azul = editar, copiar azul = duplicar,
+  // papelera roja = borrar. El texto va en title/aria-label (tooltip + accesible).
+  const _ICO_ACC = {
+    editar: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    duplicar: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>',
+    borrar: '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>',
+  };
+  const _TIT_ACC = { editar: "Editar", duplicar: "Duplicar", borrar: "Borrar" };
+  function accBtn(tipo, acc, id) {
+    return `<button class="accIco" data-acc="${esc(acc)}" data-id="${esc(id)}" title="${_TIT_ACC[tipo]}" aria-label="${_TIT_ACC[tipo]}">${_ICO_ACC[tipo]}</button>`;
+  }
+  // Celda de acciones estándar: pasa los nombres de data-acc que existan para esa tabla.
+  function celdaAcc(id, { editar, duplicar, borrar } = {}) {
+    let h = "";
+    if (editar) h += accBtn("editar", editar, id);
+    if (duplicar) h += accBtn("duplicar", duplicar, id);
+    if (borrar) h += accBtn("borrar", borrar, id);
+    return `<td class="acc">${h}</td>`;
+  }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
   function envTabla(key, thead, filas, alto, toolsExtra) {
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
@@ -347,7 +366,7 @@
     // el día a día (flujos y saldos) y las herramientas.
     const grupos = [
       [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"]],
-      [["flujos", "Ingresos y gastos"], ["saldos", "Saldos y movimientos"]],
+      [["saldos", "Saldos y movimientos"], ["flujos", "Ingresos y gastos"]],
       [["config", "Configuración"], ["importar", "Importar"], ["copias", "Copias y seguridad"]],
     ];
     const seg = $("#edVistas");
@@ -392,9 +411,7 @@
       <td>${esc(E.tipos[p.tipo] || p.tipo)}</td><td>${precioDe(p)}</td>
       <td>${esc(E.fuentes[p.fuente] || "")}${p.codigo ? ` <small>${esc(p.codigo)}</small>` : ""}</td>
       <td>${n}</td>
-      <td class="acc"><button data-acc="editarProducto" data-id="${esc(p.id)}">Editar</button>
-        <button data-acc="duplicarProducto" data-id="${esc(p.id)}">Duplicar</button>
-        <button data-acc="borrarProducto" data-id="${esc(p.id)}">Borrar</button></td></tr>`;
+      ${celdaAcc(p.id, { editar: "editarProducto", duplicar: "duplicarProducto", borrar: "borrarProducto" })}</tr>`;
   }
 
   function vistaActivos() {
@@ -638,8 +655,7 @@
     const filasAp = aps.map(a => `<tr>
       <td><i class="pt" style="background:var(--s${a.slot || 8})"></i>${esc(a.nombre)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
       <td>${eur(a.importe || 0)}</td><td>${a.fechaPrevista ? fecha(a.fechaPrevista) : ""}</td>
-      <td class="acc"><button data-acc="editarApartado" data-id="${esc(a.id)}">Editar</button>
-        <button data-acc="borrarApartado" data-id="${esc(a.id)}">Borrar</button></td></tr>`).join("");
+      ${celdaAcc(a.id, { editar: "editarApartado", borrar: "borrarApartado" })}</tr>`).join("");
     return `<section class="tarjeta"><header><h2>Reservados</h2>
         <span class="subt">Dinero reservado para un fin (impuestos, obras, fianzas…): no resta del patrimonio, pero sí del dinero libre para invertir</span>
         <span class="sp"></span>${aps.length > 1 ? '<button class="btn" data-acc="repartirColoresApartados" title="Da a cada reservado un color distinto">Repartir colores</button>' : ""}
@@ -815,7 +831,7 @@
         «recordar mis correcciones» y se añaden aquí solas.</p>
       ${seccion("Marcas de apuntes")}
       <div class="rejilla">
-        ${campo("Una marca por línea: «emoji» o «emoji = nombre»", '<textarea name="marcasTxt" rows="4" placeholder="🚩 = Revisar\n⭐ = Importante\n❓ = Duda\n✅"></textarea>', "el nombre es opcional", "ancho")}
+        ${campo("Una marca por línea: «emoji» o «emoji = nombre»", '<textarea name="marcasTxt" rows="7" placeholder="👁️ = Revisar\n❗ = Importante\n❓ = Duda\n🔖 = Seguimiento\n⚠️ = Incidencia\n📎 = Justificante\n✅ = Verificado"></textarea>', "el nombre es opcional", "ancho")}
       </div>
       <p class="ayuda">Pon un <b>emoji</b> por línea (y, si quieres, un nombre tras «=»). En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila (solo el icono) y puedes filtrar por marca (ahí sí sale el nombre, si lo pusiste).</p>
       ${seccion("Entidades / bancos (ingresos y gastos)")}
@@ -1101,26 +1117,31 @@
     const F = filtrosFlujos();
     const guarda = () => { try { recuerda.guarda("patrimonio.flujoFiltros", JSON.stringify(F)); } catch (e) { /* da igual */ } };
     document.querySelectorAll('#tab-datos [data-ff]').forEach(el => {
-      const aplica = () => {
-        const k = el.dataset.ff, v = el.value;
+      const k = el.dataset.ff;
+      const aplica = pleno => {
+        const v = el.value;
         if (k.indexOf("dim:") === 0) F.dim[k.slice(4)] = v; else F[k] = v;
-        guarda(); pinta();
+        guarda();
+        // Fechas e importes: refresco LIGERO (solo filas), sin reconstruir la barra de
+        // filtros; así el campo no pierde el foco mientras tecleas (antes «saltaba»).
+        if (pleno) pinta(); else refrescaFlujos();
       };
-      if (el.tagName === "SELECT" || el.type === "date") el.onchange = aplica;
-      else el.onchange = aplica;   // inputs de importe: al salir del campo
+      if (el.type === "date" || el.classList.contains("fImp")) el.onchange = () => aplica(false);
+      else el.onchange = () => aplica(true);   // selects: re-pinta (chips activas, importe)
     });
     const lb = document.querySelector("#tab-datos [data-ff-limpiar]");
     if (lb) lb.onclick = () => { E.flujoFiltros = { dim: {} }; try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* */ } pinta(); };
   }
-  function vistaFlujos() {
-    const marcas = E.marcas || [];
-    let fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
-    fs = filtraFlujos(fs);
+  function flujosFiltrados() {
+    const fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    return filtraFlujos(fs);
+  }
+  function filasFlujosHTML(fs) {
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
     const estrella = x => { const m = x.marca && marcaDe(x.marca); return `<button class="marcaBtn${m ? " on" : ""}" data-acc="menuMarca" data-id="${esc(x.id)}"
         title="${m ? "Marca" + (m.nombre ? ": " + esc(m.nombre) : "") : "Marcar"}">${m ? esc(m.emoji || "●") : "☆"}</button>`; };
-    const filas = fs.map(x => `<tr>
+    return fs.map(x => `<tr>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
@@ -1129,8 +1150,27 @@
       <td class="nota" title="${esc(x.nota)}">${esc(x.nota || "")}</td>
       ${varios ? `<td>${esc(x.titular || "")}</td>` : ""}
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
-      <td class="acc"><button data-acc="editarFlujo" data-id="${esc(x.id)}">Editar</button>
-        <button data-acc="borrarFlujo" data-id="${esc(x.id)}">Borrar</button></td></tr>`).join("");
+      ${celdaAcc(x.id, { editar: "editarFlujo", borrar: "borrarFlujo" })}</tr>`).join("");
+  }
+  // Refresco ligero de Ingresos y gastos: cambia solo las filas y el contador, sin
+  // tocar la barra de filtros (conserva el foco de los campos de fecha/importe).
+  function refrescaFlujos() {
+    const bloque = document.querySelector('#tab-datos [data-tabla="flujos"]');
+    if (!bloque) { pinta(); return; }
+    const fs = flujosFiltrados();
+    const tbody = bloque.querySelector("table.dt tbody");
+    // Si cruzamos la frontera 0 ⇄ N la estructura cambia (tabla ↔ mensaje): re-pinta.
+    if ((fs.length > 0) !== !!tbody) { pinta(); return; }
+    if (tbody) { tbody.innerHTML = filasFlujosHTML(fs); aplicaTablas(); }
+    const c = document.getElementById("flujosContador");
+    if (c) c.innerHTML = hayFiltroFlujos()
+      ? `<p class="subt" style="margin:10px 0 0">Mostrando <b>${fs.length}</b> de ${(E.cfg.flujos || []).length} apuntes.</p>` : "";
+  }
+  function vistaFlujos() {
+    const fs = flujosFiltrados();
+    const varios = (E.cfg.titulares || []).length > 1;
+    const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
+    const filas = filasFlujosHTML(fs);
     const total = (E.cfg.flujos || []).length;
     const contador = hayFiltroFlujos() ? `<p class="subt" style="margin:10px 0 0">Mostrando <b>${fs.length}</b> de ${total} apuntes.</p>` : "";
     return `<section class="tarjeta"><header><h2>Anotar rápido</h2>
@@ -1144,7 +1184,7 @@
           ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, filtrosFlujosHTML())
           : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${filtrosFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
-      ${contador}
+      <div id="flujosContador">${contador}</div>
     </section>`;
   }
 
@@ -1204,9 +1244,7 @@
         <td class="${m.tipo === "compra" || m.tipo === "comision" ? "" : "pos"}">${eur(m.importe)}</td>
         <td>${precio ? num(precio) + " €" : "—"}</td>
         <td class="nota" title="${esc(m.nota)}">${esc(m.nota || "")}</td>
-        <td class="acc"><button data-acc="editarMov" data-id="${esc(m.id)}">Editar</button>
-          <button data-acc="duplicarMov" data-id="${esc(m.id)}">Duplicar</button>
-          <button data-acc="borrarMov" data-id="${esc(m.id)}">Borrar</button></td></tr>`;
+        ${celdaAcc(m.id, { editar: "editarMov", duplicar: "duplicarMov", borrar: "borrarMov" })}</tr>`;
     }).join("");
     return `<section class="tarjeta"><header><h2>Movimientos</h2>
         <span class="subt">Compras, ventas, dividendos y comisiones</span><span class="sp"></span>
@@ -1296,8 +1334,7 @@
       const conAportado = !soloSaldo(p);
       const filas = vals.map(v => `<tr><td>${fecha(v.fecha)}</td><td>${eur(v.valor)}</td>
         ${conAportado ? `<td>${v.aportado != null ? eur(v.aportado) : "—"}</td>` : ""}
-        <td class="acc"><button data-acc="editarValor" data-id="${esc(v.id)}">Editar</button>
-          <button data-acc="borrarValor" data-id="${esc(v.id)}">Borrar</button></td></tr>`).join("");
+        ${celdaAcc(v.id, { editar: "editarValor", borrar: "borrarValor" })}</tr>`).join("");
       return `<section class="tarjeta saldo"><header><h2><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}</h2>
           <span class="subt">${esc(E.tipos[p.tipo] || "")}${p.entidad ? " · " + esc(p.entidad) : ""}</span><span class="sp"></span>
           <button class="btn" data-acc="nuevoValor" data-id="${esc(p.id)}">+ Anotar</button></header>
