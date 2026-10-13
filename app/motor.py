@@ -507,12 +507,12 @@ AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
 
 # Marcas por defecto para los apuntes de ingresos/gastos (editables/ampliables en Config).
 MARCAS_DEFECTO = [
-    {"id": "revisar", "nombre": "Revisar", "emoji": "🚩", "color": "#e34948"},
-    {"id": "importante", "nombre": "Importante", "emoji": "⭐", "color": "#eda100"},
-    {"id": "urgente", "nombre": "Urgente", "emoji": "❗", "color": "#d6455d"},
-    {"id": "duda", "nombre": "Duda", "emoji": "❓", "color": "#2a78d6"},
-    {"id": "comprobado", "nombre": "Comprobado", "emoji": "✅", "color": "#1baf7a"},
-    {"id": "vigilar", "nombre": "Vigilar", "emoji": "👀", "color": "#9a6a3a"},
+    {"id": "revisar", "emoji": "🚩", "nombre": "Revisar"},
+    {"id": "importante", "emoji": "⭐", "nombre": "Importante"},
+    {"id": "urgente", "emoji": "❗", "nombre": "Urgente"},
+    {"id": "duda", "emoji": "❓", "nombre": "Duda"},
+    {"id": "comprobado", "emoji": "✅", "nombre": "Comprobado"},
+    {"id": "vigilar", "emoji": "👀", "nombre": "Vigilar"},
 ]
 
 # Carteras de referencia para «¿y si lo hubieras metido en un indexado?». Son ETF

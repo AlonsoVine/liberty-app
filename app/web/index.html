@@ -127,18 +127,13 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .marcaBtn:hover{color:var(--aviso);background:color-mix(in srgb,var(--aviso) 16%,transparent)}
 .marcaBtn.on{color:var(--mal)}
 td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
-/* Editor de marcas (emoji + nombre + color) */
-.filaMarca{align-items:center}
-.filaMarca .mEmoji,.filaMarca .mNombre{font:inherit;font-size:14px;padding:8px 10px;border-radius:9px;border:1px solid var(--borde);background:var(--sup);color:var(--tinta)}
-.filaMarca .mEmoji{width:52px;text-align:center;font-size:16px}
-.filaMarca .mNombre{flex:1}
-.filaMarca .mColor{width:42px;height:36px;padding:2px;border:1px solid var(--borde);border-radius:8px;background:var(--sup);cursor:pointer;flex:0 0 auto}
-/* Desplegable de marca en la tabla de ingresos y gastos */
-.marcaMenu{position:fixed;z-index:210;background:var(--sup);border:1px solid var(--borde);border-radius:10px;padding:5px;box-shadow:0 14px 40px rgba(0,0,0,.4);min-width:180px;display:flex;flex-direction:column;gap:2px}
-.marcaOpt{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--tinta);text-align:left;padding:7px 10px;border-radius:7px;cursor:pointer;font:inherit;font-size:13.5px}
+/* Desplegable de marca en la tabla de ingresos y gastos: solo iconos */
+.marcaMenu{position:fixed;z-index:210;background:var(--sup);border:1px solid var(--borde);border-radius:10px;padding:6px;box-shadow:0 14px 40px rgba(0,0,0,.4);display:flex;flex-wrap:wrap;gap:4px;max-width:232px}
+.marcaOpt{display:inline-flex;align-items:center;justify-content:center;width:34px;height:34px;border:1px solid transparent;background:none;color:var(--tinta);border-radius:8px;cursor:pointer;font-size:18px;line-height:1}
 .marcaOpt:hover{background:var(--sup3)}
-.marcaOpt.sel{background:color-mix(in srgb,var(--s1) 16%,transparent);color:var(--s1);font-weight:600}
-.marcaOpt .mE{width:20px;text-align:center}
+.marcaOpt.sel{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 16%,transparent)}
+.marcaOpt.quitar{font-size:14px;color:var(--tinta3)}
+.marcaOpt.quitar:hover{color:var(--mal)}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
 .filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}

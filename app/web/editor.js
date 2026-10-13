@@ -139,25 +139,6 @@
     const r = [...cont.querySelectorAll(".filaEdit")].find(x => { const d = x.querySelector(".inDef"); return d && d.checked; });
     return r ? r.querySelector(".inEdit").value.trim() : "";
   };
-  // Editor de marcas (emoji + nombre + color) por filas.
-  function montaMarcasEdit(cont, marcas) {
-    const fila = m => `<div class="filaEdit filaMarca">
-      <input class="mEmoji" value="${esc(m.emoji || "")}" maxlength="4" placeholder="🚩" title="Emoji" aria-label="Emoji">
-      <input class="mNombre" value="${esc(m.nombre || "")}" placeholder="Nombre de la marca" autocomplete="off">
-      <input type="color" class="mColor" value="${esc(/^#[0-9a-fA-F]{6}$/.test(m.color || "") ? m.color : "#e34948")}" title="Color" aria-label="Color">
-      <button type="button" class="btn mini filaX" data-quita aria-label="Quitar">✕</button></div>`;
-    cont.innerHTML = `<div class="filasEdit">${(marcas || []).map(fila).join("")}</div>
-      <button type="button" class="btn mini" data-add>+ Añadir marca</button>`;
-    const lista = cont.querySelector(".filasEdit");
-    cont.querySelector("[data-add]").onclick = () => {
-      lista.insertAdjacentHTML("beforeend", fila({ color: "#2a78d6" }));
-      const em = lista.querySelectorAll(".mEmoji"); em[em.length - 1].focus();
-    };
-    lista.onclick = e => { const q = e.target.closest("[data-quita]"); if (q) q.closest(".filaEdit").remove(); };
-  }
-  const leeMarcasEdit = cont => [...cont.querySelectorAll(".filaMarca")]
-    .map(r => ({ emoji: r.querySelector(".mEmoji").value.trim(), nombre: r.querySelector(".mNombre").value.trim(), color: r.querySelector(".mColor").value }))
-    .filter(m => m.nombre);
 
   /* ---------------------------------------------- empezar con mis datos */
   function empezar() {
@@ -706,7 +687,7 @@
         ${fila("Monedas (cambio manual)", monedas.length ? monedas.map(m => `${esc(m.codigo)} = ${esc(String(m.tipo))}`).join(", ") : "EUR")}
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
-        ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.nombre)).join(", ") : sub("«A revisar» (por defecto)"))}
+        ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.emoji || "") + (m.nombre ? " " + esc(m.nombre) : "")).join(", ") : sub("varias por defecto (🚩 ⭐ ❗ …)"))}
         ${fila("Dimensiones de clasificación de activos", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Entidades / bancos", (conf.entidades || []).length ? (conf.entidades || []).map(esc).join(", ") : sub("ninguna"))}
         ${fila("Dimensiones de ingresos/gastos", (conf.dimensionesFlujos || []).length ? (conf.dimensionesFlujos || []).map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
@@ -833,8 +814,10 @@
         (si existe y es del tipo correcto). Tienen prioridad sobre las que trae la app. Al importar puedes marcar
         «recordar mis correcciones» y se añaden aquí solas.</p>
       ${seccion("Marcas de apuntes")}
-      <div id="edMarcas" class="campo ancho"></div>
-      <p class="ayuda">Vienen varias precargadas (edítalas o añade las tuyas). En cada una pones un <b>emoji</b>, un nombre y un color. En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila, y luego puedes filtrar por marca.</p>
+      <div class="rejilla">
+        ${campo("Una marca por línea: «emoji» o «emoji = nombre»", '<textarea name="marcasTxt" rows="4" placeholder="🚩 = Revisar\n⭐ = Importante\n❓ = Duda\n✅"></textarea>', "el nombre es opcional", "ancho")}
+      </div>
+      <p class="ayuda">Pon un <b>emoji</b> por línea (y, si quieres, un nombre tras «=»). En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila (solo el icono) y puedes filtrar por marca (ahí sí sale el nombre, si lo pusiste).</p>
       ${seccion("Entidades / bancos (ingresos y gastos)")}
       <div class="rejilla">
         ${campo("Una entidad por línea", '<textarea name="entidadesTxt" rows="3" placeholder="BBVA\nING\nRevolut\nEfectivo"></textarea>', "", "ancho")}
@@ -890,7 +873,10 @@
         const valores = i >= 0 ? l.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean) : [];
         return { nombre, valores };
       }).filter(dm => dm.nombre);
-      const marcas = leeMarcasEdit($("#edMarcas"));
+      const marcas = lineas("marcasTxt").map(l => {
+        const i = l.indexOf("=");
+        return { emoji: (i >= 0 ? l.slice(0, i) : l).trim(), nombre: i >= 0 ? l.slice(i + 1).trim() : "" };
+      }).filter(m => m.emoji);
       const entidades = lineas("entidadesTxt");
       const dimensionesFlujos = lineas("dimFlujos").map(l => {
         const i = l.indexOf(":");
@@ -935,7 +921,8 @@
     const _titDef = (conf.titularDefecto && _tits0.includes(conf.titularDefecto)) ? conf.titularDefecto : _tits0[0];
     montaFilasEdit(f.querySelector("#edTits"), _tits0, "Nombre del titular", "Añadir titular", { defecto: _titDef });
     montaFilasEdit(f.querySelector("#edTipos"), tiposPropios, "Nombre del tipo", "Añadir tipo");
-    montaMarcasEdit(f.querySelector("#edMarcas"), (conf.marcas && conf.marcas.length) ? conf.marcas : (E.marcas || []));
+    f.elements.marcasTxt.value = ((conf.marcas && conf.marcas.length) ? conf.marcas : (E.marcas || []))
+      .map(m => m.nombre ? `${m.emoji} = ${m.nombre}` : m.emoji).join("\n");
     const pct = v => v != null ? +(v * 100).toFixed(2) : "";
     f.elements.umbralConcentracion.value = pct(conf.umbralConcentracion);
     f.elements.desviacionMax.value = pct(conf.desviacionMax);
@@ -1035,9 +1022,9 @@
     const fl = (E.cfg.flujos || []).find(x => x.id === id); if (!fl) return;
     const btn = document.querySelector('.marcaBtn[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); if (!btn) return;
     const menu = document.createElement("div"); menu.id = "marcaMenu"; menu.className = "marcaMenu";
-    const opt = (emoji, nombre, val, sel) => `<button type="button" class="marcaOpt${sel ? " sel" : ""}" data-val="${esc(val)}"><span class="mE">${esc(emoji || "·")}</span>${esc(nombre)}</button>`;
-    menu.innerHTML = opt("", "Sin marca", "", !fl.marca) +
-      (E.marcas || []).map(m => opt(m.emoji || "●", m.nombre, m.id, fl.marca === m.id)).join("");
+    // Solo iconos (el nombre va en el tooltip), más un ✕ para quitar la marca.
+    menu.innerHTML = `<button type="button" class="marcaOpt quitar${!fl.marca ? " sel" : ""}" data-val="" title="Sin marca">✕</button>` +
+      (E.marcas || []).map(m => `<button type="button" class="marcaOpt ico${fl.marca === m.id ? " sel" : ""}" data-val="${esc(m.id)}" title="${esc(m.nombre || "")}">${esc(m.emoji || "●")}</button>`).join("");
     document.body.appendChild(menu);
     const r = btn.getBoundingClientRect();
     menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + "px";
@@ -1096,7 +1083,7 @@
     if (ents.length) h += campo("entidad", "Entidad", ents.map(e => ({ v: e, t: e })), F.entidad || "");
     if (tits.length > 1) h += campo("titular", "Titular", tits.map(t => ({ v: t, t })), F.titular || "");
     if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
-      ...marcas.map(m => ({ v: m.id, t: (m.emoji ? m.emoji + " " : "") + m.nombre }))], F.marca || "");
+      ...marcas.map(m => ({ v: m.id, t: (m.emoji || "") + (m.nombre ? " " + m.nombre : "") }))], F.marca || "");
     dims.forEach(dm => {
       const vals = [...new Set([...(dm.valores || []), ...(E.cfg.flujos || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean)])];
       if (vals.length) h += campo("dim:" + dm.id, dm.nombre, vals.map(v => ({ v, t: v })), (F.dim || {})[dm.id] || "");
@@ -1132,7 +1119,7 @@
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
     const estrella = x => { const m = x.marca && marcaDe(x.marca); return `<button class="marcaBtn${m ? " on" : ""}" data-acc="menuMarca" data-id="${esc(x.id)}"
-        title="${m ? "Marca: " + esc(m.nombre) : "Marcar"}"${m ? ` style="color:${esc(m.color || "")}"` : ""}>${m ? esc(m.emoji || "●") : "☆"}</button>`; };
+        title="${m ? "Marca" + (m.nombre ? ": " + esc(m.nombre) : "") : "Marcar"}">${m ? esc(m.emoji || "●") : "☆"}</button>`; };
     const filas = fs.map(x => `<tr>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
