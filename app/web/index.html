@@ -134,6 +134,19 @@ td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
 .marcaOpt.sel{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 16%,transparent)}
 .marcaOpt.quitar{font-size:14px;color:var(--tinta3)}
 .marcaOpt.quitar:hover{color:var(--mal)}
+/* Observaciones del apunte: indicador en la tabla + popover */
+table.dt td.cObs{text-align:center;width:1%;white-space:nowrap}
+.obsBtn{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;border-radius:6px;transition:.1s}
+.obsBtn.tiene{color:var(--s1)}
+.obsBtn.tiene:hover{background:color-mix(in srgb,var(--s1) 16%,transparent)}
+.obsBtn.add{color:var(--tinta3);opacity:0;font-weight:700}
+table.dt tbody tr:hover .obsBtn.add{opacity:.5}
+.obsBtn.add:hover{opacity:1;color:var(--tinta);background:var(--sup3)}
+.obsPop{position:fixed;z-index:210;background:var(--sup);border:1px solid var(--borde);border-radius:10px;
+  padding:12px 14px;box-shadow:0 14px 40px rgba(0,0,0,.4);max-width:320px;font-size:13.5px;color:var(--tinta)}
+.obsTxt{line-height:1.5;margin-bottom:10px;overflow-wrap:anywhere;max-height:220px;overflow:auto}
+.obsVacio{color:var(--tinta3);margin-bottom:10px}
+.obsAcc{text-align:right}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
 .filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
@@ -229,7 +242,11 @@ td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .calChip.rec{background:color-mix(in srgb,var(--s1) 22%,transparent);color:var(--tinta)}
 .calChip.venc{background:var(--sup);color:var(--tinta3);border:1px solid var(--borde);cursor:default}
+.calChip.tar{background:color-mix(in srgb,var(--s14) 24%,transparent);color:var(--tinta);cursor:pointer}
 @media (max-width:620px){.calDia{min-height:62px}.calChip{font-size:10px}}
+.agItem.tar{cursor:pointer}
+.agItem.tar:hover{background:var(--sup2)}
+.agBadge.tablero{color:var(--tinta2);border-color:color-mix(in srgb,var(--s14) 45%,var(--borde));background:color-mix(in srgb,var(--s14) 12%,transparent)}
 /* Indicador de nota en entidades y filtro por entidad */
 .notaInd,.notaIndPanel{border:0;background:none;cursor:pointer;font-size:13px;line-height:1;padding:1px 3px;border-radius:6px;vertical-align:middle}
 .notaInd:hover,.notaIndPanel:hover{background:color-mix(in srgb,var(--s1) 18%,transparent)}
@@ -1647,9 +1664,17 @@ body.video .tarjetaCanal{display:none}
 
     <details class="faq"><summary>¿Cómo filtro y busco en Ingresos y gastos?</summary><div>
       <p>En <b>Mis datos → Ingresos y gastos</b>, encima de la tabla tienes filtros potentes: por <b>tipo</b> (ingreso/gasto),
-      <b>categoría</b>, <b>entidad</b>, <b>titular</b>, <b>marca</b>, tus <b>dimensiones</b>, por <b>importe</b>
-      (mayor que, menor que o entre dos cifras) y por <b>rango de fechas</b>. Abajo verás «Mostrando N de M apuntes» y un
-      botón <b>«✕ Limpiar filtros»</b>. Los mismos filtros, más resumidos, están en <b>Panel → Ingresos y gastos</b>.</p></div></details>
+      <b>categoría</b>, <b>entidad</b>, <b>titular</b>, <b>marca</b>, <b>observaciones</b> (con o sin nota), tus
+      <b>dimensiones</b>, por <b>importe</b> (mayor que, menor que o entre dos cifras) y por <b>rango de fechas</b>.
+      Abajo verás «Mostrando N de M apuntes» y un botón <b>«✕ Limpiar filtros»</b>. Los mismos filtros, más resumidos,
+      están en <b>Panel → Ingresos y gastos</b>.</p></div></details>
+
+    <details class="faq"><summary>¿Qué diferencia hay entre «Concepto» y «Observaciones» en un apunte?</summary><div>
+      <p>El <b>Concepto</b> es de qué es el apunte; cuando <b>importas del banco</b>, es el texto que trae el banco. Las
+      <b>Observaciones</b> son tu <b>nota libre</b> sobre ese apunte (por ejemplo «revisar, parece duplicado»). Para no
+      ocupar espacio no se muestran como columna: verás un <b>📝</b> en los apuntes que tengan observaciones (pulsa para
+      leerlas o editarlas) y puedes <b>filtrar por «con/sin nota»</b>. Estas observaciones son solo del apunte: <b>no</b>
+      tienen que ver con la pestaña <b>Notas</b> ni aparecen en la Agenda.</p></div></details>
 
     <details class="faq"><summary>¿Para qué sirven las marcas de los apuntes?</summary><div>
       <p>Son etiquetas rápidas con un emoji para señalar apuntes (por ejemplo «👁️ Revisar», «📎 Justificante» o
@@ -1680,11 +1705,13 @@ body.video .tarjetaCanal{display:none}
           <b>relacionar</b> una nota con un <b>activo, una deuda o un reservado</b>: ese elemento mostrará un <b>📝</b> en
           Mis datos y en su ficha del Panel que, al pulsarlo, te lleva a la nota.</li>
         <li><b>📋 Tablero</b> tipo Trello: columnas y tarjetas que arrastras para mover u <b>ordenar</b>; doble clic para
-          editar una tarjeta, con <b>color</b> y <b>fecha de vencimiento</b> opcionales.</li>
+          editar una tarjeta, con <b>color</b> y <b>fecha de vencimiento</b> opcionales. Las tarjetas con fecha aparecen
+          también en la Agenda.</li>
         <li><b>🗓️ Agenda</b>, en dos vistas: un <b>calendario mensual</b> (navega a cualquier mes y año; pulsa un día
           para añadir algo) y una <b>lista</b>. En ambas aparecen tus <b>recordatorios</b> (con fecha, repetición y
-          enlace opcional a un activo/deuda/reservado) junto con los <b>vencimientos que la app detecta</b> (depósitos,
-          deudas, reservados).</li>
+          enlace opcional a un activo/deuda/reservado), los <b>vencimientos que la app detecta</b> (depósitos,
+          deudas, reservados) y las <b>tarjetas del tablero con fecha</b> (con un badge «📋 Tablero»; al pulsarlas vas
+          al tablero).</li>
       </ul></div></details>
 
     <details class="faq"><summary>¿Puedo elegir qué avisos me muestra la app?</summary><div>

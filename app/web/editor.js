@@ -1060,6 +1060,25 @@
     });
     setTimeout(() => document.addEventListener("click", cierraMenuMarca, { once: true }), 0);
   }
+  // Popover de «Observaciones» de un apunte: muestra la nota libre y permite editarla.
+  function cierraObs() { const m = document.getElementById("obsPop"); if (m) m.remove(); }
+  function abreObs(id) {
+    cierraObs(); cierraMenuMarca();
+    const fl = (E.cfg.flujos || []).find(x => x.id === id); if (!fl) return;
+    const btn = document.querySelector('.obsBtn[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); if (!btn) return;
+    const pop = document.createElement("div"); pop.id = "obsPop"; pop.className = "obsPop";
+    pop.innerHTML = (fl.observaciones
+      ? `<div class="obsTxt">${esc(fl.observaciones).replace(/\n/g, "<br>")}</div>`
+      : '<div class="obsVacio">Sin observaciones todavía.</div>')
+      + `<div class="obsAcc"><button type="button" class="btn mini prim" data-obs-editar>${fl.observaciones ? "Editar" : "Añadir"}</button></div>`;
+    pop.addEventListener("click", e => e.stopPropagation());
+    document.body.appendChild(pop);
+    const r = btn.getBoundingClientRect();
+    pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + "px";
+    pop.style.top = (r.bottom + 4 + pop.offsetHeight > innerHeight ? r.top - pop.offsetHeight - 4 : r.bottom + 4) + "px";
+    pop.querySelector("[data-obs-editar]").onclick = () => { cierraObs(); formFlujo(fl); };
+    setTimeout(() => document.addEventListener("click", cierraObs, { once: true }), 0);
+  }
   // Filtros potentes de la tabla de ingresos y gastos (por columna, importe y fechas).
   function filtrosFlujos() {
     try { E.flujoFiltros = E.flujoFiltros || JSON.parse(recuerda.lee("patrimonio.flujoFiltros") || "{}") || {}; } catch (e) { E.flujoFiltros = {}; }
@@ -1078,6 +1097,8 @@
       if (F.marca === "__con__" && !x.marca) return false;
       if (F.marca === "__sin__" && x.marca) return false;
       if (F.marca && F.marca[0] !== "_" && x.marca !== F.marca) return false;
+      if (F.obs === "con" && !x.observaciones) return false;
+      if (F.obs === "sin" && x.observaciones) return false;
       for (const d in (F.dim || {})) if (F.dim[d] && (x.categorias || {})[d] !== F.dim[d]) return false;
       const imp = +x.importe || 0;
       if (F.impOp === "mayor" && i1 != null && !isNaN(i1) && !(imp > i1)) return false;
@@ -1090,7 +1111,7 @@
   }
   function hayFiltroFlujos() {
     const F = filtrosFlujos();
-    return !!(F.tipo || F.categoria || F.entidad || F.titular || F.marca || F.impOp || F.fdesde || F.fhasta ||
+    return !!(F.tipo || F.categoria || F.entidad || F.titular || F.marca || F.obs || F.impOp || F.fdesde || F.fhasta ||
       Object.values(F.dim || {}).some(Boolean));
   }
   function filtrosFlujosHTML() {
@@ -1106,6 +1127,7 @@
     if (tits.length > 1) h += campo("titular", "Titular", tits.map(t => ({ v: t, t })), F.titular || "");
     if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
       ...marcas.map(m => ({ v: m.id, t: (m.emoji || "") + (m.nombre ? " " + m.nombre : "") }))], F.marca || "");
+    h += campo("obs", "Observaciones", [{ v: "con", t: "Con nota" }, { v: "sin", t: "Sin nota" }], F.obs || "");
     dims.forEach(dm => {
       const vals = [...new Set([...(dm.valores || []), ...(E.cfg.flujos || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean)])];
       if (vals.length) h += campo("dim:" + dm.id, dm.nombre, vals.map(v => ({ v, t: v })), (F.dim || {})[dm.id] || "");
@@ -1147,6 +1169,9 @@
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
     const estrella = x => { const m = x.marca && marcaDe(x.marca); return `<button class="marcaBtn${m ? " on" : ""}" data-acc="menuMarca" data-id="${esc(x.id)}"
         title="${m ? "Marca" + (m.nombre ? ": " + esc(m.nombre) : "") : "Marcar"}">${m ? esc(m.emoji || "●") : "☆"}</button>`; };
+    const obsInd = x => x.observaciones
+      ? `<button class="obsBtn tiene" data-acc="verObs" data-id="${esc(x.id)}" title="Tiene observaciones — pulsa para verlas">📝</button>`
+      : `<button class="obsBtn add" data-acc="verObs" data-id="${esc(x.id)}" title="Añadir observaciones">+</button>`;
     return fs.map(x => `<tr>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
@@ -1154,6 +1179,7 @@
       <td>${esc(x.categoria || "")}</td>
       ${conEnt ? `<td>${esc(x.entidad || "")}</td>` : ""}
       <td class="nota" title="${esc(x.nota)}">${esc(x.nota || "")}</td>
+      <td class="cObs">${obsInd(x)}</td>
       ${varios ? `<td>${esc(x.titular || "")}</td>` : ""}
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
       ${celdaAcc(x.id, { editar: "editarFlujo", borrar: "borrarFlujo" })}</tr>`).join("");
@@ -1186,7 +1212,7 @@
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Busca y filtra arriba; marca apuntes con el desplegable de su fila.</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${total
-        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Nota</th>
+        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort" title="Observaciones"></th>
           ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, filtrosFlujosHTML())
           : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${filtrosFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
@@ -1219,7 +1245,8 @@
           <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${dimsF.map(dm => campo(esc(dm.nombre), `<input name="cat_${esc(dm.id)}" list="dlf_${esc(dm.id)}" value="${esc(xcats[dm.id] || "")}" placeholder="…" autocomplete="off">
           <datalist id="dlf_${esc(dm.id)}">${(dm.valores || []).map(v => `<option value="${esc(v)}">`).join("")}</datalist>`, "opcional")).join("")}
-        ${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}
+        ${campo("Concepto", '<textarea name="nota" rows="2"></textarea>', "de qué es; lo rellena el banco al importar", "ancho")}
+        ${campo("Observaciones", '<textarea name="observaciones" rows="3"></textarea>', "tu nota libre sobre este apunte (opcional)", "ancho")}
       </div>`,
     async f => {
       const d = campos(f);
@@ -1899,6 +1926,7 @@
     borrarValor: soloPropio(borrarValor),
     todosValores: soloPropio(todosValores),
     menuMarca: soloPropio(id => abreMenuMarca(id)),
+    verObs: soloPropio(id => abreObs(id)),
     nuevoApartado: soloPropio(() => formApartado(null)),
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
@@ -2328,13 +2356,19 @@
     });
     ((window.DATOS && window.DATOS.vencimientos) || []).forEach(v => items.push({ clase: "venc", texto: v.nombre, fecha: v.fecha,
       meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado }));
+    // Tarjetas del tablero que tengan fecha de vencimiento (solo lectura en la agenda;
+    // se gestionan en el Tablero). Se muestran diferenciadas con un badge «Tablero».
+    const tab = E.cfg.tablero || {}, colNom = {};
+    (tab.columnas || []).forEach(c => { colNom[c.id] = c.nombre; });
+    (tab.tarjetas || []).forEach(t => { if (t.vence) items.push({ clase: "tar", id: t.id, texto: t.texto, fecha: t.vence, colNombre: colNom[t.col] || "" }); });
     return items;
   }
+  function irTablero() { E.notasVista = "tablero"; recuerda.guarda("patrimonio.notasVista", "tablero"); pintarNotas(); }
   function montaAgenda() {
     const cont = $("#notasCuerpo"); if (!cont) return;
     const v = E.agendaVista || "calendario";
     cont.innerHTML = `<section class="tarjeta"><header><h2>Agenda</h2>
-        <span class="subt">Tus recordatorios y los vencimientos que la app detecta (depósitos, deudas, reservados).</span>
+        <span class="subt">Tus recordatorios, los vencimientos que la app detecta (depósitos, deudas, reservados) y las tarjetas del tablero con fecha.</span>
         <span class="sp"></span><button class="btn prim" data-rnuevo>+ Recordatorio</button></header>
       <div class="segm agNav">
         <button data-av="calendario" aria-pressed="${v === "calendario"}">📅 Calendario</button>
@@ -2359,6 +2393,12 @@
           <span class="agTxt">${esc(i.texto)}${i.meta ? ` <span class="agMeta">${esc(i.meta)}</span>` : ""}</span>
           <span class="agBadge" title="Se gestiona en Mis datos">${esc(i.tipo || "Vencimiento")}</span></div>`;
       }
+      if (i.clase === "tar") {
+        return `<div class="agItem tar" data-irtablero title="Tarjeta del tablero — pulsa para abrir el tablero"><span class="agFecha">${fecha(i.fecha)}</span>
+          <span class="agDias ${clD}">${etqD}</span>
+          <span class="agTxt">${esc(i.texto)}${i.colNombre ? ` <span class="agMeta">${esc(i.colNombre)}</span>` : ""}</span>
+          <span class="agBadge tablero">📋 Tablero</span></div>`;
+      }
       const rep = i.repetir !== "no" ? `<span class="agRep">🔁 ${i.repetir === "mensual" ? "mensual" : "anual"}</span>` : "";
       const vinc = i.vinculo ? `<span class="notaVinc" title="Relacionado con ${esc(VINC_ETIQ[i.vinculo.tipo] || "")}">🔗 ${esc(nombreVinculo(i.vinculo))}</span>` : "";
       return `<div class="agItem${i.hecho ? " hecha" : ""}"><span class="agFecha">${fecha(i.fecha)}</span>
@@ -2373,6 +2413,7 @@
     cont.querySelectorAll("[data-redit]").forEach(b => b.onclick = () => formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.redit)));
     cont.querySelectorAll("[data-rdel]").forEach(b => b.onclick = () => { if (confirm("¿Borrar este recordatorio?")) guardaRecordatorios((E.cfg.recordatorios || []).filter(x => x.id !== b.dataset.rdel)); });
     cont.querySelectorAll("[data-rdone]").forEach(cb => cb.onchange = () => guardaRecordatorios((E.cfg.recordatorios || []).map(x => x.id === cb.dataset.rdone ? { ...x, hecho: cb.checked } : x)));
+    cont.querySelectorAll("[data-irtablero]").forEach(el => el.onclick = () => irTablero());
   }
   function montaAgendaCalendario() {
     const cont = $("#agCuerpo"); if (!cont) return;
@@ -2400,13 +2441,20 @@
       const d = diaEnMes(v.fecha, "no");
       if (d) porDia[d].push({ clase: "venc", texto: v.nombre, tipo: v.tipo });
     });
+    ((E.cfg.tablero || {}).tarjetas || []).forEach(t => {
+      if (!t.vence) return;
+      const d = diaEnMes(t.vence, "no");
+      if (d) porDia[d].push({ clase: "tar", id: t.id, texto: t.texto });
+    });
     const celdas = [];
     for (let i = 0; i < inicioSemana; i++) celdas.push('<div class="calDia vacio"></div>');
     for (let d = 1; d <= ultimo; d++) {
       const iso = `${Y}-${String(M).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
       const chips = porDia[d].map(it => it.clase === "rec"
         ? `<button class="calChip rec" data-cedit="${esc(it.id)}" title="${esc(it.texto)}">${it.repetir !== "no" ? "🔁 " : ""}${esc(it.texto)}</button>`
-        : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
+        : it.clase === "tar"
+          ? `<button class="calChip tar" data-ctablero title="${esc(it.texto)} · Tablero">📋 ${esc(it.texto)}</button>`
+          : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
       celdas.push(`<div class="calDia${iso === hoyISO ? " hoy" : ""}" data-cnuevo="${iso}">
         <div class="calNum">${d}</div><div class="calChips">${chips}</div></div>`);
     }
@@ -2427,6 +2475,7 @@
     cont.querySelector("[data-cmessel]").onchange = e => irMes(Y, +e.target.value);
     cont.querySelector("[data-caniosel]").onchange = e => irMes(+e.target.value, M);
     cont.querySelectorAll("[data-cedit]").forEach(b => b.onclick = e => { e.stopPropagation(); formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.cedit)); });
+    cont.querySelectorAll("[data-ctablero]").forEach(b => b.onclick = e => { e.stopPropagation(); irTablero(); });
     cont.querySelectorAll("[data-cnuevo]").forEach(c => c.onclick = () => formRecordatorio(null, c.dataset.cnuevo));
   }
 
