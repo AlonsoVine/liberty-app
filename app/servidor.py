@@ -852,6 +852,69 @@ def api_version():
                    hayNueva=bool(ultima) and como_tupla(ultima) > como_tupla(actual))
 
 
+# Ejecutable de la última versión (el nombre del asset es siempre «Liberty.exe»).
+_URL_EXE = "https://github.com/AlonsoVine/liberty/releases/latest/download/Liberty.exe"
+
+
+def _vtupla(v):
+    return tuple(int(x) for x in re.findall(r"\d+", v or "0"))
+
+
+def _mayor(a, b):
+    return _vtupla(a) > _vtupla(b)
+
+
+@app.post("/api/descargar-version")
+def api_descargar_version():
+    """Descarga el ejecutable de la última versión y lo deja JUNTO al actual, con la
+    versión en el nombre (p. ej. «Liberty 1.8.2.exe»). No ejecuta ni sobrescribe nada
+    (un .exe en marcha está bloqueado por Windows): solo es una descarga —un GET a
+    GitHub— y escribir un archivo nuevo. El usuario abre el nuevo y borra el viejo
+    cuando quiera. La app sigue siendo 100 % local. Lo lanza el usuario con un botón."""
+    if not getattr(sys, "frozen", False):
+        return jsonify(ok=False, motivo="dev", descarga=DESCARGA,
+                       mensaje="En modo desarrollo no hay ejecutable que actualizar. "
+                               "Al compilar, este botón descargará el .exe nuevo junto al actual."), 200
+    try:
+        req = urllib.request.Request(_API_RELEASE, headers=motor.UA)
+        with urllib.request.urlopen(req, timeout=8) as r:
+            ultima = (json.loads(r.read().decode()).get("tag_name") or "").lstrip("vV") or None
+    except Exception:
+        return jsonify(ok=False, motivo="sin-conexion", descarga=DESCARGA,
+                       mensaje="No he podido consultar la última versión. "
+                               "Revisa tu conexión o descárgala desde la web."), 200
+    actual = version_actual()
+    if not ultima or not _mayor(ultima, actual):
+        return jsonify(ok=False, motivo="al-dia", actual=actual, ultima=ultima,
+                       mensaje="Ya tienes la última versión."), 200
+    carpeta_exe = os.path.dirname(sys.executable)
+    nombre = f"Liberty {ultima}.exe"
+    destino = os.path.join(carpeta_exe, nombre)
+    tmp = destino + ".parcial"
+    try:
+        req = urllib.request.Request(_URL_EXE, headers=motor.UA)
+        with urllib.request.urlopen(req, timeout=180) as r, open(tmp, "wb") as f:
+            shutil.copyfileobj(r, f)
+        if os.path.getsize(tmp) < 1_000_000:     # un .exe real pesa decenas de MB
+            raise OSError("descarga incompleta")
+        os.replace(tmp, destino)
+    except Exception:
+        try:
+            if os.path.exists(tmp):
+                os.remove(tmp)
+        except Exception:
+            pass
+        return jsonify(ok=False, motivo="error-descarga", descarga=DESCARGA,
+                       mensaje="No he podido descargar la nueva versión. "
+                               "Puedes bajarla a mano desde la web de Liberty."), 200
+    try:   # abrir la carpeta para que vea el archivo nuevo (como ya abrimos el navegador al arrancar)
+        if not os.environ.get("PATRIMONIO_NO_ABRIR"):
+            webbrowser.open("file:///" + carpeta_exe.replace(os.sep, "/"))
+    except Exception:
+        pass
+    return jsonify(ok=True, archivo=nombre, carpeta=carpeta_exe, actual=actual, ultima=ultima)
+
+
 @app.post("/api/reiniciar")
 def api_reiniciar():
     """Empieza de cero o vuelve a la demo. Lo que había se guarda antes en mis_datos/copias."""

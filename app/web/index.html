@@ -1338,13 +1338,17 @@ body.video .tarjetaCanal{display:none}
     <header><h2>🌐 Web oficial de Liberty</h2><span class="subt">La página desde donde se descarga y se actualiza</span></header>
     <p>Esta es la página oficial de Liberty. Guárdala en favoritos: desde ahí consigues siempre la última versión.</p>
     <a class="webOficial" href="https://alonsovine.github.io/liberty/" target="_blank" rel="noopener">alonsovine.github.io/liberty</a>
-    <p style="margin-top:14px">Para <b>actualizar</b>, descarga el nuevo <code>.exe</code> desde la web y copia tu carpeta <code>mis_datos</code> a la nueva ubicación: así no pierdes nada.
-      Activa «Buscar actualizaciones» en <b>Configuración</b> si quieres que la app te avise cuando haya versión nueva.</p>
+    <p style="margin-top:14px">Para <b>actualizar</b>, pulsa <b>«⬇ Descargar la última versión»</b>: la app baja el nuevo
+      <code>Liberty.exe</code> y lo deja <b>junto al actual</b>, con la versión en el nombre (p. ej. <code>Liberty 1.8.2.exe</code>).
+      Tus datos (la carpeta <code>mis_datos</code>) se quedan donde están, así que no pierdes nada: solo cierra Liberty, abre el
+      archivo nuevo y borra el viejo cuando quieras. Activa «Buscar actualizaciones» en <b>Configuración</b> si quieres además
+      que la app te avise sola cuando haya versión nueva.</p>
     <div class="botones" style="display:flex;gap:10px;flex-wrap:wrap;margin-top:12px">
-      <a class="btn prim" href="https://alonsovine.github.io/liberty/" target="_blank" rel="noopener">🌐 Abrir la web oficial</a>
-      <a class="btn" href="https://alonsovine.github.io/liberty/#descarga" target="_blank" rel="noopener">⬇ Descargar la última versión</a>
+      <button class="btn prim" id="btnDescargarAqui">⬇ Descargar la última versión</button>
+      <a class="btn" href="https://alonsovine.github.io/liberty/" target="_blank" rel="noopener">🌐 Abrir la web oficial</a>
       <a class="btn" href="https://github.com/AlonsoVine/liberty" target="_blank" rel="noopener">Repositorio en GitHub</a>
     </div>
+    <p id="descargaAquiEstado" class="subt" style="margin-top:10px" hidden></p>
   </section>
 
   <section class="tarjeta ayudaTarjeta" style="border-left:4px solid var(--s1)">

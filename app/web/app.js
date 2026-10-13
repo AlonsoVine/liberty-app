@@ -2200,18 +2200,43 @@
   /* ---------------------------------------------- avisos y pie */
   // Versión de la app en el pie, con el estado de actualización si está activado.
   let VERINFO = null;
+  // Descarga la última versión y la deja JUNTO a la actual (nombre con versión, p. ej.
+  // «Liberty 1.8.2.exe»). No ejecuta ni sobrescribe nada: solo descarga + escribe un archivo.
+  function actualizaDesdePie(ev) {
+    if (ev) ev.preventDefault();
+    const ult = (VERINFO && VERINFO.ultima) || "";
+    if (!confirm(`Se descargará la última versión (${ult}) y se guardará junto a la actual, con la versión en el nombre `
+      + `(«Liberty ${ult}.exe»). No se abre ni se borra nada automáticamente. ¿Continuar?`)) return;
+    const a = $("#pieActualizar"); if (a) a.textContent = "descargando…";
+    fetch("api/descargar-version", { method: "POST", headers: { "Content-Type": "application/json" } })
+      .then(r => r.json()).then(res => {
+        if (res.ok) {
+          alert(`Listo ✅\n\nSe ha descargado «${res.archivo}» en la carpeta de la app y te he abierto esa carpeta.\n\n`
+            + `Cierra Liberty y abre ese archivo. Cuando veas que va bien, puedes borrar el anterior.`);
+        } else {
+          alert(res.mensaje || "No se ha podido actualizar.");
+          if (res.descarga) window.open(res.descarga, "_blank", "noopener");
+        }
+        pintaPieVersion();
+      }).catch(() => {
+        alert("No se ha podido conectar. Abre la web de Liberty para descargarla a mano.");
+        window.open("https://alonsovine.github.io/liberty/", "_blank", "noopener");
+        pintaPieVersion();
+      });
+  }
   function pintaPieVersion() {
     const el = $("#pieVersion");
     if (!el || !VERINFO) return;
     let estado = "";
     if (VERINFO.hayNueva) {
-      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="${esc(VERINFO.descarga || VERINFO.repo)}" target="_blank" rel="noopener">descargar</a></span>`;
+      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="#" id="pieActualizar">descargar e instalar</a></span>`;
     } else if (VERINFO.desactivado) {
       estado = ` · <span class="subt">comprobación de versiones desactivada</span>`;
     } else if (VERINFO.ultima) {
       estado = ` · <span class="pieAlDia">✓ al día</span>`;
     }
     el.innerHTML = `<b>Liberty v${esc(VERINFO.actual || "?")}</b>${estado}`;
+    const a = $("#pieActualizar"); if (a) a.onclick = actualizaDesdePie;
   }
   (function cargaVersion() {
     fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); }).catch(() => { /* sin red: nada */ });

@@ -1816,15 +1816,55 @@
     } catch (x) { alert(x.message); }
   }
 
-  /* ---------------------------------------------- aviso de versión nueva */
+  /* ---------------------------------------------- aviso y descarga de versión nueva */
+  // Descarga el .exe de la última versión y lo deja JUNTO al actual (nombre con versión,
+  // p. ej. «Liberty 1.8.2.exe»). No ejecuta ni sobrescribe nada: solo descarga + escribe.
+  // Usa fetch crudo porque el endpoint devuelve ok:false (200) en casos normales (dev/al día).
+  function actualizaLiberty(btn, onMsg) {
+    const etq = btn ? btn.textContent : "";
+    if (btn) { btn.disabled = true; btn.textContent = "Descargando… (puede tardar un poco)"; }
+    const reactiva = () => { if (btn) { btn.disabled = false; btn.textContent = etq || "⬇ Descargar la nueva versión"; } };
+    return fetch("api/descargar-version", { method: "POST", headers: { "Content-Type": "application/json" } })
+      .then(r => r.json())
+      .then(res => {
+        if (res.ok) {
+          onMsg(`<b>✅ Descargada la versión ${esc(res.ultima)}</b> como <code>${esc(res.archivo)}</code> en la carpeta de la app
+            (te he abierto la carpeta). <b>Cierra Liberty y abre ese archivo.</b> Cuando veas que va bien, puedes borrar el anterior.`, true);
+        } else {
+          const web = res.descarga ? ` <a href="${esc(res.descarga)}" target="_blank" rel="noopener">Abrir la web de Liberty</a>.` : "";
+          onMsg(`${esc(res.mensaje || "No se ha podido actualizar.")}${web}`, false);
+          reactiva();
+        }
+      })
+      .catch(() => {
+        onMsg(`No se ha podido conectar. <a href="https://alonsovine.github.io/liberty/" target="_blank" rel="noopener">Abrir la web de Liberty</a>.`, false);
+        reactiva();
+      });
+  }
+  window.actualizaLiberty = actualizaLiberty;
+  // Botón siempre visible en Ayuda: descarga la última versión aquí mismo (si corre como .exe).
+  {
+    const bAqui = $("#btnDescargarAqui");
+    if (bAqui) bAqui.onclick = () => {
+      const est = $("#descargaAquiEstado");
+      if (est) { est.hidden = false; est.innerHTML = "Descargando…"; }
+      actualizaLiberty(bAqui, (html, ok) => {
+        if (est) { est.hidden = false; est.innerHTML = html; est.classList.toggle("ok", !!ok); }
+      });
+    };
+  }
   api("GET", "api/version").then(v => {
     const pie = $("#ayudaVersion");
     if (pie) pie.innerHTML = `Versión ${esc(v.actual)}. ¿Otra duda o un fallo? Cuéntalo en la
       <a href="${esc(v.repo)}" target="_blank" rel="noopener">página del proyecto en GitHub</a>.`;
     if (!v.hayNueva) return;
-    $("#bannerVersionTexto").innerHTML = `<b>Hay una versión nueva (${esc(v.ultima)}).</b> Descárgala en
-      <a href="${esc(v.descarga || v.repo)}" target="_blank" rel="noopener">la página de Liberty</a> y copia tu carpeta <code>mis_datos</code> a la
-      nueva: así no pierdes nada. Los pasos están en la pestaña Ayuda.`;
+    const t = $("#bannerVersionTexto");
+    t.innerHTML = `<b>Hay una versión nueva (${esc(v.ultima)}).</b>
+      Puedo descargártela y dejarla junto a la actual (se llamará <code>Liberty ${esc(v.ultima)}.exe</code>), para que solo tengas que abrirla.
+      <button type="button" class="btn mini" id="btnActualizar">⬇ Descargar la nueva versión</button>
+      <span class="subt"> · o a mano en <a href="${esc(v.descarga || v.repo)}" target="_blank" rel="noopener">la web</a></span>`;
+    const btn = $("#btnActualizar");
+    if (btn) btn.onclick = () => actualizaLiberty(btn, html => { t.innerHTML = html; });
     $("#bannerVersion").hidden = false;
   }).catch(() => { /* sin internet: no pasa nada */ });
 
