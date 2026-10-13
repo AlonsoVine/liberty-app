@@ -12,18 +12,13 @@ import os
 import re
 import unicodedata
 
-from .motor import AVISOS_CLAVES, FUENTES, TIPOS, num_es, tipos_todos
+from .motor import AVISOS_CLAVES, FUENTES, MARCAS_DEFECTO, TIPOS, num_es, tipos_todos
 
 COPIAS_MAX = 20
 TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cupón",
              "comision": "Comisión"}
 TIPOS_FLUJO = {"ingreso": "Ingreso", "gasto": "Gasto"}   # flujo de caja del hogar (F3)
 SOLO_SALDO = ("efectivo", "deuda")   # tipos que se siguen solo con saldos anotados
-
-# Marcas para apuntes de ingresos/gastos (p. ej. «a revisar»). Se puede ampliar la
-# lista desde Configuración; si no hay ninguna definida, se usa esta por defecto.
-MARCAS_DEFECTO = [{"id": "revisar", "nombre": "A revisar", "color": "#e34948"}]
-
 
 def marcas_de(cfg):
     ms = ((cfg.get("config") or {}).get("marcas")) or []
@@ -501,6 +496,11 @@ def guarda_config(cfg, datos):
                 vistos.add(nombre.lower())
                 limpios.append(nombre)
         cfg["titulares"] = limpios
+    if "titularDefecto" in datos:
+        # Cuál es el titular por defecto (lo no asignado cuenta bajo él). Debe existir;
+        # si no, se usará el primero de la lista.
+        td = texto(datos.get("titularDefecto"), 60)
+        conf["titularDefecto"] = td if td in (cfg.get("titulares") or []) else ""
     # Control de asignación (F4). Los porcentajes llegan como % y se guardan como fracción.
     if "umbralConcentracion" in datos:
         u = numero(datos.get("umbralConcentracion"), "el umbral de concentración", errores, obligatorio=False, minimo=0)
@@ -558,7 +558,7 @@ def guarda_config(cfg, datos):
             color = texto((it or {}).get("color"), 9)
             if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
                 color = "#e34948"
-            marcas.append({"id": mid, "nombre": nombre, "color": color})
+            marcas.append({"id": mid, "nombre": nombre, "emoji": texto((it or {}).get("emoji"), 8), "color": color})
         conf["marcas"] = marcas
     if "avisosOff" in datos:
         # Avisos automáticos que el usuario desactiva: el motor deja de generarlos.
@@ -680,6 +680,20 @@ def registra_categoria(cfg, nombre, tipo):
     return True
 
 
+def registra_entidad(cfg, entidad):
+    """Añade una entidad/banco a la lista maestra si aún no existe (sin distinguir
+    mayúsculas). Devuelve True si la ha creado."""
+    entidad = texto(entidad, 40)
+    if not entidad:
+        return False
+    conf = cfg.setdefault("config", {})
+    ents = conf.setdefault("entidades", [])
+    if any(texto(e, 40).lower() == entidad.lower() for e in ents):
+        return False
+    ents.append(entidad)
+    return True
+
+
 def guarda_flujo(cfg, datos):
     """Registra un ingreso o un gasto del hogar (flujo de caja, F3)."""
     errores = []
@@ -716,6 +730,7 @@ def guarda_flujo(cfg, datos):
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
     registra_categoria(cfg, fl["categoria"], tipo)
+    registra_entidad(cfg, fl["entidad"])   # entidad nueva -> se da de alta sola
     lista = cfg.setdefault("flujos", [])
     existente = next((x for x in lista if x.get("id") == datos.get("id")), None) if datos.get("id") else None
     if existente:

@@ -116,14 +116,18 @@
   // con botón de quitar, más un botón de añadir. Guarda en data-de el valor original
   // de cada fila, para poder detectar renombrados al guardar. Se lee luego recorriendo
   // las .inEdit del contenedor (no usan name, así no entran en el FormData del modal).
-  function montaFilasEdit(cont, valores, ph, etiquetaNuevo) {
-    const fila = v => `<div class="filaEdit"><input class="inEdit" value="${esc(v)}" data-de="${esc(v)}" placeholder="${esc(ph)}" autocomplete="off">
+  function montaFilasEdit(cont, valores, ph, etiquetaNuevo, opts) {
+    opts = opts || {};
+    const conDef = "defecto" in opts;   // muestra un radio «por defecto» por fila
+    const fila = (v, def) => `<div class="filaEdit">
+      ${conDef ? `<label class="defRadio" title="Marcar como por defecto"><input type="radio" name="${esc(cont.id)}_def" class="inDef"${def ? " checked" : ""}><span>por defecto</span></label>` : ""}
+      <input class="inEdit" value="${esc(v)}" data-de="${esc(v)}" placeholder="${esc(ph)}" autocomplete="off">
       <button type="button" class="btn mini filaX" data-quita aria-label="Quitar">✕</button></div>`;
-    cont.innerHTML = `<div class="filasEdit">${valores.map(fila).join("")}</div>
+    cont.innerHTML = `<div class="filasEdit">${valores.map(v => fila(v, conDef && v === opts.defecto)).join("")}</div>
       <button type="button" class="btn mini" data-add>+ ${esc(etiquetaNuevo)}</button>`;
     const lista = cont.querySelector(".filasEdit");
     cont.querySelector("[data-add]").onclick = () => {
-      lista.insertAdjacentHTML("beforeend", fila(""));
+      lista.insertAdjacentHTML("beforeend", fila("", false));
       const ins = lista.querySelectorAll(".inEdit");
       ins[ins.length - 1].focus();
     };
@@ -131,6 +135,29 @@
   }
   const leeFilasEdit = cont => [...cont.querySelectorAll(".inEdit")]
     .map(i => ({ de: i.dataset.de || "", a: i.value.trim() }));
+  const leeFilaDefecto = cont => {
+    const r = [...cont.querySelectorAll(".filaEdit")].find(x => { const d = x.querySelector(".inDef"); return d && d.checked; });
+    return r ? r.querySelector(".inEdit").value.trim() : "";
+  };
+  // Editor de marcas (emoji + nombre + color) por filas.
+  function montaMarcasEdit(cont, marcas) {
+    const fila = m => `<div class="filaEdit filaMarca">
+      <input class="mEmoji" value="${esc(m.emoji || "")}" maxlength="4" placeholder="🚩" title="Emoji" aria-label="Emoji">
+      <input class="mNombre" value="${esc(m.nombre || "")}" placeholder="Nombre de la marca" autocomplete="off">
+      <input type="color" class="mColor" value="${esc(/^#[0-9a-fA-F]{6}$/.test(m.color || "") ? m.color : "#e34948")}" title="Color" aria-label="Color">
+      <button type="button" class="btn mini filaX" data-quita aria-label="Quitar">✕</button></div>`;
+    cont.innerHTML = `<div class="filasEdit">${(marcas || []).map(fila).join("")}</div>
+      <button type="button" class="btn mini" data-add>+ Añadir marca</button>`;
+    const lista = cont.querySelector(".filasEdit");
+    cont.querySelector("[data-add]").onclick = () => {
+      lista.insertAdjacentHTML("beforeend", fila({ color: "#2a78d6" }));
+      const em = lista.querySelectorAll(".mEmoji"); em[em.length - 1].focus();
+    };
+    lista.onclick = e => { const q = e.target.closest("[data-quita]"); if (q) q.closest(".filaEdit").remove(); };
+  }
+  const leeMarcasEdit = cont => [...cont.querySelectorAll(".filaMarca")]
+    .map(r => ({ emoji: r.querySelector(".mEmoji").value.trim(), nombre: r.querySelector(".mNombre").value.trim(), color: r.querySelector(".mColor").value }))
+    .filter(m => m.nombre);
 
   /* ---------------------------------------------- empezar con mis datos */
   function empezar() {
@@ -229,12 +256,12 @@
   }
   const _estTabla = key => (E.tablas[key] || (E.tablas[key] = { q: "", col: null, dir: 1 }));
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
-  function envTabla(key, thead, filas, alto) {
+  function envTabla(key, thead, filas, alto, toolsExtra) {
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
-      <div class="tablaTools" style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <label class="buscaTabla">${LUPA}<input type="search" data-buscar
           placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>
-        <span class="ordenaHint">↕ Ordena pulsando una columna</span>
+        ${toolsExtra || '<span class="ordenaHint">↕ Ordena pulsando una columna</span>'}
         <span class="sp"></span>
         <button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button></div>
       <div class="tablaEnv${alto ? " alto" : ""}"><table class="dt orden"><thead>${thead}</thead>
@@ -360,7 +387,7 @@
       flujos: vistaFlujos, saldos: vistaSaldosMov, config: vistaConfig,
       importar: vistaImportar, copias: vistaCopias }[E.vista] || vistaActivos)();
     if (E.vista === "importar" || E.vista === "copias") conectaImportar();
-    if (E.vista === "flujos") montaAnotarRapido();
+    if (E.vista === "flujos") { montaAnotarRapido(); montaFiltrosFlujos(); }
     const filtro = $("#edFiltro");
     if (filtro) filtro.onchange = e => { E.filtro = e.target.value; pinta(); };
     aplicaTablas();   // restaura búsqueda y orden de cada tabla tras el re-render
@@ -666,7 +693,7 @@
       <table class="leyenda">
         ${fila("Nombre del patrimonio", esc(E.cfg.titular || "Mi patrimonio"))}
         ${fila("Objetivo de patrimonio", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : sub("sin meta"))}
-        ${fila("Titulares", tits.length ? tits.map(esc).join(", ") : sub("solo tú"))}
+        ${fila("Titulares", tits.length ? tits.map(t => esc(t) + (t === ((conf.titularDefecto && tits.includes(conf.titularDefecto)) ? conf.titularDefecto : tits[0]) ? ' <span class="subt">(por defecto)</span>' : "")).join(", ") : sub("solo tú"))}
         ${fila("Colchón deseado", eur(conf.colchon || 0))}
         ${fila("Inflación de referencia", conf.inflacion != null ? pct(conf.inflacion) : sub("sin fijar"))}
         ${fila("Tipos propios", propios.length ? propios.map(t => esc(t.nombre)).join(", ") : sub("ninguno"))}
@@ -680,7 +707,7 @@
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
         ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.nombre)).join(", ") : sub("«A revisar» (por defecto)"))}
-        ${fila("Dimensiones de clasificación", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
+        ${fila("Dimensiones de clasificación de activos", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Entidades / bancos", (conf.entidades || []).length ? (conf.entidades || []).map(esc).join(", ") : sub("ninguna"))}
         ${fila("Dimensiones de ingresos/gastos", (conf.dimensionesFlujos || []).length ? (conf.dimensionesFlujos || []).map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
@@ -806,10 +833,8 @@
         (si existe y es del tipo correcto). Tienen prioridad sobre las que trae la app. Al importar puedes marcar
         «recordar mis correcciones» y se añaden aquí solas.</p>
       ${seccion("Marcas de apuntes")}
-      <div class="rejilla">
-        ${campo("Una marca por línea: «Nombre» o «Nombre = #color»", '<textarea name="marcasTxt" rows="3" placeholder="A revisar = #e34948\nDuda\nImportante = #eda100"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Sirven para marcar apuntes en <b>Ingresos y gastos</b> (la ☆ de cada fila) y luego ver solo los marcados. Si lo dejas vacío, se usa «A revisar».</p>
+      <div id="edMarcas" class="campo ancho"></div>
+      <p class="ayuda">Vienen varias precargadas (edítalas o añade las tuyas). En cada una pones un <b>emoji</b>, un nombre y un color. En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila, y luego puedes filtrar por marca.</p>
       ${seccion("Entidades / bancos (ingresos y gastos)")}
       <div class="rejilla">
         ${campo("Una entidad por línea", '<textarea name="entidadesTxt" rows="3" placeholder="BBVA\nING\nRevolut\nEfectivo"></textarea>', "", "ancho")}
@@ -820,7 +845,7 @@
         ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimFlujos" rows="3" placeholder="Necesidad: Fijo, Variable, Caprichos\nProyecto: Casa, Viaje, Coche"></textarea>', "", "ancho")}
       </div>
       <p class="ayuda">Como las dimensiones de activos, pero para los apuntes: ejes propios para clasificar y filtrar tus ingresos y gastos.</p>
-      ${seccion("Dimensiones de clasificación")}
+      ${seccion("Dimensiones de clasificación de activos")}
       <div class="rejilla">
         ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
       </div>
@@ -865,10 +890,7 @@
         const valores = i >= 0 ? l.slice(i + 1).split(",").map(s => s.trim()).filter(Boolean) : [];
         return { nombre, valores };
       }).filter(dm => dm.nombre);
-      const marcas = lineas("marcasTxt").map(l => {
-        const i = l.indexOf("=");
-        return { nombre: (i >= 0 ? l.slice(0, i) : l).trim(), color: i >= 0 ? l.slice(i + 1).trim() : "" };
-      }).filter(m => m.nombre);
+      const marcas = leeMarcasEdit($("#edMarcas"));
       const entidades = lineas("entidadesTxt");
       const dimensionesFlujos = lineas("dimFlujos").map(l => {
         const i = l.indexOf(":");
@@ -881,6 +903,7 @@
       const filasTit = leeFilasEdit($("#edTits"));
       const titulares = [...new Set(filasTit.map(x => x.a).filter(Boolean))];
       const renombresTitular = filasTit.filter(x => x.de && x.a && x.de !== x.a).map(x => ({ de: x.de, a: x.a }));
+      const titularDefecto = leeFilaDefecto($("#edTits"));
       // Tipos propios (filas) + tipos de base ocultos (casillas desmarcadas).
       const tipos = leeFilasEdit($("#edTipos")).map(x => ({ nombre: x.a })).filter(t => t.nombre);
       const tiposOcultos = [...f.querySelectorAll(".tbChk")].filter(c => !c.checked).map(c => c.value);
@@ -892,7 +915,7 @@
         objetivoImporte: d.objetivoImporte,
         colchon: d.colchon,
         inflacion: d.inflacion,
-        titulares, renombresTitular, tipos, tiposOcultos, avisosOff,
+        titulares, renombresTitular, titularDefecto, tipos, tiposOcultos, avisosOff,
         umbralConcentracion: d.umbralConcentracion,
         desviacionMax: d.desviacionMax,
         diasAviso: d.diasAviso,
@@ -908,8 +931,11 @@
     f.elements.objetivoImporte.value = (E.cfg.objetivo && E.cfg.objetivo.activo) ? (E.cfg.objetivo.importe || "") : "";
     f.elements.colchon.value = conf.colchon || "";
     f.elements.inflacion.value = conf.inflacion != null ? +(conf.inflacion * 100).toFixed(2) : "";
-    montaFilasEdit(f.querySelector("#edTits"), (E.cfg.titulares || []).length ? E.cfg.titulares : ["Yo"], "Nombre del titular", "Añadir titular");
+    const _tits0 = (E.cfg.titulares || []).length ? E.cfg.titulares : ["Yo"];
+    const _titDef = (conf.titularDefecto && _tits0.includes(conf.titularDefecto)) ? conf.titularDefecto : _tits0[0];
+    montaFilasEdit(f.querySelector("#edTits"), _tits0, "Nombre del titular", "Añadir titular", { defecto: _titDef });
     montaFilasEdit(f.querySelector("#edTipos"), tiposPropios, "Nombre del tipo", "Añadir tipo");
+    montaMarcasEdit(f.querySelector("#edMarcas"), (conf.marcas && conf.marcas.length) ? conf.marcas : (E.marcas || []));
     const pct = v => v != null ? +(v * 100).toFixed(2) : "";
     f.elements.umbralConcentracion.value = pct(conf.umbralConcentracion);
     f.elements.desviacionMax.value = pct(conf.desviacionMax);
@@ -929,8 +955,6 @@
       .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
     f.elements.reglasCat.value = (conf.reglasCategoria || [])
       .map(r => `${r.palabra} = ${r.categoria}`).join("\n");
-    f.elements.marcasTxt.value = (conf.marcas || [])
-      .map(m => m.color ? `${m.nombre} = ${m.color}` : m.nombre).join("\n");
     f.elements.entidadesTxt.value = (conf.entidades || []).join("\n");
     f.elements.dimFlujos.value = (conf.dimensionesFlujos || [])
       .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
@@ -1003,18 +1027,112 @@
     };
   }
 
+  const marcaDe = id => (E.marcas || []).find(m => m.id === id);
+  // Desplegable para elegir la marca de un apunte (o quitarla), al pulsar su ☆/emoji.
+  function cierraMenuMarca() { const m = document.getElementById("marcaMenu"); if (m) m.remove(); }
+  function abreMenuMarca(id) {
+    cierraMenuMarca();
+    const fl = (E.cfg.flujos || []).find(x => x.id === id); if (!fl) return;
+    const btn = document.querySelector('.marcaBtn[data-id="' + (window.CSS && CSS.escape ? CSS.escape(id) : id) + '"]'); if (!btn) return;
+    const menu = document.createElement("div"); menu.id = "marcaMenu"; menu.className = "marcaMenu";
+    const opt = (emoji, nombre, val, sel) => `<button type="button" class="marcaOpt${sel ? " sel" : ""}" data-val="${esc(val)}"><span class="mE">${esc(emoji || "·")}</span>${esc(nombre)}</button>`;
+    menu.innerHTML = opt("", "Sin marca", "", !fl.marca) +
+      (E.marcas || []).map(m => opt(m.emoji || "●", m.nombre, m.id, fl.marca === m.id)).join("");
+    document.body.appendChild(menu);
+    const r = btn.getBoundingClientRect();
+    menu.style.left = Math.max(8, Math.min(r.left, innerWidth - menu.offsetWidth - 8)) + "px";
+    menu.style.top = (r.bottom + 4 + menu.offsetHeight > innerHeight ? r.top - menu.offsetHeight - 4 : r.bottom + 4) + "px";
+    menu.querySelectorAll(".marcaOpt").forEach(o => o.onclick = async () => {
+      cierraMenuMarca();
+      try {
+        const j = await api("POST", "api/flujo-marca", { id, marca: o.dataset.val });
+        E.cfg = j.cartera; window.EDITOR_SUCIO = true; pinta();
+      } catch (x) { alert(x.message); }
+    });
+    setTimeout(() => document.addEventListener("click", cierraMenuMarca, { once: true }), 0);
+  }
+  // Filtros potentes de la tabla de ingresos y gastos (por columna, importe y fechas).
+  function filtrosFlujos() {
+    try { E.flujoFiltros = E.flujoFiltros || JSON.parse(recuerda.lee("patrimonio.flujoFiltros") || "{}") || {}; } catch (e) { E.flujoFiltros = {}; }
+    if (!E.flujoFiltros.dim) E.flujoFiltros.dim = {};
+    return E.flujoFiltros;
+  }
+  function filtraFlujos(fs) {
+    const F = filtrosFlujos(), cfg = E.cfg.config || {};
+    const i1 = F.importe1 ? leeNum(F.importe1) : null, i2 = F.importe2 ? leeNum(F.importe2) : null;
+    const titDef = (cfg.titularDefecto && (E.cfg.titulares || []).includes(cfg.titularDefecto)) ? cfg.titularDefecto : (E.cfg.titulares || [])[0] || "";
+    return fs.filter(x => {
+      if (F.tipo && x.tipo !== F.tipo) return false;
+      if (F.categoria && (x.categoria || "") !== F.categoria) return false;
+      if (F.entidad && (x.entidad || "") !== F.entidad) return false;
+      if (F.titular && (((x.titular || "").trim()) || titDef) !== F.titular) return false;
+      if (F.marca === "__con__" && !x.marca) return false;
+      if (F.marca === "__sin__" && x.marca) return false;
+      if (F.marca && F.marca[0] !== "_" && x.marca !== F.marca) return false;
+      for (const d in (F.dim || {})) if (F.dim[d] && (x.categorias || {})[d] !== F.dim[d]) return false;
+      const imp = +x.importe || 0;
+      if (F.impOp === "mayor" && i1 != null && !isNaN(i1) && !(imp > i1)) return false;
+      if (F.impOp === "menor" && i1 != null && !isNaN(i1) && !(imp < i1)) return false;
+      if (F.impOp === "entre" && ((i1 != null && !isNaN(i1) && imp < i1) || (i2 != null && !isNaN(i2) && imp > i2))) return false;
+      if (F.fdesde && x.fecha < F.fdesde) return false;
+      if (F.fhasta && x.fecha > F.fhasta) return false;
+      return true;
+    });
+  }
+  function hayFiltroFlujos() {
+    const F = filtrosFlujos();
+    return !!(F.tipo || F.categoria || F.entidad || F.titular || F.marca || F.impOp || F.fdesde || F.fhasta ||
+      Object.values(F.dim || {}).some(Boolean));
+  }
+  function filtrosFlujosHTML() {
+    const F = filtrosFlujos(), cfg = E.cfg.config || {};
+    const cats = [...new Set((E.cfg.flujos || []).map(f => f.categoria).filter(Boolean))].sort();
+    const ents = [...new Set([...(cfg.entidades || []), ...(E.cfg.flujos || []).map(f => f.entidad).filter(Boolean)])];
+    const tits = E.cfg.titulares || [], marcas = E.marcas || [], dims = cfg.dimensionesFlujos || [];
+    const campo = (key, label, opts, val, todas = "Todas") => `<span class="filtroCampo${val ? " activo" : ""}"><label>${esc(label)}</label>
+      <select data-ff="${esc(key)}"><option value="">${todas}</option>${opts.map(o => `<option value="${esc(o.v)}"${o.v === val ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`;
+    let h = campo("tipo", "Tipo", [{ v: "ingreso", t: "Ingresos" }, { v: "gasto", t: "Gastos" }], F.tipo || "");
+    if (cats.length) h += campo("categoria", "Categoría", cats.map(c => ({ v: c, t: c })), F.categoria || "");
+    if (ents.length) h += campo("entidad", "Entidad", ents.map(e => ({ v: e, t: e })), F.entidad || "");
+    if (tits.length > 1) h += campo("titular", "Titular", tits.map(t => ({ v: t, t })), F.titular || "");
+    if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
+      ...marcas.map(m => ({ v: m.id, t: (m.emoji ? m.emoji + " " : "") + m.nombre }))], F.marca || "");
+    dims.forEach(dm => {
+      const vals = [...new Set([...(dm.valores || []), ...(E.cfg.flujos || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean)])];
+      if (vals.length) h += campo("dim:" + dm.id, dm.nombre, vals.map(v => ({ v, t: v })), (F.dim || {})[dm.id] || "");
+    });
+    h += `<span class="filtroCampo${F.impOp ? " activo" : ""}"><label>Importe €</label>
+      <select data-ff="impOp"><option value="">—</option><option value="mayor"${F.impOp === "mayor" ? " selected" : ""}>mayor que</option><option value="menor"${F.impOp === "menor" ? " selected" : ""}>menor que</option><option value="entre"${F.impOp === "entre" ? " selected" : ""}>entre</option></select>
+      ${F.impOp ? `<input class="fImp" data-ff="importe1" inputmode="decimal" value="${esc(F.importe1 || "")}" placeholder="€">` : ""}
+      ${F.impOp === "entre" ? `<input class="fImp" data-ff="importe2" inputmode="decimal" value="${esc(F.importe2 || "")}" placeholder="€">` : ""}</span>`;
+    h += `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
+      <input type="date" class="fFecha" data-ff="fdesde" value="${esc(F.fdesde || "")}"><span class="fSep">–</span><input type="date" class="fFecha" data-ff="fhasta" value="${esc(F.fhasta || "")}"></span>`;
+    if (hayFiltroFlujos()) h += `<button type="button" class="btn mini filtroQuitar" data-ff-limpiar>✕ Limpiar filtros</button>`;
+    return h;
+  }
+  function montaFiltrosFlujos() {
+    const F = filtrosFlujos();
+    const guarda = () => { try { recuerda.guarda("patrimonio.flujoFiltros", JSON.stringify(F)); } catch (e) { /* da igual */ } };
+    document.querySelectorAll('#tab-datos [data-ff]').forEach(el => {
+      const aplica = () => {
+        const k = el.dataset.ff, v = el.value;
+        if (k.indexOf("dim:") === 0) F.dim[k.slice(4)] = v; else F[k] = v;
+        guarda(); pinta();
+      };
+      if (el.tagName === "SELECT" || el.type === "date") el.onchange = aplica;
+      else el.onchange = aplica;   // inputs de importe: al salir del campo
+    });
+    const lb = document.querySelector("#tab-datos [data-ff-limpiar]");
+    if (lb) lb.onclick = () => { E.flujoFiltros = { dim: {} }; try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* */ } pinta(); };
+  }
   function vistaFlujos() {
     const marcas = E.marcas || [];
-    const marca0 = marcas[0] || { id: "revisar", nombre: "A revisar", color: "#e34948" };
-    const colorMarca = id => (marcas.find(m => m.id === id) || marca0).color;
     let fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
-    const nMarc = fs.filter(x => x.marca).length;
-    const solo = !!E.soloMarcados;
-    if (solo) fs = fs.filter(x => x.marca);
+    fs = filtraFlujos(fs);
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
-    const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0;
-    const estrella = x => `<button class="marcaBtn${x.marca ? " on" : ""}" data-acc="marcarFlujo" data-id="${esc(x.id)}"
-        title="${x.marca ? "Quitar la marca" : "Marcar como «" + esc(marca0.nombre) + "»"}"${x.marca ? ` style="color:${esc(colorMarca(x.marca))}"` : ""}>${x.marca ? "★" : "☆"}</button>`;
+    const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
+    const estrella = x => { const m = x.marca && marcaDe(x.marca); return `<button class="marcaBtn${m ? " on" : ""}" data-acc="menuMarca" data-id="${esc(x.id)}"
+        title="${m ? "Marca: " + esc(m.nombre) : "Marcar"}"${m ? ` style="color:${esc(m.color || "")}"` : ""}>${m ? esc(m.emoji || "●") : "☆"}</button>`; };
     const filas = fs.map(x => `<tr>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
@@ -1026,19 +1144,20 @@
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
       <td class="acc"><button data-acc="editarFlujo" data-id="${esc(x.id)}">Editar</button>
         <button data-acc="borrarFlujo" data-id="${esc(x.id)}">Borrar</button></td></tr>`).join("");
-    const toggleMarc = (nMarc || solo)
-      ? `<button class="btn${solo ? " prim" : ""}" data-acc="toggleSoloMarcados" title="Ver solo los apuntes marcados">★ ${solo ? "Ver todos" : "Solo marcados (" + nMarc + ")"}</button>` : "";
+    const total = (E.cfg.flujos || []).length;
+    const contador = hayFiltroFlujos() ? `<p class="subt" style="margin:10px 0 0">Mostrando <b>${fs.length}</b> de ${total} apuntes.</p>` : "";
     return `<section class="tarjeta"><header><h2>Anotar rápido</h2>
         <span class="subt">Un gasto o ingreso al vuelo, sin abrir el formulario completo. Pulsa un recurrente para rellenarlo (ajusta el importe si varía).</span></header>
       <div id="anotarRapido"></div></section>
       <section class="tarjeta"><header><h2>Ingresos y gastos</h2>
-        <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Pulsa la ☆ de un apunte para marcarlo (p. ej. «a revisar»).</span>
-        <span class="sp"></span>${toggleMarc}<button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
-      ${(E.cfg.flujos || []).length
+        <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Busca y filtra arriba; marca apuntes con el desplegable de su fila.</span>
+        <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
+      ${total
         ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Nota</th>
-          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas)
-          : '<p class="subt">No hay apuntes marcados.</p>')
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, filtrosFlujosHTML())
+          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${filtrosFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
+      ${contador}
     </section>`;
   }
 
@@ -1061,8 +1180,8 @@
         ${campo("Importe", '<input name="importe" inputmode="decimal" required>', "€")}
         ${campo("Categoría", `<input name="categoria" list="flCats" placeholder="Nómina, Alimentación…">
           <datalist id="flCats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>`, "opcional")}
-        ${ents.length ? campo("Entidad", `<input name="entidad" list="flEnts" value="${esc(x.entidad || "")}" placeholder="Banco / cuenta">
-          <datalist id="flEnts">${ents.map(e => `<option value="${esc(e)}">`).join("")}</datalist>`, "banco de origen") : ""}
+        ${campo("Entidad", `<input name="entidad" list="flEnts" value="${esc(x.entidad || "")}" placeholder="Banco / cuenta">
+          <datalist id="flEnts">${[...new Set([...ents, ...(E.cfg.flujos || []).map(v => v.entidad).filter(Boolean)])].map(e => `<option value="${esc(e)}">`).join("")}</datalist>`, "banco de origen; si es nueva, se guarda sola")}
         ${tits.length > 1 ? campo("Titular", `<input name="titular" list="flTits" value="${esc(nuevo ? tits[0] || "" : "")}">
           <datalist id="flTits">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
         ${dimsF.map(dm => campo(esc(dm.nombre), `<input name="cat_${esc(dm.id)}" list="dlf_${esc(dm.id)}" value="${esc(xcats[dm.id] || "")}" placeholder="…" autocomplete="off">
@@ -1512,8 +1631,9 @@
         <th style="text-align:left">Concepto</th><th>Tipo</th><th style="text-align:left">Categoría</th><th>Importe</th>
         <th>Estado</th></tr></thead><tbody>${filas}</tbody></table></div>` : ""}
       <div class="imAcc"><button class="btn" data-acc="imCancelar">Cancelar</button>
-        ${(((E.cfg.config || {}).entidades) || []).length ? `<label class="imRecordar" title="Se asigna a todos los apuntes de esta importación">Entidad:
-          <select id="imEntidad"><option value="">— sin entidad —</option>${(((E.cfg.config || {}).entidades) || []).map(e => `<option>${esc(e)}</option>`).join("")}</select></label>` : ""}
+        <label class="imRecordar" title="Se asigna a todos los apuntes de esta importación (si es nueva, se guarda)">Entidad / banco:
+          <input id="imEntidad" list="imEnts" placeholder="BBVA, ING…" style="width:130px">
+          <datalist id="imEnts">${[...new Set([...(((E.cfg.config || {}).entidades) || []), ...(E.cfg.flujos || []).map(v => v.entidad).filter(Boolean)])].map(e => `<option value="${esc(e)}">`).join("")}</datalist></label>
         <label class="imRecordar" title="Guarda tus categorías como reglas para la próxima importación">
           <input type="checkbox" id="imRecordar" checked> Recordar mis correcciones</label>
         <span class="sp"></span>
@@ -1707,16 +1827,7 @@
     editarValor: soloPropio(id => formValor(E.cfg.valoraciones.find(v => v.id === id))),
     borrarValor: soloPropio(borrarValor),
     todosValores: soloPropio(todosValores),
-    marcarFlujo: soloPropio(async id => {
-      const fl = (E.cfg.flujos || []).find(x => x.id === id);
-      if (!fl) return;
-      const nueva = fl.marca ? "" : ((E.marcas || [])[0] || { id: "revisar" }).id;
-      try {
-        const j = await api("POST", "api/flujo-marca", { id, marca: nueva });
-        E.cfg = j.cartera; window.EDITOR_SUCIO = true; pinta();
-      } catch (x) { alert(x.message); }
-    }),
-    toggleSoloMarcados: () => { E.soloMarcados = !E.soloMarcados; pinta(); },
+    menuMarca: soloPropio(id => abreMenuMarca(id)),
     nuevoApartado: soloPropio(() => formApartado(null)),
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
