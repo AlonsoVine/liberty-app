@@ -951,7 +951,7 @@
     if (hayMarcados) {
       const sel = estado.igMarca || "";
       const ops = [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" }]
-        .concat(marcas.map(m => ({ v: m.id, t: (m.emoji ? m.emoji + " " : "") + m.nombre })));
+        .concat(marcas.map(m => ({ v: m.id, t: (m.emoji || "") + (m.nombre ? " " + m.nombre : "") })));
       campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Marca</label>
         <select data-igf="marca"><option value="">Todas</option>${ops.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`);
     }

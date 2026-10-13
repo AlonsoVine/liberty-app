@@ -195,11 +195,13 @@ def test_editar_flujo_conserva_la_marca():
 
 def test_config_marcas_se_guardan_con_id_y_color():
     c = cfg()
-    almacen.guarda_config(c, {"marcas": [{"nombre": "A revisar", "emoji": "🚩", "color": "#e34948"},
-                                         {"nombre": "Duda", "color": "malo"}]})
+    almacen.guarda_config(c, {"marcas": [{"emoji": "🚩", "nombre": "A revisar"},
+                                         {"emoji": "❓"},            # sin nombre: id = emoji
+                                         {"nombre": "sin emoji"}]})   # sin emoji: se descarta
     ms = c["config"]["marcas"]
-    assert ms[0] == {"id": "a-revisar", "nombre": "A revisar", "emoji": "🚩", "color": "#e34948"}
-    assert ms[1]["color"] == "#e34948"   # color inválido -> por defecto
+    assert ms[0] == {"id": "a-revisar", "emoji": "🚩", "nombre": "A revisar"}
+    assert ms[1] == {"id": "❓", "emoji": "❓", "nombre": ""}
+    assert len(ms) == 2
 
 
 def test_marcas_de_usa_defecto_si_vacio():

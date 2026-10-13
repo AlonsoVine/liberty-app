@@ -542,23 +542,21 @@ def guarda_config(cfg, datos):
         # Solo se ocultan (nunca se borran): los activos que los usen siguen igual.
         conf["tiposOcultos"] = [t for t in (datos.get("tiposOcultos") or []) if t in TIPOS]
     if "marcas" in datos:
-        # Marcas para apuntes de ingresos/gastos: {id, nombre, color}. El id se deriva
-        # del nombre (estable). Si la lista queda vacía, se usará la de por defecto.
-        previo = {m.get("nombre", "").lower(): m.get("id") for m in (conf.get("marcas") or [])}
+        # Marcas para apuntes de ingresos/gastos: un emoji y, opcionalmente, un nombre
+        # (para los filtros). El id es estable: el nombre en slug si lo hay, o el emoji.
+        previo = {((m.get("nombre") or m.get("emoji") or "").lower()): m.get("id") for m in (conf.get("marcas") or [])}
         marcas, ids = [], set()
-        for it in (datos.get("marcas") or [])[:20]:
-            nombre = texto((it or {}).get("nombre"), 40)
-            if not nombre:
+        for it in (datos.get("marcas") or [])[:30]:
+            emoji = texto((it or {}).get("emoji"), 8)
+            if not emoji:
                 continue
-            mid = previo.get(nombre.lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or "marca"
+            nombre = texto((it or {}).get("nombre"), 40)
+            mid = previo.get((nombre or emoji).lower()) or re.sub(r"[^a-z0-9]+", "-", nombre.lower()).strip("-") or emoji
             base, k = mid, 2
             while mid in ids:
                 mid, k = f"{base}-{k}", k + 1
             ids.add(mid)
-            color = texto((it or {}).get("color"), 9)
-            if not re.fullmatch(r"#[0-9a-fA-F]{6}", color):
-                color = "#e34948"
-            marcas.append({"id": mid, "nombre": nombre, "emoji": texto((it or {}).get("emoji"), 8), "color": color})
+            marcas.append({"id": mid, "emoji": emoji, "nombre": nombre})
         conf["marcas"] = marcas
     if "avisosOff" in datos:
         # Avisos automáticos que el usuario desactiva: el motor deja de generarlos.
