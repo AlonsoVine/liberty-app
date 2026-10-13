@@ -640,7 +640,11 @@
       if (v < min) min = v;
     }));
     const margen = (max - min) * 0.08 || 1;
-    const esc = escalaBonita(max + margen, cfg.desdeCero ? 0 : min - margen);
+    // «desdeCero» ancla el eje en 0 cuando todo es positivo; pero si hay valores
+    // negativos (p. ej. ahorro del mes cuando se gasta más de lo que se ingresa) hay
+    // que bajar el suelo hasta el mínimo real, o la línea se saldría por abajo.
+    const bajo = cfg.desdeCero ? (min < 0 ? min - margen : 0) : min - margen;
+    const esc = escalaBonita(max + margen, bajo);
     const x = i => P.l + (n === 1 ? iw / 2 : i * iw / (n - 1));
     const y = v => P.t + ih - ((v - esc.min) / (esc.max - esc.min)) * ih;
 
@@ -649,6 +653,7 @@
       svg.appendChild(el("line", { x1: P.l, x2: W - P.r, y1: y(v), y2: y(v), class: "rejilla" }));
       svg.appendChild(txt(P.l - 8, y(v) + 4, fY(v), "ejeY"));
     }
+    if (esc.min < 0) svg.appendChild(el("line", { x1: P.l, x2: W - P.r, y1: y(0), y2: y(0), class: "ejeCero" }));
     series.forEach(s => {
       let d = "", ab = false;
       s.valores.forEach((v, i) => {
