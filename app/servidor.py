@@ -379,7 +379,16 @@ def api_guardar(coleccion):
 def api_borrar(coleccion, ident):
     if coleccion not in BORRAR:
         return jsonify(ok=False, errores=["No sé borrar eso."]), 404
-    return cambia(lambda cfg: BORRAR[coleccion](cfg, ident))
+    # Si el apunte tenía facturas, recoge sus archivos para borrarlos tras eliminarlo.
+    adjs = []
+    if coleccion == "flujos" and modo() != "demo":
+        fl = next((x for x in cartera().get("flujos", []) if x.get("id") == ident), None)
+        adjs = (fl or {}).get("adjuntos", []) or []
+    resp = cambia(lambda cfg: BORRAR[coleccion](cfg, ident))
+    if adjs and not isinstance(resp, tuple):   # tuple = error (jsonify, código); Response = OK
+        for a in adjs:
+            _borra_fichero_adjunto(a.get("archivo"))
+    return resp
 
 
 @app.post("/api/config")
@@ -394,6 +403,97 @@ def api_flujo_marca():
     """Pone o quita la marca de un apunte de ingreso/gasto (sin tocar el resto)."""
     d = request.get_json(silent=True) or {}
     return cambia(lambda cfg: almacen.marca_flujo(cfg, d.get("id"), d.get("marca")))
+
+
+# ---- adjuntos (facturas) de un apunte: los archivos viven en «adjuntos/» de la cartera.
+ADJ_MAX_BYTES = 15 * 1024 * 1024   # 15 MB por archivo
+
+
+def _borra_fichero_adjunto(archivo):
+    try:
+        base = os.path.basename(archivo or "")
+        if base:
+            p = os.path.join(carpeta(), "adjuntos", base)
+            if os.path.exists(p):
+                os.remove(p)
+    except OSError:
+        pass
+
+
+@app.post("/api/flujo-adjunto")
+def api_flujo_adjunto():
+    """Adjunta una factura/ticket a un apunte. El archivo se guarda en disco (local);
+    la cartera solo guarda la referencia. No recalcula el panel."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    fid = request.form.get("id")
+    f = request.files.get("archivo")
+    if not f or not f.filename:
+        return jsonify(ok=False, errores=["Elige un archivo."]), 400
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in almacen.ADJ_EXT:
+        return jsonify(ok=False, errores=["Formato no admitido. Usa PDF o una imagen (JPG, PNG, WEBP…)."]), 400
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        if not any(x.get("id") == fid for x in cfg.get("flujos", [])):
+            return jsonify(ok=False, errores=["Ese apunte ya no existe."]), 400
+        adj_dir = os.path.join(carpeta(), "adjuntos")
+        os.makedirs(adj_dir, exist_ok=True)
+        adj_id = "adj_" + secrets.token_hex(6)
+        archivo = adj_id + ext
+        destino = os.path.join(adj_dir, archivo)
+        f.save(destino)
+        tam = os.path.getsize(destino)
+        if tam > ADJ_MAX_BYTES:
+            _borra_fichero_adjunto(archivo)
+            return jsonify(ok=False, errores=["El archivo es demasiado grande (máximo 15 MB)."]), 400
+        try:
+            adj = almacen.anota_adjunto(cfg, fid, adj_id, archivo, f.filename, f.mimetype or "", tam)
+        except almacen.ErrorValidacion as e:
+            _borra_fichero_adjunto(archivo)
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+    return jsonify(ok=True, cartera=cfg, item=adj)
+
+
+@app.post("/api/flujo-adjunto-quitar")
+def api_flujo_adjunto_quitar():
+    """Quita una factura de un apunte y borra su archivo del disco."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    d = request.get_json(silent=True) or {}
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        try:
+            adj = almacen.quita_adjunto(cfg, d.get("flujo"), d.get("adjunto"))
+        except almacen.ErrorValidacion as e:
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+        _borra_fichero_adjunto(adj.get("archivo"))
+    return jsonify(ok=True, cartera=cfg)
+
+
+@app.post("/api/flujo-adjunto-importante")
+def api_flujo_adjunto_importante():
+    """Marca/desmarca una factura como importante."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.marca_adjunto(cfg, d.get("flujo"), d.get("adjunto"), bool(d.get("importante"))), recalc=False)
+
+
+@app.get("/api/adjunto/<fid>/<adj_id>")
+def api_adjunto(fid, adj_id):
+    """Sirve el archivo de una factura (inline, para verla o descargarla)."""
+    fl = next((x for x in cartera().get("flujos", []) if x.get("id") == fid), None)
+    adj = next((a for a in (fl or {}).get("adjuntos", []) if a.get("id") == adj_id), None) if fl else None
+    if not adj:
+        return jsonify(ok=False, errores=["No encuentro esa factura."]), 404
+    adj_dir = os.path.join(carpeta(), "adjuntos")
+    archivo = os.path.basename(adj.get("archivo") or "")   # seguridad: solo el nombre del fichero
+    if not archivo or not os.path.exists(os.path.join(adj_dir, archivo)):
+        return jsonify(ok=False, errores=["El archivo ya no está en disco."]), 404
+    return send_from_directory(adj_dir, archivo, as_attachment=False, download_name=adj.get("nombre") or archivo)
 
 
 @app.post("/api/notas")
