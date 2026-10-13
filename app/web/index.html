@@ -140,6 +140,12 @@ td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
 .filtroCampo .fSep{color:var(--tinta3)}
 /* Notas: lista de notas y tablero tipo Trello */
 .notasNav{margin:4px 0 14px}
+/* Los desplegables de la sección Notas heredan el mismo estilo que los de Mis datos */
+#tab-notas select{appearance:none;-webkit-appearance:none;font:inherit;font-size:13px;color:var(--tinta);
+  background:var(--sup2) var(--flecha) no-repeat right 11px center;border:1px solid var(--borde);border-radius:9px;
+  height:34px;padding:0 32px 0 11px;cursor:pointer}
+#tab-notas input[type="date"]{font:inherit;font-size:13px;color:var(--tinta);background:var(--sup2);
+  border:1px solid var(--borde);border-radius:9px;height:34px;padding:0 10px;cursor:pointer}
 .notasGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
 .notaCard{background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .notaTit{font-weight:650}
@@ -206,6 +212,30 @@ td.cMarca{text-align:center;width:34px;padding-left:4px;padding-right:4px}
 .agChk{margin:0 2px}
 .agHechos{margin-top:12px}
 .agHechos summary{cursor:pointer;color:var(--tinta3);font-size:13px}
+.agNav{margin:12px 0 6px}
+/* Calendario de la agenda */
+.calBarra{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0}
+.calCab{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-bottom:6px}
+.calCab div{text-align:center;font-size:12px;color:var(--tinta3);font-weight:600}
+.calRejilla{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.calDia{min-height:84px;border:1px solid var(--borde);border-radius:9px;background:var(--sup2);padding:5px;cursor:pointer;display:flex;flex-direction:column;gap:4px;transition:.1s}
+.calDia:hover{border-color:var(--s1)}
+.calDia.vacio{background:transparent;border:0;cursor:default}
+.calDia.hoy{border-color:var(--s1);box-shadow:inset 0 0 0 1px var(--s1)}
+.calNum{font-size:12px;color:var(--tinta2);font-weight:600}
+.calDia.hoy .calNum{color:var(--s1)}
+.calChips{display:flex;flex-direction:column;gap:3px;overflow:hidden}
+.calChip{font-size:11px;line-height:1.3;text-align:left;border:0;border-radius:5px;padding:2px 5px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.calChip.rec{background:color-mix(in srgb,var(--s1) 22%,transparent);color:var(--tinta)}
+.calChip.venc{background:var(--sup);color:var(--tinta3);border:1px solid var(--borde);cursor:default}
+@media (max-width:620px){.calDia{min-height:62px}.calChip{font-size:10px}}
+/* Indicador de nota en entidades y filtro por entidad */
+.notaInd,.notaIndPanel{border:0;background:none;cursor:pointer;font-size:13px;line-height:1;padding:1px 3px;border-radius:6px;vertical-align:middle}
+.notaInd:hover,.notaIndPanel:hover{background:color-mix(in srgb,var(--s1) 18%,transparent)}
+.notaIndPanel{font-size:15px;margin-left:6px}
+.notaFiltroEnt{display:flex;align-items:center;gap:10px;background:color-mix(in srgb,var(--s1) 12%,transparent);
+  border:1px solid color-mix(in srgb,var(--s1) 35%,var(--borde));border-radius:9px;padding:7px 11px;margin:2px 0 10px;font-size:13.5px}
 .recChips{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:10px 0 2px}
 .recHint{font-size:12.5px;color:var(--tinta3);margin-right:2px}
 .recChip{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px 8px 6px 11px;border-radius:999px;
@@ -1647,12 +1677,14 @@ body.video .tarjetaCanal{display:none}
       <ul>
         <li><b>📝 Lista de notas</b>: crea notas con <b>etiquetas</b>, <b>fíjalas</b> arriba, <b>búscalas</b> y añade
           <b>listas de tareas</b> dentro (escribe <code>- [ ] comprar X</code> y se vuelve una casilla marcable). Puedes
-          <b>relacionar</b> una nota con un activo, una deuda o una categoría.</li>
+          <b>relacionar</b> una nota con un <b>activo, una deuda o un reservado</b>: ese elemento mostrará un <b>📝</b> en
+          Mis datos y en su ficha del Panel que, al pulsarlo, te lleva a la nota.</li>
         <li><b>📋 Tablero</b> tipo Trello: columnas y tarjetas que arrastras para mover u <b>ordenar</b>; doble clic para
           editar una tarjeta, con <b>color</b> y <b>fecha de vencimiento</b> opcionales.</li>
-        <li><b>🗓️ Agenda</b>: tus <b>recordatorios</b> con fecha (y que se repiten, si quieres) junto con los
-          <b>vencimientos que la app detecta</b> (depósitos, deudas, reservados), todo ordenado por fecha con los días
-          que faltan.</li>
+        <li><b>🗓️ Agenda</b>, en dos vistas: un <b>calendario mensual</b> (navega a cualquier mes y año; pulsa un día
+          para añadir algo) y una <b>lista</b>. En ambas aparecen tus <b>recordatorios</b> (con fecha, repetición y
+          enlace opcional a un activo/deuda/reservado) junto con los <b>vencimientos que la app detecta</b> (depósitos,
+          deudas, reservados).</li>
       </ul></div></details>
 
     <details class="faq"><summary>¿Puedo elegir qué avisos me muestra la app?</summary><div>

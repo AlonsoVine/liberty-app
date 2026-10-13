@@ -761,12 +761,18 @@ def _etiquetas(valor):
     return out
 
 
+# Tipos con los que se puede enlazar una nota o recordatorio. «categoria» ya no se
+# ofrece al crear (ver ADR 0008), pero se sigue aceptando para no perder vínculos
+# guardados antes.
+VINCULO_TIPOS = ("activo", "deuda", "reservado", "categoria")
+
+
 def _vinculo(valor):
-    """Enlace opcional de una nota a un activo/deuda/categoría: {tipo, ref}."""
+    """Enlace opcional a un activo/deuda/reservado (o categoría, legado): {tipo, ref}."""
     v = valor or {}
     tipo = texto(v.get("tipo"), 20)
     ref = texto(v.get("ref"), 120)
-    if tipo in ("activo", "deuda", "categoria") and ref:
+    if tipo in VINCULO_TIPOS and ref:
         return {"tipo": tipo, "ref": ref}
     return None
 
@@ -807,10 +813,14 @@ def guarda_recordatorios(cfg, recordatorios):
         if not cuerpo or not fch:
             continue
         rep = r.get("repetir")
-        out.append({"id": texto(r.get("id"), 40) or siguiente_id(out, "r"),
-                    "texto": cuerpo, "fecha": fch,
-                    "hecho": bool(r.get("hecho")),
-                    "repetir": rep if rep in REC_REPETIR else "no"})
+        rec = {"id": texto(r.get("id"), 40) or siguiente_id(out, "r"),
+               "texto": cuerpo, "fecha": fch,
+               "hecho": bool(r.get("hecho")),
+               "repetir": rep if rep in REC_REPETIR else "no"}
+        vinc = _vinculo(r.get("vinculo"))
+        if vinc:
+            rec["vinculo"] = vinc
+        out.append(rec)
     cfg["recordatorios"] = out
     return out
 

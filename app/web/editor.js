@@ -255,6 +255,12 @@
     if (borrar) h += accBtn("borrar", borrar, id);
     return `<td class="acc">${h}</td>`;
   }
+  // Indicador «📝» en una entidad (activo/deuda/reservado) que tiene alguna nota
+  // asociada: al pulsarlo, abre la pestaña Notas con esa nota. Llama la atención.
+  function indicadorNota(ref) {
+    return (E.cfg.notas || []).some(n => n.vinculo && n.vinculo.ref === ref)
+      ? ` <button class="notaInd" data-acc="verNotas" data-id="${esc(ref)}" title="Tiene una nota — pulsa para verla" aria-label="Ver nota">📝</button>` : "";
+  }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
   function envTabla(key, thead, filas, alto, toolsExtra) {
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
@@ -406,7 +412,7 @@
     const n = soloSaldo(p) || manual(p)
       ? E.cfg.valoraciones.filter(v => v.producto === p.id).length + " valores"
       : E.cfg.movimientos.filter(m => m.producto === p.id).length + " movs.";
-    return `<tr><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}
+    return `<tr><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}${indicadorNota(p.id)}
         ${p.identificador ? `<small class="idp">${esc(p.identificador)}</small>` : ""}</td>
       <td>${esc(E.tipos[p.tipo] || p.tipo)}</td><td>${precioDe(p)}</td>
       <td>${esc(E.fuentes[p.fuente] || "")}${p.codigo ? ` <small>${esc(p.codigo)}</small>` : ""}</td>
@@ -653,7 +659,7 @@
   function vistaApartados() {
     const aps = E.cfg.apartados || [];
     const filasAp = aps.map(a => `<tr>
-      <td><i class="pt" style="background:var(--s${a.slot || 8})"></i>${esc(a.nombre)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
+      <td><i class="pt" style="background:var(--s${a.slot || 8})"></i>${esc(a.nombre)}${indicadorNota(a.id)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
       <td>${eur(a.importe || 0)}</td><td>${a.fechaPrevista ? fecha(a.fechaPrevista) : ""}</td>
       ${celdaAcc(a.id, { editar: "editarApartado", borrar: "borrarApartado" })}</tr>`).join("");
     return `<section class="tarjeta"><header><h2>Reservados</h2>
@@ -1872,6 +1878,7 @@
   const ACC = {
     empezar,
     reiniciar,
+    verNotas: ref => window.Editor && window.Editor.verEntidad(ref),
     borrarPatrimonio: soloPropio(() => { if (window.borrarPatrimonio) window.borrarPatrimonio(); }),
     verPanel() { recuerda.guarda("patrimonio.tab", "panel"); location.reload(); },
     nuevoProducto: soloPropio(() => formProducto(null)),
@@ -2027,20 +2034,40 @@
     }
     return d.toISOString().slice(0, 10);
   }
+  const VINC_ETIQ = { activo: "activo", deuda: "deuda", reservado: "reservado", categoria: "categoría" };
   function nombreVinculo(v) {
     if (!v) return "";
     if (v.tipo === "categoria") return v.ref;
+    if (v.tipo === "reservado") { const a = (E.cfg.apartados || []).find(x => x.id === v.ref); return a ? a.nombre : v.ref; }
     const p = (E.cfg.productos || []).find(x => x.id === v.ref);
     return p ? nombre(p) : v.ref;
   }
-
   function opcionesRefNota(tipo, sel) {
     const prods = E.cfg.productos || [];
     const lista = tipo === "activo" ? prods.filter(p => p.tipo !== "deuda").map(p => ({ v: p.id, t: nombre(p) }))
       : tipo === "deuda" ? prods.filter(p => p.tipo === "deuda").map(p => ({ v: p.id, t: nombre(p) }))
+      : tipo === "reservado" ? (E.cfg.apartados || []).map(a => ({ v: a.id, t: a.nombre }))
       : tipo === "categoria" ? ((E.cfg.config || {}).categorias || []).map(c => ({ v: c.nombre, t: c.nombre })) : [];
     return `<option value="">—</option>` + lista.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("");
   }
+  // Selector de vínculo reutilizable (nota y recordatorio). «categoría» solo aparece si
+  // la entidad ya la tenía (legado); los nuevos se enlazan a activo/deuda/reservado.
+  function vinculoCamposHTML(vinc) {
+    vinc = vinc || {};
+    const legado = vinc.tipo === "categoria";
+    return `${campo("Relacionar con", `<select name="vinculoTipo">
+        <option value="">Nada</option>
+        <option value="activo"${vinc.tipo === "activo" ? " selected" : ""}>Un activo</option>
+        <option value="deuda"${vinc.tipo === "deuda" ? " selected" : ""}>Una deuda</option>
+        <option value="reservado"${vinc.tipo === "reservado" ? " selected" : ""}>Un reservado</option>
+        ${legado ? '<option value="categoria" selected>Una categoría (antigua)</option>' : ""}</select>`)}
+      ${campo("¿Cuál?", `<select name="vinculoRef">${opcionesRefNota(vinc.tipo || "", vinc.ref || "")}</select>`)}`;
+  }
+  function wireVinculo(f) {
+    if (!f.elements.vinculoTipo) return;
+    f.elements.vinculoTipo.onchange = () => { f.elements.vinculoRef.innerHTML = opcionesRefNota(f.elements.vinculoTipo.value, ""); };
+  }
+  function leeVinculo(d) { return d.vinculoTipo && d.vinculoRef ? { tipo: d.vinculoTipo, ref: d.vinculoRef } : null; }
   function formNota(n) {
     const nuevo = !n; n = n || {};
     const vinc = n.vinculo || {};
@@ -2050,17 +2077,12 @@
         ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "Para una lista de tareas, escribe «- [ ] comprar X» (se vuelve una casilla).", "ancho")}
         ${campo("Etiquetas", '<input name="etiquetas" placeholder="casa, urgente, revisar">', "sepáralas por comas", "ancho")}
         ${campo("Fijar arriba", '<label class="chkLinea"><input type="checkbox" name="fijada"> Mantener esta nota arriba del todo</label>', "", "ancho")}
-        ${campo("Relacionada con", `<select name="vinculoTipo">
-          <option value="">Nada</option>
-          <option value="activo"${vinc.tipo === "activo" ? " selected" : ""}>Un activo</option>
-          <option value="deuda"${vinc.tipo === "deuda" ? " selected" : ""}>Una deuda</option>
-          <option value="categoria"${vinc.tipo === "categoria" ? " selected" : ""}>Una categoría</option></select>`)}
-        ${campo("¿Cuál?", `<select name="vinculoRef">${opcionesRefNota(vinc.tipo || "", vinc.ref || "")}</select>`)}
+        ${vinculoCamposHTML(vinc)}
       </div>`,
     async f => {
       const d = campos(f);
       const etiquetas = (d.etiquetas || "").split(/[,\n;]/).map(s => s.trim()).filter(Boolean);
-      const vinculo = d.vinculoTipo && d.vinculoRef ? { tipo: d.vinculoTipo, ref: d.vinculoRef } : null;
+      const vinculo = leeVinculo(d);
       const comun = { titulo: d.titulo, texto: d.texto, etiquetas, fijada: !!f.elements.fijada.checked, editada: hoy() };
       if (vinculo) comun.vinculo = vinculo;
       const notas = (E.cfg.notas || []).slice();
@@ -2069,8 +2091,7 @@
       await guardaNotas(notas);
     }, "Guardar");
     rellena(f, n);
-    // Al cambiar el tipo de vínculo, repoblar el selector de «¿cuál?».
-    f.elements.vinculoTipo.onchange = () => { f.elements.vinculoRef.innerHTML = opcionesRefNota(f.elements.vinculoTipo.value, ""); };
+    wireVinculo(f);
     f.elements.etiquetas.value = (n.etiquetas || []).join(", ");
     f.elements.fijada.checked = !!n.fijada;
     return f;
@@ -2093,7 +2114,9 @@
     const tagSel = E.notaTag || "";
     const orden = E.notaOrden || "fecha";
     const tagsTodas = [...new Set((E.cfg.notas || []).flatMap(n => n.etiquetas || []))].sort((a, b) => a.localeCompare(b));
+    const vincRef = E.notaVincRef || "";
     let notas = (E.cfg.notas || []).slice();
+    if (vincRef) notas = notas.filter(n => n.vinculo && n.vinculo.ref === vincRef);
     if (busca) notas = notas.filter(n => ((n.titulo || "") + " " + (n.texto || "") + " " + (n.etiquetas || []).join(" ")).toLowerCase().includes(busca));
     if (tagSel) notas = notas.filter(n => (n.etiquetas || []).includes(tagSel));
     notas.sort((a, b) => {
@@ -2121,12 +2144,17 @@
         <select data-norden aria-label="Ordenar"><option value="fecha"${orden === "fecha" ? " selected" : ""}>Más recientes</option><option value="titulo"${orden === "titulo" ? " selected" : ""}>Por título</option></select>
       </div>` : "";
     const cards = notas.map(card).join("");
+    let nomEnt = vincRef;
+    if (vincRef) { const p = (E.cfg.productos || []).find(x => x.id === vincRef); const a = (E.cfg.apartados || []).find(x => x.id === vincRef); nomEnt = p ? nombre(p) : a ? a.nombre : vincRef; }
+    const banner = vincRef ? `<div class="notaFiltroEnt">Notas de <b>${esc(nomEnt)}</b> <button class="btn mini" data-limpiavinc>✕ ver todas</button></div>` : "";
     cont.innerHTML = `<section class="tarjeta"><header><h2>Notas</h2>
         <span class="subt">Apuntes libres: ideas, pendientes, enlaces… (no afectan a tus cifras)</span>
         <span class="sp"></span><button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>
-      ${herramientas}
+      ${banner}${herramientas}
       ${!hayNotas ? '<p class="subt">Todavía no has escrito ninguna nota.</p>'
-        : cards ? `<div class="notasGrid">${cards}</div>` : '<p class="subt">Ninguna nota coincide con la búsqueda.</p>'}</section>`;
+        : cards ? `<div class="notasGrid">${cards}</div>`
+        : vincRef ? '<p class="subt">No hay notas asociadas a esto todavía.</p>' : '<p class="subt">Ninguna nota coincide con la búsqueda.</p>'}</section>`;
+    const lv = cont.querySelector("[data-limpiavinc]"); if (lv) lv.onclick = () => { E.notaVincRef = null; montaNotasLista(); };
     const refiltra = () => montaNotasLista();
     const bq = cont.querySelector("[data-nbusca]");
     if (bq) bq.oninput = e => { E.notaBusca = e.target.value; const pos = bq.selectionStart; refiltra(); const nb = $("[data-nbusca]"); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (_) { /* */ } } };
@@ -2266,35 +2294,59 @@
     });
   }
 
-  function formRecordatorio(r) {
+  function formRecordatorio(r, fechaPrefijada) {
     const nuevo = !r; r = r || {};
+    const vinc = r.vinculo || {};
     const f = abreModal(nuevo ? "Nuevo recordatorio" : "Editar recordatorio", `
       <div class="rejilla">
         ${campo("Qué", '<input name="texto" maxlength="300" placeholder="Renovar el seguro del coche">', "", "ancho")}
         ${campo("Fecha", '<input name="fecha" type="date" required>')}
         ${campo("Repetir", `<select name="repetir"><option value="no">No se repite</option><option value="mensual">Cada mes</option><option value="anual">Cada año</option></select>`)}
+        ${vinculoCamposHTML(vinc)}
       </div>`,
     async f => {
       const d = campos(f);
+      const vinculo = leeVinculo(d);
+      const base = { texto: d.texto, fecha: d.fecha, repetir: d.repetir };
       const lista = (E.cfg.recordatorios || []).slice();
-      if (nuevo) lista.push({ id: "r" + Date.now(), texto: d.texto, fecha: d.fecha, repetir: d.repetir, hecho: false });
-      else { const i = lista.findIndex(x => x.id === r.id); if (i >= 0) lista[i] = { ...lista[i], texto: d.texto, fecha: d.fecha, repetir: d.repetir }; }
+      if (nuevo) lista.push({ id: "r" + Date.now(), ...base, hecho: false, ...(vinculo ? { vinculo } : {}) });
+      else { const i = lista.findIndex(x => x.id === r.id); if (i >= 0) { const { vinculo: _v, ...resto } = lista[i]; lista[i] = { ...resto, ...base, ...(vinculo ? { vinculo } : {}) }; } }
       await guardaRecordatorios(lista);
     }, "Guardar");
     rellena(f, r);
+    wireVinculo(f);
+    if (nuevo && fechaPrefijada) f.elements.fecha.value = fechaPrefijada;
     return f;
+  }
+  const MESES_LARGO = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
+  // Items unificados de la agenda (recordatorios con fecha efectiva + vencimientos).
+  function agendaItems() {
+    const items = [];
+    (E.cfg.recordatorios || []).forEach(r => {
+      const fEff = (r.repetir !== "no" && !r.hecho) ? proximaFecha(r.fecha, r.repetir) : r.fecha;
+      items.push({ clase: "rec", id: r.id, texto: r.texto, fecha: fEff, hecho: !!r.hecho, repetir: r.repetir, vinculo: r.vinculo });
+    });
+    ((window.DATOS && window.DATOS.vencimientos) || []).forEach(v => items.push({ clase: "venc", texto: v.nombre, fecha: v.fecha,
+      meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado }));
+    return items;
   }
   function montaAgenda() {
     const cont = $("#notasCuerpo"); if (!cont) return;
-    const recs = E.cfg.recordatorios || [];
-    const vencs = (window.DATOS && window.DATOS.vencimientos) || [];
-    const items = [];
-    recs.forEach(r => {
-      const fEff = (r.repetir !== "no" && !r.hecho) ? proximaFecha(r.fecha, r.repetir) : r.fecha;
-      items.push({ clase: "rec", id: r.id, texto: r.texto, fecha: fEff, hecho: !!r.hecho, repetir: r.repetir });
-    });
-    vencs.forEach(v => items.push({ clase: "venc", texto: v.nombre, fecha: v.fecha,
-      meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado }));
+    const v = E.agendaVista || "calendario";
+    cont.innerHTML = `<section class="tarjeta"><header><h2>Agenda</h2>
+        <span class="subt">Tus recordatorios y los vencimientos que la app detecta (depósitos, deudas, reservados).</span>
+        <span class="sp"></span><button class="btn prim" data-rnuevo>+ Recordatorio</button></header>
+      <div class="segm agNav">
+        <button data-av="calendario" aria-pressed="${v === "calendario"}">📅 Calendario</button>
+        <button data-av="lista" aria-pressed="${v === "lista"}">📋 Lista</button></div>
+      <div id="agCuerpo"></div></section>`;
+    cont.querySelector("[data-rnuevo]").onclick = () => formRecordatorio(null);
+    cont.querySelectorAll("[data-av]").forEach(b => b.onclick = () => { E.agendaVista = b.dataset.av; recuerda.guarda("patrimonio.agendaVista", b.dataset.av); montaAgenda(); });
+    if (v === "lista") montaAgendaLista(); else montaAgendaCalendario();
+  }
+  function montaAgendaLista() {
+    const cont = $("#agCuerpo"); if (!cont) return;
+    const items = agendaItems();
     const pend = items.filter(i => !(i.clase === "rec" && i.hecho)).sort((a, b) => a.fecha < b.fecha ? -1 : a.fecha > b.fecha ? 1 : 0);
     const hechos = items.filter(i => i.clase === "rec" && i.hecho).sort((a, b) => a.fecha < b.fecha ? 1 : -1);
     const fila = i => {
@@ -2308,23 +2360,74 @@
           <span class="agBadge" title="Se gestiona en Mis datos">${esc(i.tipo || "Vencimiento")}</span></div>`;
       }
       const rep = i.repetir !== "no" ? `<span class="agRep">🔁 ${i.repetir === "mensual" ? "mensual" : "anual"}</span>` : "";
+      const vinc = i.vinculo ? `<span class="notaVinc" title="Relacionado con ${esc(VINC_ETIQ[i.vinculo.tipo] || "")}">🔗 ${esc(nombreVinculo(i.vinculo))}</span>` : "";
       return `<div class="agItem${i.hecho ? " hecha" : ""}"><span class="agFecha">${fecha(i.fecha)}</span>
         <span class="agDias ${i.hecho ? "" : clD}">${i.hecho ? "hecho" : etqD}</span>
-        <span class="agTxt">${esc(i.texto)} ${rep}</span>
+        <span class="agTxt">${esc(i.texto)} ${rep} ${vinc}</span>
         ${i.repetir === "no" ? `<input type="checkbox" class="agChk"${i.hecho ? " checked" : ""} data-rdone="${esc(i.id)}" title="Marcar como hecho">` : ""}
         <button class="btn mini" data-redit="${esc(i.id)}">Editar</button>
         <button class="btn mini" data-rdel="${esc(i.id)}">Borrar</button></div>`;
     };
-    cont.innerHTML = `<section class="tarjeta"><header><h2>Agenda</h2>
-        <span class="subt">Tus recordatorios y los vencimientos que la app detecta (depósitos, deudas, reservados), ordenados por fecha.</span>
-        <span class="sp"></span><button class="btn prim" data-rnuevo>+ Recordatorio</button></header>
-      ${pend.length ? `<div class="agLista">${pend.map(fila).join("")}</div>` : '<p class="subt">No hay nada pendiente en la agenda.</p>'}
-      ${hechos.length ? `<details class="agHechos"><summary>${hechos.length} hecho${hechos.length === 1 ? "" : "s"}</summary><div class="agLista">${hechos.map(fila).join("")}</div></details>` : ""}
-    </section>`;
-    cont.querySelector("[data-rnuevo]").onclick = () => formRecordatorio(null);
+    cont.innerHTML = `${pend.length ? `<div class="agLista">${pend.map(fila).join("")}</div>` : '<p class="subt">No hay nada pendiente en la agenda.</p>'}
+      ${hechos.length ? `<details class="agHechos"><summary>${hechos.length} hecho${hechos.length === 1 ? "" : "s"}</summary><div class="agLista">${hechos.map(fila).join("")}</div></details>` : ""}`;
     cont.querySelectorAll("[data-redit]").forEach(b => b.onclick = () => formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.redit)));
     cont.querySelectorAll("[data-rdel]").forEach(b => b.onclick = () => { if (confirm("¿Borrar este recordatorio?")) guardaRecordatorios((E.cfg.recordatorios || []).filter(x => x.id !== b.dataset.rdel)); });
     cont.querySelectorAll("[data-rdone]").forEach(cb => cb.onchange = () => guardaRecordatorios((E.cfg.recordatorios || []).map(x => x.id === cb.dataset.rdone ? { ...x, hecho: cb.checked } : x)));
+  }
+  function montaAgendaCalendario() {
+    const cont = $("#agCuerpo"); if (!cont) return;
+    if (!E.calMes) { const h = new Date(); E.calMes = h.getFullYear() + "-" + String(h.getMonth() + 1).padStart(2, "0"); }
+    const [Y, M] = E.calMes.split("-").map(Number);       // M = 1..12
+    const ultimo = new Date(Y, M, 0).getDate();
+    const inicioSemana = (new Date(Y, M - 1, 1).getDay() + 6) % 7;   // lunes = 0
+    const hoyISO = hoy();
+    // Repartir recordatorios y vencimientos por día del mes mostrado.
+    const porDia = {}; for (let d = 1; d <= ultimo; d++) porDia[d] = [];
+    const diaEnMes = (iso, repetir) => {
+      const [fy, fm, fd] = iso.split("-").map(Number);
+      if (!repetir || repetir === "no") return (fy === Y && fm === M) ? fd : null;
+      if (Y * 12 + (M - 1) < fy * 12 + (fm - 1)) return null;        // antes de empezar
+      if (repetir === "mensual") return Math.min(fd, ultimo);
+      if (repetir === "anual") return fm === M ? Math.min(fd, ultimo) : null;
+      return null;
+    };
+    (E.cfg.recordatorios || []).forEach(r => {
+      if (r.hecho && r.repetir === "no") return;
+      const d = diaEnMes(r.fecha, r.repetir);
+      if (d) porDia[d].push({ clase: "rec", id: r.id, texto: r.texto, repetir: r.repetir });
+    });
+    ((window.DATOS && window.DATOS.vencimientos) || []).forEach(v => {
+      const d = diaEnMes(v.fecha, "no");
+      if (d) porDia[d].push({ clase: "venc", texto: v.nombre, tipo: v.tipo });
+    });
+    const celdas = [];
+    for (let i = 0; i < inicioSemana; i++) celdas.push('<div class="calDia vacio"></div>');
+    for (let d = 1; d <= ultimo; d++) {
+      const iso = `${Y}-${String(M).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+      const chips = porDia[d].map(it => it.clase === "rec"
+        ? `<button class="calChip rec" data-cedit="${esc(it.id)}" title="${esc(it.texto)}">${it.repetir !== "no" ? "🔁 " : ""}${esc(it.texto)}</button>`
+        : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
+      celdas.push(`<div class="calDia${iso === hoyISO ? " hoy" : ""}" data-cnuevo="${iso}">
+        <div class="calNum">${d}</div><div class="calChips">${chips}</div></div>`);
+    }
+    const anios = []; for (let a = Y - 6; a <= Y + 3; a++) anios.push(a);
+    cont.innerHTML = `<div class="calBarra">
+        <button class="btn mini" data-cmes="-1" aria-label="Mes anterior">‹</button>
+        <select data-cmessel>${MESES_LARGO.map((m, i) => `<option value="${i + 1}"${i + 1 === M ? " selected" : ""}>${m[0].toUpperCase() + m.slice(1)}</option>`).join("")}</select>
+        <select data-caniosel>${anios.map(a => `<option value="${a}"${a === Y ? " selected" : ""}>${a}</option>`).join("")}</select>
+        <button class="btn mini" data-cmes="1" aria-label="Mes siguiente">›</button>
+        <button class="btn mini" data-choy>Hoy</button></div>
+      <div class="calCab">${["L", "M", "X", "J", "V", "S", "D"].map(x => `<div>${x}</div>`).join("")}</div>
+      <div class="calRejilla">${celdas.join("")}</div>
+      <p class="subt" style="margin-top:8px">Pulsa un día para añadir un recordatorio; pulsa uno existente para editarlo.</p>`;
+    const irMes = (y, m) => { E.calMes = y + "-" + String(m).padStart(2, "0"); montaAgendaCalendario(); };
+    cont.querySelector("[data-cmes='-1']").onclick = () => irMes(M === 1 ? Y - 1 : Y, M === 1 ? 12 : M - 1);
+    cont.querySelector("[data-cmes='1']").onclick = () => irMes(M === 12 ? Y + 1 : Y, M === 12 ? 1 : M + 1);
+    cont.querySelector("[data-choy]").onclick = () => { const h = new Date(); irMes(h.getFullYear(), h.getMonth() + 1); };
+    cont.querySelector("[data-cmessel]").onchange = e => irMes(Y, +e.target.value);
+    cont.querySelector("[data-caniosel]").onchange = e => irMes(+e.target.value, M);
+    cont.querySelectorAll("[data-cedit]").forEach(b => b.onclick = e => { e.stopPropagation(); formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.cedit)); });
+    cont.querySelectorAll("[data-cnuevo]").forEach(c => c.onclick = () => formRecordatorio(null, c.dataset.cnuevo));
   }
 
   function pintarNotas() {
@@ -2347,6 +2450,7 @@
   }
   E.notasVista = recuerda.lee("patrimonio.notasVista") || "lista";
   E.notaOrden = recuerda.lee("patrimonio.notaOrden") || "fecha";
+  E.agendaVista = recuerda.lee("patrimonio.agendaVista") || "calendario";
 
   window.Editor = {
     mostrar: pinta,
@@ -2357,6 +2461,15 @@
         E.vista = v; recuerda.guarda("patrimonio.editor", v);
       }
       pinta();
+    },
+    // Abrir la pestaña Notas y mostrar las notas enlazadas a una entidad (activo/deuda/
+    // reservado), resaltadas. Lo usan los indicadores «📝» del resto de la app.
+    verEntidad(ref) {
+      if (!ref) return;
+      E.notasVista = "lista"; E.notaVincRef = ref; E.notaBusca = ""; E.notaTag = "";
+      const tab = document.querySelector('[data-tab="notas"]');
+      if (tab) tab.click();
+      pintarNotas();
     },
   };
   carga().then(() => {
