@@ -1945,7 +1945,7 @@
 
     sec.innerHTML = `
       <header>
-        <h2><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color(p)};margin-right:9px"></span>${esc(p.nombre)}</h2>
+        <h2><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${color(p)};margin-right:9px"></span>${esc(p.nombre)}${(D.notasRefs || []).includes(p.id) ? ' <button class="notaIndPanel" id="fichaNota" title="Tiene una nota — pulsa para verla" aria-label="Ver nota">📝</button>' : ""}</h2>
         <div class="sep"></div>
         ${hayVL ? '<div class="segm" id="segSerie"></div>' : ""}
       </header>
@@ -1988,6 +1988,9 @@
       }
     }
     $("#ventanas").innerHTML = html;
+
+    const bNota = $("#fichaNota");
+    if (bNota) bNota.onclick = () => { if (window.Editor && window.Editor.verEntidad) window.Editor.verEntidad(p.id); };
 
     if (hayVL) {
       pintaSegm($("#segSerie"),

@@ -302,6 +302,19 @@ def test_guarda_recordatorios():
     assert rs[1]["hecho"] is True and rs[1]["repetir"] == "no"   # repetir inválido -> "no"
 
 
+def test_recordatorio_y_nota_admiten_vinculo_reservado():
+    c = cfg()
+    almacen.guarda_recordatorios(c, [
+        {"texto": "Disponer fianza", "fecha": "2026-12-01", "vinculo": {"tipo": "reservado", "ref": "ap1"}},
+        {"texto": "Sin vínculo válido", "fecha": "2026-12-02", "vinculo": {"tipo": "zzz", "ref": "x"}},
+    ])
+    r0, r1 = c["recordatorios"]
+    assert r0["vinculo"] == {"tipo": "reservado", "ref": "ap1"}
+    assert "vinculo" not in r1
+    almacen.guarda_notas(c, [{"titulo": "Piso", "texto": "x", "vinculo": {"tipo": "reservado", "ref": "ap1"}}])
+    assert c["notas"][0]["vinculo"] == {"tipo": "reservado", "ref": "ap1"}
+
+
 def test_guarda_tablero_sanea_columnas_y_tarjetas():
     c = cfg()
     almacen.guarda_tablero(c, {"columnas": [{"id": "a", "nombre": "Por hacer"}, {"id": "b", "nombre": "Hecho"}],

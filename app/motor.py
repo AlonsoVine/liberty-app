@@ -1841,6 +1841,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         "entidades": (cfg.get("config") or {}).get("entidades", []) or [],
         "marcas": ((cfg.get("config") or {}).get("marcas")) or MARCAS_DEFECTO,
         "inflacion": (cfg.get("config") or {}).get("inflacion"),
+        # Refs de activos/deudas/reservados que tienen alguna nota asociada: el Panel
+        # muestra un indicador «📝» en su ficha para saltar a la nota.
+        "notasRefs": sorted({(n.get("vinculo") or {}).get("ref") for n in (cfg.get("notas") or [])
+                             if (n.get("vinculo") or {}).get("ref")}),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
         "flujos": flujos_out,
