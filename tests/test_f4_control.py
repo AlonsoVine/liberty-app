@@ -4,6 +4,7 @@ F4 · Asignación y control: objetivos por tipo con desviación, concentración 
 tipo y entidad, vencimientos y panel de alertas.
 """
 import copy
+import datetime as dt
 
 from app import almacen, motor
 
@@ -147,25 +148,53 @@ def test_alertas_generadas(tmp_path):
     assert next(a for a in d["alertas"] if "vencidas" in a["texto"])["pv"] == "deudas"
 
 
-def test_recordatorio_sin_anotar(tmp_path):
+def test_recordatorio_sin_actualizar_activos(tmp_path):
+    # Saldos/movimientos viejos (activos/deudas) → aviso «sin actualizar», con su umbral
+    # diasSinActualizar (independiente del de ingresos/gastos).
     cartera = {
-        "version": 1, "config": {"diasSinAnotar": 30},
+        "version": 1, "config": {"diasSinActualizar": 90},
         "productos": [{"id": "c", "nombre": "Caja", "corto": "Caja", "tipo": "efectivo",
                        "fuente": "manual", "slot": 1}],
         "movimientos": [],
         "valoraciones": [{"id": "v", "producto": "c", "fecha": "2020-01-31", "valor": 100.0}],
     }
     d = motor.construir(cartera, str(tmp_path), descargar=False)
-    assert any("no anotas nada" in a["texto"] for a in d["alertas"])
-    cartera["config"]["diasSinAnotar"] = 100000    # umbral altísimo: no debe avisar
+    assert any("no actualizas" in a["texto"] for a in d["alertas"])
+    # El umbral de ingresos/gastos NO silencia el de activos.
+    cartera["config"]["diasSinActualizar"] = 100000    # umbral altísimo: no debe avisar
     d2 = motor.construir(cartera, str(tmp_path), descargar=False)
-    assert not any("no anotas nada" in a["texto"] for a in d2["alertas"])
+    assert not any("no actualizas" in a["texto"] for a in d2["alertas"])
+
+
+def test_recordatorio_sin_anotar_flujos(tmp_path):
+    # Ingresos/gastos viejos → aviso «sin anotar», con su umbral diasSinAnotar.
+    hoy = str(dt.date.today())
+    cartera = {
+        "version": 1, "config": {"diasSinAnotar": 30, "diasSinActualizar": 100000},
+        "productos": [{"id": "c", "nombre": "Caja", "corto": "Caja", "tipo": "efectivo",
+                       "fuente": "manual", "slot": 1}],
+        "movimientos": [],
+        "valoraciones": [{"id": "v", "producto": "c", "fecha": hoy, "valor": 100.0}],
+        "flujos": [{"id": "f", "tipo": "gasto", "fecha": "2020-01-31", "importe": 10}],
+    }
+    d = motor.construir(cartera, str(tmp_path), descargar=False)
+    assert any("no anotas" in a["texto"] for a in d["alertas"])
+    assert not any("no actualizas" in a["texto"] for a in d["alertas"])  # valoración de hoy
+    cartera["config"]["diasSinAnotar"] = 100000
+    d2 = motor.construir(cartera, str(tmp_path), descargar=False)
+    assert not any("no anotas" in a["texto"] for a in d2["alertas"])
 
 
 def test_config_dias_sin_anotar():
     cfg = cfg_vacia()
     almacen.guarda_config(cfg, {"diasSinAnotar": "20"})
     assert cfg["config"]["diasSinAnotar"] == 20
+
+
+def test_config_dias_sin_actualizar():
+    cfg = cfg_vacia()
+    almacen.guarda_config(cfg, {"diasSinActualizar": "120"})
+    assert cfg["config"]["diasSinActualizar"] == 120
 
 
 def test_config_dias_sin_anotar_cero():

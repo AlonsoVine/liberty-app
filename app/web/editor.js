@@ -728,6 +728,7 @@
         ${fila("Umbral de concentración", pct(conf.umbralConcentracion))}
         ${fila("Desviación máxima", pct(conf.desviacionMax))}
         ${fila("Días de aviso de vencimientos", (conf.diasAviso != null ? conf.diasAviso : "—"))}
+        ${fila("Recordatorio sin actualizar", (conf.diasSinActualizar != null ? conf.diasSinActualizar + " días" : "—"))}
         ${fila("Monedas (cambio manual)", monedas.length ? monedas.map(m => `${esc(m.codigo)} = ${esc(String(m.tipo))}`).join(", ") : "EUR")}
         ${fila("Dimensiones de clasificación de activos", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
       </table>
@@ -787,7 +788,7 @@
     if (window.toast) window.toast("Guardado ✓");
   }
 
-  const UMBRAL_NOMBRE = { umbralConcentracion: "Umbral de concentración", desviacionMax: "Desviación máxima", diasAviso: "Días de aviso", diasSinAnotar: "Recordatorio sin anotar" };
+  const UMBRAL_NOMBRE = { umbralConcentracion: "Umbral de concentración", desviacionMax: "Desviación máxima", diasAviso: "Días de aviso", diasSinAnotar: "Recordatorio sin anotar", diasSinActualizar: "Recordatorio sin actualizar" };
   function formHogar() {
     const conf = E.cfg.config || {};
     const obj = conf.objetivos || {};
@@ -849,6 +850,11 @@
         <div class="rejilla tres">${objInputs}</div>
         <p class="ayuda">Los objetivos por tipo deberían sumar 100 %. Déjalos vacíos si no quieres objetivos.
           La concentración avisa cuando un tipo o entidad supera el umbral.</p>
+        ${seccion("Recordatorio «sin actualizar»")}
+        <div class="rejilla">
+          ${campo("Avisar si no actualizo activos/deudas", '<input name="diasSinActualizar" inputmode="numeric" placeholder="90">', "días sin anotar saldos ni movimientos")}
+        </div>
+        <p class="ayuda">La app te recuerda que revises tus activos y deudas (saldos y movimientos) si pasan estos días sin anotar ninguno. Es independiente del recordatorio de ingresos y gastos, así puedes pedir plazos distintos. Déjalo vacío para no recibir el aviso.</p>
         ${seccion("Monedas (tipo de cambio manual)")}
         <div class="rejilla">
           ${campo("Una moneda por línea: código y euros por unidad", '<textarea name="monedas" rows="3" placeholder="USD 0,92\nGBP 1,17"></textarea>', "EUR = 1, implícito", "ancho")}
@@ -960,6 +966,7 @@
         desviacionMax: d.desviacionMax,
         diasAviso: d.diasAviso,
         diasSinAnotar: d.diasSinAnotar,
+        diasSinActualizar: d.diasSinActualizar,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
         entidades, dimensionesFlujos,
@@ -982,6 +989,7 @@
     f.elements.desviacionMax.value = pct(conf.desviacionMax);
     f.elements.diasAviso.value = conf.diasAviso != null ? conf.diasAviso : "";
     f.elements.diasSinAnotar.value = conf.diasSinAnotar != null ? conf.diasSinAnotar : "";
+    f.elements.diasSinActualizar.value = conf.diasSinActualizar != null ? conf.diasSinActualizar : "";
     f.elements.buscarActualizaciones.checked = !!conf.buscarActualizaciones;
     Object.entries(obj).forEach(([clave, frac]) => {
       const el = f.elements["obj_" + clave];
@@ -2455,14 +2463,14 @@
     };
     const cols = tab.columnas.map(c => {
       const dec = (tab.tarjetas || []).filter(t => t.col === c.id);
-      return `<div class="kCol"><div class="kColHead"><b>${esc(c.nombre)}</b><span class="kCount">${dec.length}</span><span class="sp"></span>
+      return `<div class="kCol" data-colid="${esc(c.id)}"><div class="kColHead"><span class="kGrip" draggable="true" data-cgrip="${esc(c.id)}" title="Arrastra para reordenar la columna">⠿</span><b class="kColNom">${esc(c.nombre)}</b><span class="kCount">${dec.length}</span><span class="sp"></span>
           <button class="kIco" data-cren="${esc(c.id)}" title="Renombrar columna">✎</button>
           <button class="kIco" data-cdel="${esc(c.id)}" title="Borrar columna">🗑</button></div>
-        <div class="kCards" data-col="${esc(c.id)}">${dec.map(tarjetaHTML).join("")}</div>
+        <div class="kCards" data-col="${esc(c.id)}">${dec.length ? dec.map(tarjetaHTML).join("") : '<div class="kVacio">Suelta tarjetas aquí</div>'}</div>
         <button class="kAdd" data-cadd="${esc(c.id)}">+ Tarjeta</button></div>`;
     }).join("");
     cont.innerHTML = `<section class="tarjeta"><header><h2>Tablero</h2>
-        <span class="subt">Tipo Trello: arrastra para mover u ordenar. Doble clic en una tarjeta para editarla.</span>
+        <span class="subt">Tipo Trello: arrastra las tarjetas para moverlas u ordenarlas, y el asa ⠿ de cada columna para reordenar columnas. Doble clic en una tarjeta para editarla.</span>
         <span class="sp"></span><button class="btn" data-knuevacol>+ Columna</button></header>
       <div class="kBoard">${cols}</div></section>`;
 
@@ -2495,10 +2503,20 @@
       ed.querySelector("[data-edcancel]").onclick = cancelar;
       ta.onkeydown = e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); ok(); } if (e.key === "Escape") cancelar(); };
     }
-    cont.querySelector("[data-knuevacol]").onclick = () => {
-      const nombre = (prompt("Nombre de la nueva columna:") || "").trim();
-      if (!nombre) return;
-      tab.columnas.push({ id: "c" + Date.now(), nombre }); guardar();
+    // Edición inline de un nombre (columna nueva o renombrar): sustituye el ancla por un
+    // input; Enter/blur confirma, Escape cancela. Al confirmar, guardar() re-renderiza.
+    function inlineEdita(ancla, valor, onOk, ph) {
+      if (cont.querySelector(".kInline")) return;
+      const inp = document.createElement("input");
+      inp.type = "text"; inp.className = "kInline"; inp.value = valor || ""; if (ph) inp.placeholder = ph;
+      ancla.replaceWith(inp); inp.focus(); inp.select();
+      let done = false;
+      const fin = ok => { if (done) return; done = true; const v = inp.value.trim(); if (ok && v) onOk(v); else montaTablero(); };
+      inp.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); fin(true); } else if (e.key === "Escape") fin(false); };
+      inp.onblur = () => fin(true);
+    }
+    cont.querySelector("[data-knuevacol]").onclick = e => {
+      inlineEdita(e.currentTarget, "", nombre => { (tab.columnas = tab.columnas || []).push({ id: "c" + Date.now(), nombre }); guardar(); }, "Nombre de la columna");
     };
     cont.querySelectorAll("[data-cadd]").forEach(b => b.onclick = () => abreEditorTarjeta(b, b.dataset.cadd, null));
     cont.querySelectorAll("[data-tedit]").forEach(el => el.ondblclick = () => {
@@ -2509,17 +2527,18 @@
       tab.tarjetas = (tab.tarjetas || []).filter(t => t.id !== b.dataset.tdel); guardar();
     });
     cont.querySelectorAll("[data-cren]").forEach(b => b.onclick = () => {
-      const c = tab.columnas.find(x => x.id === b.dataset.cren);
-      const nombre = (prompt("Nuevo nombre:", c ? c.nombre : "") || "").trim();
-      if (c && nombre) { c.nombre = nombre; guardar(); }
+      const c = tab.columnas.find(x => x.id === b.dataset.cren); if (!c) return;
+      const nom = b.closest(".kColHead").querySelector(".kColNom");
+      inlineEdita(nom, c.nombre, v => { c.nombre = v; guardar(); });
     });
     cont.querySelectorAll("[data-cdel]").forEach(b => b.onclick = () => {
       if (!confirm("¿Borrar esta columna y sus tarjetas?")) return;
       tab.columnas = tab.columnas.filter(x => x.id !== b.dataset.cdel);
       tab.tarjetas = (tab.tarjetas || []).filter(t => t.col !== b.dataset.cdel); guardar();
     });
-    // Arrastrar: mover entre columnas Y reordenar dentro de una columna.
-    let dragId = null;
+    // Arrastrar TARJETAS: mover entre columnas y reordenar dentro de una columna.
+    // Arrastrar COLUMNAS: desde el asa ⠿ del encabezado, para reordenar columnas.
+    let dragId = null, dragColId = null;
     function mueve(id, col, antesId) {
       const arr = tab.tarjetas || [], card = arr.find(t => t.id === id); if (!card) return;
       card.col = col;
@@ -2528,16 +2547,23 @@
       if (!ins) out.push(card);
       tab.tarjetas = out; guardar();
     }
+    function mueveCol(id, antesId) {
+      const arr = tab.columnas, col = arr.find(c => c.id === id); if (!col || id === antesId) return;
+      const sin = arr.filter(c => c.id !== id), out = []; let ins = false;
+      for (const c of sin) { if (c.id === antesId) { out.push(col); ins = true; } out.push(c); }
+      if (!ins) out.push(col);
+      tab.columnas = out; guardar();
+    }
     cont.querySelectorAll(".kCard").forEach(card => {
-      card.addEventListener("dragstart", e => { dragId = card.dataset.id; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+      card.addEventListener("dragstart", e => { e.stopPropagation(); dragColId = null; dragId = card.dataset.id; card.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
       card.addEventListener("dragend", () => card.classList.remove("dragging"));
     });
     cont.querySelectorAll(".kCards").forEach(zone => {
-      zone.addEventListener("dragover", e => { e.preventDefault(); zone.classList.add("over"); });
+      zone.addEventListener("dragover", e => { if (!dragId) return; e.preventDefault(); zone.classList.add("over"); });
       zone.addEventListener("dragleave", () => zone.classList.remove("over"));
       zone.addEventListener("drop", e => {
-        e.preventDefault(); zone.classList.remove("over");
         if (!dragId) return;
+        e.preventDefault(); e.stopPropagation(); zone.classList.remove("over");
         let antes = null;
         for (const el of zone.querySelectorAll(".kCard:not(.dragging)")) {
           const r = el.getBoundingClientRect();
@@ -2546,6 +2572,26 @@
         mueve(dragId, zone.dataset.col, antes); dragId = null;
       });
     });
+    // Reordenar columnas: el asa inicia el arrastre de toda su columna.
+    cont.querySelectorAll("[data-cgrip]").forEach(grip => {
+      const col = grip.closest(".kCol");
+      grip.addEventListener("dragstart", e => { dragId = null; dragColId = grip.dataset.cgrip; col.classList.add("dragging"); e.dataTransfer.effectAllowed = "move"; });
+      grip.addEventListener("dragend", () => col.classList.remove("dragging"));
+    });
+    const board = cont.querySelector(".kBoard");
+    if (board) {
+      board.addEventListener("dragover", e => { if (!dragColId) return; e.preventDefault(); });
+      board.addEventListener("drop", e => {
+        if (!dragColId) return;
+        e.preventDefault();
+        let antes = null;
+        for (const el of board.querySelectorAll(".kCol:not(.dragging)")) {
+          const r = el.getBoundingClientRect();
+          if (e.clientX < r.left + r.width / 2) { antes = el.dataset.colid; break; }
+        }
+        mueveCol(dragColId, antes); dragColId = null;
+      });
+    }
   }
 
   function formRecordatorio(r, fechaPrefijada) {

@@ -500,8 +500,10 @@ AVISOS_CATALOGO = [
      "desc": "Avisa si los apartados y el colchón superan lo que tienes disponible.", "pv": "patrimonio", "umbral": None},
     {"clave": "monedas-sin-cambio", "nombre": "Monedas sin tipo de cambio",
      "desc": "Avisa si tienes productos en otra divisa sin tipo de cambio configurado.", "pv": "distribucion", "umbral": None},
-    {"clave": "sin-anotar", "nombre": "Hace mucho que no anotas",
-     "desc": "Avisa si pasan muchos días sin anotar saldos, movimientos o gastos.", "pv": None, "umbral": "diasSinAnotar"},
+    {"clave": "sin-anotar", "nombre": "Hace mucho que no anotas ingresos ni gastos",
+     "desc": "Avisa si pasan muchos días sin anotar ningún ingreso o gasto.", "pv": "ingresos", "umbral": "diasSinAnotar"},
+    {"clave": "sin-actualizar", "nombre": "Hace mucho que no actualizas activos ni deudas",
+     "desc": "Avisa si pasan muchos días sin anotar saldos ni movimientos de tus activos o deudas.", "pv": "patrimonio", "umbral": "diasSinActualizar"},
 ]
 AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
 
@@ -1770,21 +1772,32 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     if monedas_faltan:
         _al("Monedas sin tipo de cambio configurado (se toman en euros): "
             + ", ".join(sorted(monedas_faltan)) + ".", len(monedas_faltan), pv="distribucion", clave="monedas-sin-cambio")
-    # Recordatorio (B3): hace mucho que no anotas nada. Umbral configurable.
-    # No tiene sentido en la vista «a fin de un mes pasado» (daría cifras absurdas).
-    _ds = (cfg.get("config") or {}).get("diasSinAnotar")
-    dias_sin = int(_ds) if _ds is not None else 30   # respeta el 0 (avisar siempre)
-    fechas_datos = ([m.get("fecha") for m in cfg.get("movimientos", [])]
-                    + [v.get("fecha") for v in cfg.get("valoraciones", [])]
-                    + [f.get("fecha") for f in (cfg.get("flujos") or [])])
-    fechas_datos = [f for f in fechas_datos if f]
-    if fechas_datos and not hasta:
+    # Recordatorios (B3): hace mucho que no anotas / no actualizas. Dos avisos independientes,
+    # cada uno con su umbral (así puedes pedir plazos distintos para el día a día de ingresos
+    # y gastos y para la actualización de activos/deudas). No tienen sentido en la vista
+    # «a fin de un mes pasado» (daría cifras absurdas).
+    _conf_av = cfg.get("config") or {}
+
+    def _recuerda(fechas, umbral_key, defecto, clave, texto_fmt, pv_av):
+        fechas = [f for f in fechas if f]
+        if not fechas or hasta:
+            return
+        u = _conf_av.get(umbral_key)
+        lim = int(u) if u is not None else defecto   # respeta el 0 (avisar siempre)
         try:
-            dias = (hoy() - d(max(fechas_datos))).days
+            dias = (hoy() - d(max(fechas))).days
         except ValueError:
-            dias = 0
-        if dias > dias_sin:
-            _al(f"Hace {dias} días que no anotas nada (saldos, movimientos o gastos).", 1, "info", clave="sin-anotar")
+            return
+        if dias > lim:
+            _al(texto_fmt.format(dias=dias), 1, "info", pv=pv_av, clave=clave)
+
+    _recuerda([f.get("fecha") for f in (cfg.get("flujos") or [])],
+              "diasSinAnotar", 30, "sin-anotar",
+              "Hace {dias} días que no anotas ningún ingreso ni gasto.", "ingresos")
+    _recuerda([m.get("fecha") for m in cfg.get("movimientos", [])]
+              + [v.get("fecha") for v in cfg.get("valoraciones", [])],
+              "diasSinActualizar", 90, "sin-actualizar",
+              "Hace {dias} días que no actualizas tus activos ni deudas (saldos y movimientos).", "patrimonio")
 
     control = {"umbral": r4(umbral), "desviacionMax": r4(desv_max), "diasAviso": dias_aviso,
                "sumaObjetivos": r4(suma_obj)}

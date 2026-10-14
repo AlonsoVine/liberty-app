@@ -33,7 +33,7 @@ CARTERA_VACIA = {
     "titulares": ["Yo"], "apartados": [], "flujos": [],
     "config": {"colchon": 0, "categorias": [], "objetivos": {}, "monedas": [],
                "umbralConcentracion": 0.4, "desviacionMax": 0.05, "diasAviso": 90,
-               "diasSinAnotar": 30},
+               "diasSinAnotar": 30, "diasSinActualizar": 90},
     "comparador": [{"id": "real", "nombre": "Mi cartera real", "real": True}],
     "hitos": [10000, 25000, 50000, 100000, 250000, 500000, 1000000],
     "objetivo": {"activo": True, "importe": 100000, "etiqueta": "Próximo objetivo"},
@@ -514,6 +514,9 @@ def guarda_config(cfg, datos):
     if "diasSinAnotar" in datos:
         ds = numero(datos.get("diasSinAnotar"), "los días sin anotar", errores, obligatorio=False, minimo=0)
         conf["diasSinAnotar"] = int(ds) if ds is not None else 30
+    if "diasSinActualizar" in datos:
+        dsa = numero(datos.get("diasSinActualizar"), "los días sin actualizar activos", errores, obligatorio=False, minimo=0)
+        conf["diasSinActualizar"] = int(dsa) if dsa is not None else 90
     if "asistenteOculto" in datos:
         conf["asistenteOculto"] = bool(datos.get("asistenteOculto"))
     if "buscarActualizaciones" in datos:

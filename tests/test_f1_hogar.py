@@ -197,8 +197,8 @@ def test_hasta_excluye_apartados_futuros_y_recordatorio(tmp_path):
     assert d["total"]["apartadosTotal"] == 2000.0            # hoy: el apartado cuenta
     d1 = motor.construir(cartera, str(tmp_path), descargar=False, hasta="2024-01")
     assert d1["total"]["apartadosTotal"] == 0.0              # a fin de enero: aún no existía
-    # Y el recordatorio «hace N días que no anotas» no aparece en la vista pasada.
-    assert not any("no anotas nada" in a["texto"] for a in d1["alertas"])
+    # Y los recordatorios «hace N días que no anotas / no actualizas» no aparecen en la vista pasada.
+    assert not any("no anotas" in a["texto"] or "no actualizas" in a["texto"] for a in d1["alertas"])
 
 
 def test_variacion_mes_y_ano(tmp_path):
