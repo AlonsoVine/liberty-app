@@ -66,6 +66,7 @@
     COP.lista = null;
     window.EDITOR_SUCIO = true;
     if (window.toast) window.toast("Borrado ✓");
+    return j;
   }
   function avisa(avisos) {
     const el = $("#edAvisos");
@@ -1393,8 +1394,20 @@
   }
 
   async function borrarFlujo(id) {
-    if (!confirm("¿Borrar este apunte de ingreso/gasto?")) return;
-    try { await borra("flujos", id); pinta(); } catch (x) { alert(x.message); }
+    const fl = (E.cfg.flujos || []).find(x => x.id === id);
+    const n = ((fl && fl.adjuntos) || []).length;
+    const msg = n
+      ? `Este apunte tiene ${n} factura${n > 1 ? "s" : ""}. Si lo borras, el apunte desaparece, pero la${n > 1 ? "s" : ""} factura${n > 1 ? "s" : ""} NO se borra${n > 1 ? "n" : ""}: se queda${n > 1 ? "n" : ""} guardada${n > 1 ? "s" : ""} en tu carpeta de datos. ¿Borrar el apunte?`
+      : "¿Borrar este apunte de ingreso/gasto?";
+    if (!confirm(msg)) return;
+    try {
+      const j = await borra("flujos", id);
+      pinta();
+      const h = j && j.adjuntosHuerfanos;
+      if (h && (h.archivos || []).length) {
+        alert(`Apunte borrado. ${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}\n\nArchivo${h.archivos.length > 1 ? "s" : ""}: ${h.archivos.join(", ")}`);
+      }
+    } catch (x) { alert(x.message); }
   }
 
   /* ---------------------------------------------- movimientos */

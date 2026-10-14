@@ -24,6 +24,7 @@ import webbrowser
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.serving import make_server
+from werkzeug.utils import secure_filename
 
 from . import almacen, buscar, exportar, importar, motor, plantilla
 
@@ -379,16 +380,43 @@ def api_guardar(coleccion):
 def api_borrar(coleccion, ident):
     if coleccion not in BORRAR:
         return jsonify(ok=False, errores=["No sé borrar eso."]), 404
-    # Si el apunte tenía facturas, recoge sus archivos para borrarlos tras eliminarlo.
+    # Si el apunte tenía facturas, las CONSERVAMOS (son independientes del apunte):
+    # se renombran a un nombre legible y se avisa al usuario de dónde quedan.
     adjs = []
     if coleccion == "flujos" and modo() != "demo":
         fl = next((x for x in cartera().get("flujos", []) if x.get("id") == ident), None)
         adjs = (fl or {}).get("adjuntos", []) or []
     resp = cambia(lambda cfg: BORRAR[coleccion](cfg, ident))
     if adjs and not isinstance(resp, tuple):   # tuple = error (jsonify, código); Response = OK
-        for a in adjs:
-            _borra_fichero_adjunto(a.get("archivo"))
+        huerfanos = _conserva_adjuntos_huerfanos(adjs)
+        if huerfanos["archivos"]:
+            data = resp.get_json()
+            data["adjuntosHuerfanos"] = huerfanos
+            return jsonify(data)
     return resp
+
+
+def _conserva_adjuntos_huerfanos(adjs):
+    """Al borrar un apunte, sus facturas NO se borran: se renombran a un nombre legible
+    (el original) en la carpeta «adjuntos», para que el usuario las encuentre. Devuelve
+    la carpeta y los nombres finales."""
+    adj_dir = os.path.join(carpeta(), "adjuntos")
+    finales = []
+    for a in adjs:
+        origen = os.path.join(adj_dir, os.path.basename(a.get("archivo") or ""))
+        if not os.path.exists(origen):
+            continue
+        base = secure_filename(a.get("nombre") or "") or ("factura" + os.path.splitext(origen)[1])
+        root, ext = os.path.splitext(base)
+        destino, i = os.path.join(adj_dir, base), 2
+        while os.path.exists(destino):
+            destino, i = os.path.join(adj_dir, f"{root} ({i}){ext}"), i + 1
+        try:
+            os.rename(origen, destino)
+            finales.append(os.path.basename(destino))
+        except OSError:
+            finales.append(os.path.basename(origen))
+    return {"carpeta": os.path.abspath(adj_dir), "archivos": finales}
 
 
 @app.post("/api/config")

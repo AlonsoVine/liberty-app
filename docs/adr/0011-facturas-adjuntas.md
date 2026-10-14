@@ -24,8 +24,11 @@ apunte gana `adjuntos: [{id, archivo, nombre, tipo, tam, importante?}]`.
   el archivo y anota la referencia), `POST /api/flujo-adjunto-quitar` (borra referencia
   y archivo), `POST /api/flujo-adjunto-importante`, y `GET /api/adjunto/<flujo>/<id>`
   (sirve el archivo *inline*; solo sirve lo referenciado en la cartera).
-- **Limpieza**: al borrar un apunte se borran sus archivos (en `api_borrar`); al editar
-  un apunte por el formulario se **conservan** los adjuntos (el form no los manda).
+- **Independencia de las facturas**: al **borrar un apunte** sus facturas **NO se
+  borran** (son un elemento independiente): se **renombran a su nombre legible** (el
+  original) en la carpeta `adjuntos/` y la respuesta devuelve `adjuntosHuerfanos`
+  `{carpeta, archivos}` para **avisar al usuario de dónde quedan**. Al editar un apunte
+  por el formulario se **conservan** los adjuntos (el form no los manda).
 - **UI**: columna `📎` en la tabla (indicador + gestor en modal para subir/abrir/marcar/
   quitar), filtro «con/sin factura», y una vista **«Facturas»** (sub-pestaña de Mis
   datos) que reúne todas, con buscador y «solo importantes ★».

@@ -60,13 +60,19 @@ def test_adjunto_formato_no_admitido(tmp_path, monkeypatch):
     assert not os.path.isdir(os.path.join(str(tmp_path), "adjuntos")) or not os.listdir(os.path.join(str(tmp_path), "adjuntos"))
 
 
-def test_borrar_apunte_borra_sus_facturas(tmp_path, monkeypatch):
+def test_borrar_apunte_conserva_sus_facturas(tmp_path, monkeypatch):
     servidor = _prepara(tmp_path, monkeypatch)
     client = servidor.app.test_client()
-    data = {"id": "f1", "archivo": (io.BytesIO(b"%PDF"), "f.pdf")}
+    data = {"id": "f1", "archivo": (io.BytesIO(b"%PDF"), "factura luz.pdf")}
     a = client.post("/api/flujo-adjunto", data=data, content_type="multipart/form-data").get_json()["item"]
-    ruta = os.path.join(str(tmp_path), "adjuntos", a["archivo"])
-    assert os.path.exists(ruta)
+    adj_dir = os.path.join(str(tmp_path), "adjuntos")
+    assert os.path.exists(os.path.join(adj_dir, a["archivo"]))
     r = client.delete("/api/flujos/f1")
-    assert r.get_json()["ok"] is True
-    assert not os.path.exists(ruta)   # al borrar el apunte, su factura también
+    j = r.get_json()
+    assert j["ok"] is True
+    # La factura es independiente: NO se borra; se conserva con su nombre legible.
+    assert not os.path.exists(os.path.join(adj_dir, a["archivo"]))   # ya no con el nombre aleatorio
+    h = j["adjuntosHuerfanos"]
+    assert h["archivos"] == ["factura_luz.pdf"]
+    assert os.path.exists(os.path.join(adj_dir, "factura_luz.pdf"))
+    assert h["carpeta"] == os.path.abspath(adj_dir)
