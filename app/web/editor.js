@@ -35,7 +35,7 @@
     guarda(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* da igual */ } },
   };
   E.vista = new URLSearchParams(location.search).get("vista") || recuerda.lee("patrimonio.editor") || "activos";
-  if (!["activos", "deudas", "apartados", "flujos", "saldos", "config", "importar", "copias"].includes(E.vista)) E.vista = "activos";
+  if (!["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "config", "importar", "copias"].includes(E.vista)) E.vista = "activos";
 
   async function api(metodo, url, cuerpo) {
     const r = await fetch(url, {
@@ -66,6 +66,7 @@
     COP.lista = null;
     window.EDITOR_SUCIO = true;
     if (window.toast) window.toast("Borrado ✓");
+    return j;
   }
   function avisa(avisos) {
     const el = $("#edAvisos");
@@ -262,11 +263,13 @@
       ? ` <button class="notaInd" data-acc="verNotas" data-id="${esc(ref)}" title="Tiene una nota — pulsa para verla" aria-label="Ver nota">📝</button>` : "";
   }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
-  function envTabla(key, thead, filas, alto, toolsExtra) {
+  function envTabla(key, thead, filas, alto, toolsExtra, sinBuscar) {
+    // sinBuscar: el propio toolsExtra ya incluye el input [data-buscar] donde quiera (p. ej.
+    // Ingresos y gastos lo pone tras los filtros). Si no, se pinta el buscador al principio.
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
       <div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        <label class="buscaTabla">${LUPA}<input type="search" data-buscar
-          placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>
+        ${sinBuscar ? "" : `<label class="buscaTabla">${LUPA}<input type="search" data-buscar
+          placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>`}
         ${toolsExtra || '<span class="ordenaHint">↕ Ordena pulsando una columna</span>'}
         <span class="sp"></span>
         <button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button></div>
@@ -326,6 +329,7 @@
       .tablaTools{margin:0 0 10px}
       .buscaTabla{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--borde);
         border-radius:9px;padding:6px 11px;background:var(--sup);max-width:280px;color:var(--tinta3)}
+      .buscaTabla.media{flex:1 1 360px;max-width:none;min-width:240px}
       .buscaTabla input{border:0;background:transparent;font:inherit;font-size:14px;color:var(--tinta);outline:none;width:100%}
       table.dt.orden thead th{cursor:pointer;user-select:none}
       table.dt.orden thead th:not(.nosort):hover{color:var(--tinta)}
@@ -372,7 +376,7 @@
     // el día a día (flujos y saldos) y las herramientas.
     const grupos = [
       [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"]],
-      [["saldos", "Saldos y movimientos"], ["flujos", "Ingresos y gastos"]],
+      [["saldos", "Saldos y movimientos"], ["flujos", "Ingresos y gastos"], ["facturas", "Facturas"]],
       [["config", "Configuración"], ["importar", "Importar"], ["copias", "Copias y seguridad"]],
     ];
     const seg = $("#edVistas");
@@ -390,10 +394,11 @@
       seg.appendChild(g);
     });
     $("#edCuerpo").innerHTML = ({ activos: vistaActivos, deudas: vistaDeudas, apartados: vistaApartados,
-      flujos: vistaFlujos, saldos: vistaSaldosMov, config: vistaConfig,
+      flujos: vistaFlujos, saldos: vistaSaldosMov, facturas: vistaFacturas, config: vistaConfig,
       importar: vistaImportar, copias: vistaCopias }[E.vista] || vistaActivos)();
     if (E.vista === "importar" || E.vista === "copias") conectaImportar();
     if (E.vista === "flujos") { montaAnotarRapido(); montaFiltrosFlujos(); }
+    if (E.vista === "facturas") montaFacturas();
     const filtro = $("#edFiltro");
     if (filtro) filtro.onchange = e => { E.filtro = e.target.value; pinta(); };
     aplicaTablas();   // restaura búsqueda y orden de cada tabla tras el re-render
@@ -1079,6 +1084,61 @@
     pop.querySelector("[data-obs-editar]").onclick = () => { cierraObs(); formFlujo(fl); };
     setTimeout(() => document.addEventListener("click", cierraObs, { once: true }), 0);
   }
+  // ---- facturas adjuntas a un apunte ----
+  function iconoAdj(a) { return (a.tipo || "").indexOf("pdf") >= 0 || /\.pdf$/i.test(a.archivo || "") ? "📄" : "🖼️"; }
+  function tamHum(n) { n = +n || 0; return n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(0) + " KB" : (n / 1048576).toFixed(1) + " MB"; }
+  function urlAdj(fid, a) { return "api/adjunto/" + encodeURIComponent(fid) + "/" + encodeURIComponent(a.id); }
+  // Gestor de facturas de un apunte: listar, abrir, marcar importante, quitar y subir.
+  function abreAdjuntos(fid) {
+    const dlg = $("#modal");
+    let huboCambios = false;
+    function render() {
+      const fl = (E.cfg.flujos || []).find(x => x.id === fid);
+      if (!fl) { dlg.close(); return; }
+      const adjs = fl.adjuntos || [];
+      const lista = adjs.length ? adjs.map(a => `<div class="adjItem${a.importante ? " imp" : ""}">
+          <span class="adjIco">${iconoAdj(a)}</span>
+          <a class="adjNombre" href="${urlAdj(fid, a)}" target="_blank" rel="noopener" title="Abrir">${esc(a.nombre)}</a>
+          <span class="adjTam">${tamHum(a.tam)}</span>
+          <button type="button" class="adjEstrella${a.importante ? " on" : ""}" data-aimp="${esc(a.id)}" title="${a.importante ? "Quitar de importantes" : "Marcar como importante"}" aria-label="Importante">★</button>
+          <button type="button" class="btn mini" data-adel="${esc(a.id)}">Quitar</button>
+        </div>`).join("") : '<p class="subt">Este apunte no tiene facturas todavía.</p>';
+      dlg.innerHTML = `<div class="mForm">
+        <header><h2>Facturas del apunte</h2><button type="button" class="x" data-cerrar aria-label="Cerrar">×</button></header>
+        <div class="mCuerpo">
+          <div class="adjLista">${lista}</div>
+          <div class="mErr" hidden></div>
+          <label class="adjSubir"><input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,.heic,.gif" hidden><span class="btn">📎 Adjuntar factura…</span></label>
+          <p class="subt" style="margin-top:8px">PDF o imagen (máx. 15 MB). Se guardan en tu ordenador, junto a tus datos.</p>
+        </div>
+        <footer><button type="button" class="btn prim" data-cerrar>Cerrar</button></footer></div>`;
+      dlg.querySelectorAll("[data-cerrar]").forEach(b => b.onclick = () => dlg.close());
+      const err = dlg.querySelector(".mErr"), fallo = m => { err.textContent = m; err.hidden = false; };
+      dlg.querySelectorAll("[data-adel]").forEach(b => b.onclick = async () => {
+        if (!confirm("¿Quitar esta factura? Se borrará de tu ordenador.")) return;
+        try { const j = await api("POST", "api/flujo-adjunto-quitar", { flujo: fid, adjunto: b.dataset.adel }); E.cfg = j.cartera; huboCambios = true; render(); } catch (x) { fallo(x.message); }
+      });
+      dlg.querySelectorAll("[data-aimp]").forEach(b => b.onclick = async () => {
+        const a = (fl.adjuntos || []).find(x => x.id === b.dataset.aimp);
+        try { const j = await api("POST", "api/flujo-adjunto-importante", { flujo: fid, adjunto: b.dataset.aimp, importante: !(a && a.importante) }); E.cfg = j.cartera; huboCambios = true; render(); } catch (x) { fallo(x.message); }
+      });
+      const inp = dlg.querySelector(".adjSubir input"), span = dlg.querySelector(".adjSubir span");
+      inp.onchange = async () => {
+        const file = inp.files && inp.files[0]; if (!file) return;
+        const fd = new FormData(); fd.append("id", fid); fd.append("archivo", file);
+        span.textContent = "Subiendo…";
+        try {
+          const r = await fetch("api/flujo-adjunto", { method: "POST", body: fd });
+          const j = await r.json();
+          if (!r.ok || j.ok === false) throw new Error((j.errores || ["No se pudo subir."]).join("\n"));
+          E.cfg = j.cartera; huboCambios = true; render();
+        } catch (x) { fallo(x.message); span.textContent = "📎 Adjuntar factura…"; }
+      };
+    }
+    render();
+    dlg.addEventListener("close", () => { if (huboCambios) pinta(); }, { once: true });
+    dlg.showModal();
+  }
   // Filtros potentes de la tabla de ingresos y gastos (por columna, importe y fechas).
   function filtrosFlujos() {
     try { E.flujoFiltros = E.flujoFiltros || JSON.parse(recuerda.lee("patrimonio.flujoFiltros") || "{}") || {}; } catch (e) { E.flujoFiltros = {}; }
@@ -1099,6 +1159,8 @@
       if (F.marca && F.marca[0] !== "_" && x.marca !== F.marca) return false;
       if (F.obs === "con" && !x.observaciones) return false;
       if (F.obs === "sin" && x.observaciones) return false;
+      if (F.fact === "con" && !(x.adjuntos && x.adjuntos.length)) return false;
+      if (F.fact === "sin" && x.adjuntos && x.adjuntos.length) return false;
       for (const d in (F.dim || {})) if (F.dim[d] && (x.categorias || {})[d] !== F.dim[d]) return false;
       const imp = +x.importe || 0;
       if (F.impOp === "mayor" && i1 != null && !isNaN(i1) && !(imp > i1)) return false;
@@ -1111,7 +1173,7 @@
   }
   function hayFiltroFlujos() {
     const F = filtrosFlujos();
-    return !!(F.tipo || F.categoria || F.entidad || F.titular || F.marca || F.obs || F.impOp || F.fdesde || F.fhasta ||
+    return !!(F.tipo || F.categoria || F.entidad || F.titular || F.marca || F.obs || F.fact || F.impOp || F.fdesde || F.fhasta ||
       Object.values(F.dim || {}).some(Boolean));
   }
   function filtrosFlujosHTML() {
@@ -1128,6 +1190,7 @@
     if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
       ...marcas.map(m => ({ v: m.id, t: (m.emoji || "") + (m.nombre ? " " + m.nombre : "") }))], F.marca || "");
     h += campo("obs", "Observaciones", [{ v: "con", t: "Con nota" }, { v: "sin", t: "Sin nota" }], F.obs || "");
+    h += campo("fact", "Facturas", [{ v: "con", t: "Con factura" }, { v: "sin", t: "Sin factura" }], F.fact || "");
     dims.forEach(dm => {
       const vals = [...new Set([...(dm.valores || []), ...(E.cfg.flujos || []).map(f => (f.categorias || {})[dm.id]).filter(Boolean)])];
       if (vals.length) h += campo("dim:" + dm.id, dm.nombre, vals.map(v => ({ v, t: v })), (F.dim || {})[dm.id] || "");
@@ -1136,10 +1199,24 @@
       <select data-ff="impOp"><option value="">—</option><option value="mayor"${F.impOp === "mayor" ? " selected" : ""}>mayor que</option><option value="menor"${F.impOp === "menor" ? " selected" : ""}>menor que</option><option value="entre"${F.impOp === "entre" ? " selected" : ""}>entre</option></select>
       ${F.impOp ? `<input class="fImp" data-ff="importe1" inputmode="decimal" value="${esc(F.importe1 || "")}" placeholder="€">` : ""}
       ${F.impOp === "entre" ? `<input class="fImp" data-ff="importe2" inputmode="decimal" value="${esc(F.importe2 || "")}" placeholder="€">` : ""}</span>`;
-    h += `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
+    return h;
+  }
+  // El buscador de texto de la tabla, ancho, para ponerlo DESPUÉS de los filtros.
+  function buscadorFlujosHTML() {
+    return `<label class="buscaTabla media">${LUPA}<input type="search" data-buscar
+      placeholder="Buscar en la tabla…" aria-label="Buscar en la tabla" autocomplete="off"></label>`;
+  }
+  // El filtro de fechas va el último (tras el buscador), con el botón de limpiar.
+  function filtroFechasFlujosHTML() {
+    const F = filtrosFlujos();
+    let h = `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
       <input type="date" class="fFecha" data-ff="fdesde" value="${esc(F.fdesde || "")}"><span class="fSep">–</span><input type="date" class="fFecha" data-ff="fhasta" value="${esc(F.fhasta || "")}"></span>`;
     if (hayFiltroFlujos()) h += `<button type="button" class="btn mini filtroQuitar" data-ff-limpiar>✕ Limpiar filtros</button>`;
     return h;
+  }
+  // Barra de herramientas completa de Ingresos y gastos: filtros, buscador y fechas.
+  function toolsFlujosHTML() {
+    return filtrosFlujosHTML() + buscadorFlujosHTML() + filtroFechasFlujosHTML();
   }
   function montaFiltrosFlujos() {
     const F = filtrosFlujos();
@@ -1172,6 +1249,9 @@
     const obsInd = x => x.observaciones
       ? `<button class="obsBtn tiene" data-acc="verObs" data-id="${esc(x.id)}" title="Tiene observaciones — pulsa para verlas">📝</button>`
       : `<button class="obsBtn add" data-acc="verObs" data-id="${esc(x.id)}" title="Añadir observaciones">+</button>`;
+    const factInd = x => { const n = (x.adjuntos || []).length; return n
+      ? `<button class="factBtn tiene" data-acc="verFact" data-id="${esc(x.id)}" title="${n} factura${n > 1 ? "s" : ""} — pulsa para verlas">📎${n > 1 ? `<span class="factN">${n}</span>` : ""}</button>`
+      : `<button class="factBtn add" data-acc="verFact" data-id="${esc(x.id)}" title="Adjuntar factura">📎</button>`; };
     return fs.map(x => `<tr>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
@@ -1180,6 +1260,7 @@
       ${conEnt ? `<td>${esc(x.entidad || "")}</td>` : ""}
       <td class="nota" title="${esc(x.nota)}">${esc(x.nota || "")}</td>
       <td class="cObs">${obsInd(x)}</td>
+      <td class="cFact">${factInd(x)}</td>
       ${varios ? `<td>${esc(x.titular || "")}</td>` : ""}
       <td style="text-align:right" class="${x.tipo === "ingreso" ? "pos" : "neg"}">${x.tipo === "gasto" ? "−" : ""}${eur(x.importe)}</td>
       ${celdaAcc(x.id, { editar: "editarFlujo", borrar: "borrarFlujo" })}</tr>`).join("");
@@ -1212,14 +1293,69 @@
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Busca y filtra arriba; marca apuntes con el desplegable de su fila.</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${total
-        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort" title="Observaciones"></th>
-          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, filtrosFlujosHTML())
-          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${filtrosFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
+        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort">Observaciones</th><th class="nosort">Facturas</th>
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, toolsFlujosHTML(), true)
+          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${toolsFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
       <div id="flujosContador">${contador}</div>
     </section>`;
   }
 
+  /* ---------------------------------------------- Facturas (archivador central) */
+  function todasFacturas() {
+    const out = [];
+    (E.cfg.flujos || []).forEach(fl => (fl.adjuntos || []).forEach(a => out.push({ fid: fl.id, fl, a })));
+    return out;
+  }
+  function vistaFacturas() {
+    if (E.modo !== "propio") {
+      return `<section class="tarjeta"><header><h2>Facturas</h2></header>
+        <p class="subt">Las facturas están disponibles cuando empieces tu propio patrimonio. Ve a «Mis datos → Empezar con mis datos».</p></section>`;
+    }
+    return `<section class="tarjeta"><header><h2>Facturas</h2>
+        <span class="subt">Todas las facturas y tickets que adjuntas a tus ingresos y gastos, reunidos en un solo sitio.</span></header>
+      <div class="notasTools" id="factTools"></div>
+      <div id="factLista"></div></section>`;
+  }
+  function montaFacturas() {
+    const tools = $("#factTools"), cont = $("#factLista");
+    if (!cont) return;
+    const total = todasFacturas().length;
+    tools.innerHTML = total ? `<label class="buscaTabla media">${LUPA}<input type="search" id="factBusca" placeholder="Buscar factura (nombre, categoría, entidad…)" value="${esc(E.factBusca || "")}" autocomplete="off"></label>
+      <label class="chkLinea"><input type="checkbox" id="factSoloImp"${E.factImp ? " checked" : ""}> Solo importantes ★</label>` : "";
+    function pintaLista() {
+      const busca = (E.factBusca || "").trim().toLowerCase();
+      let items = todasFacturas();
+      if (E.factImp) items = items.filter(i => i.a.importante);
+      if (busca) items = items.filter(i => ((i.a.nombre || "") + " " + (i.fl.categoria || "") + " " + (i.fl.entidad || "") + " " + (i.fl.nota || "") + " " + (i.fl.observaciones || "")).toLowerCase().includes(busca));
+      items.sort((x, y) => (!!y.a.importante - !!x.a.importante) || (x.fl.fecha < y.fl.fecha ? 1 : x.fl.fecha > y.fl.fecha ? -1 : 0));
+      if (!items.length) { cont.innerHTML = `<p class="subt" style="margin-top:12px">${total ? "Ninguna factura coincide con el filtro." : "Todavía no has adjuntado ninguna factura. Hazlo desde la columna 📎 de «Ingresos y gastos»."}</p>`; return; }
+      cont.innerHTML = `<div class="factGrid">${items.map(i => {
+        const fl = i.fl, a = i.a, signo = fl.tipo === "gasto" ? "−" : "";
+        return `<div class="factCard${a.importante ? " imp" : ""}">
+          <a class="factAbrir" href="${urlAdj(i.fid, a)}" target="_blank" rel="noopener" title="Abrir la factura"><span class="factIco">${iconoAdj(a)}</span><span class="factNom">${esc(a.nombre)}</span></a>
+          <div class="factMeta">${fecha(fl.fecha)} · <b class="${fl.tipo === "ingreso" ? "pos" : "neg"}">${signo}${eur(fl.importe)}</b>${fl.categoria ? " · " + esc(fl.categoria) : ""}${fl.entidad ? " · " + esc(fl.entidad) : ""}</div>
+          <div class="factPie"><span class="adjTam">${tamHum(a.tam)}</span><span class="sp"></span>
+            <button type="button" class="adjEstrella${a.importante ? " on" : ""}" data-fimp="${esc(i.fid)}|${esc(a.id)}" title="Marcar/quitar importante" aria-label="Importante">★</button>
+            <button type="button" class="btn mini" data-fver="${esc(i.fid)}">Ver apunte</button>
+            <button type="button" class="btn mini" data-fdel="${esc(i.fid)}|${esc(a.id)}">Quitar</button></div></div>`;
+      }).join("")}</div>`;
+      cont.querySelectorAll("[data-fimp]").forEach(b => b.onclick = async () => {
+        const [fid, aid] = b.dataset.fimp.split("|");
+        const fl = (E.cfg.flujos || []).find(x => x.id === fid), a = fl && (fl.adjuntos || []).find(x => x.id === aid);
+        try { const j = await api("POST", "api/flujo-adjunto-importante", { flujo: fid, adjunto: aid, importante: !(a && a.importante) }); E.cfg = j.cartera; montaFacturas(); } catch (x) { alert(x.message); }
+      });
+      cont.querySelectorAll("[data-fdel]").forEach(b => b.onclick = async () => {
+        const [fid, aid] = b.dataset.fdel.split("|");
+        if (!confirm("¿Quitar esta factura? Se borrará de tu ordenador.")) return;
+        try { const j = await api("POST", "api/flujo-adjunto-quitar", { flujo: fid, adjunto: aid }); E.cfg = j.cartera; montaFacturas(); } catch (x) { alert(x.message); }
+      });
+      cont.querySelectorAll("[data-fver]").forEach(b => b.onclick = () => { E.vista = "flujos"; recuerda.guarda("patrimonio.editor", "flujos"); pinta(); });
+    }
+    const bq = $("#factBusca"); if (bq) bq.oninput = e => { E.factBusca = e.target.value; const pos = bq.selectionStart; pintaLista(); const nb = $("#factBusca"); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (_) { /* */ } } };
+    const chk = $("#factSoloImp"); if (chk) chk.onchange = e => { E.factImp = e.target.checked; pintaLista(); };
+    pintaLista();
+  }
   function formFlujo(x) {
     const nuevo = !x;
     x = x || { tipo: "gasto" };
@@ -1258,8 +1394,20 @@
   }
 
   async function borrarFlujo(id) {
-    if (!confirm("¿Borrar este apunte de ingreso/gasto?")) return;
-    try { await borra("flujos", id); pinta(); } catch (x) { alert(x.message); }
+    const fl = (E.cfg.flujos || []).find(x => x.id === id);
+    const n = ((fl && fl.adjuntos) || []).length;
+    const msg = n
+      ? `Este apunte tiene ${n} factura${n > 1 ? "s" : ""}. Si lo borras, el apunte desaparece, pero la${n > 1 ? "s" : ""} factura${n > 1 ? "s" : ""} NO se borra${n > 1 ? "n" : ""}: se queda${n > 1 ? "n" : ""} guardada${n > 1 ? "s" : ""} en tu carpeta de datos. ¿Borrar el apunte?`
+      : "¿Borrar este apunte de ingreso/gasto?";
+    if (!confirm(msg)) return;
+    try {
+      const j = await borra("flujos", id);
+      pinta();
+      const h = j && j.adjuntosHuerfanos;
+      if (h && (h.archivos || []).length) {
+        alert(`Apunte borrado. ${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}\n\nArchivo${h.archivos.length > 1 ? "s" : ""}: ${h.archivos.join(", ")}`);
+      }
+    } catch (x) { alert(x.message); }
   }
 
   /* ---------------------------------------------- movimientos */
@@ -1755,7 +1903,8 @@
       <div class="dosCol">
         <div class="bloque"><b>Guardar una copia</b>
           <p class="ayuda">Descarga un archivo <code>.json</code> con todos tus productos, movimientos y saldos.
-            Guárdalo en tu nube o en un USB de vez en cuando.</p>
+            Guárdalo en tu nube o en un USB de vez en cuando.
+            <span class="subt">(Las facturas adjuntas no van en este archivo; para llevarlas, copia toda la carpeta <code>mis_datos</code>.)</span></p>
           ${propio ? `<a class="btn prim" href="api/copia/descargar" download data-acc="marcaCopia">Descargar copia</a>
             <p class="ayuda" style="margin-top:8px">${ultimaCopia ? `Última copia descargada: hace ${diasCopia} día${diasCopia === 1 ? "" : "s"}.` : "Todavía no has descargado ninguna copia."}</p>
             ${avisoCopia ? `<div class="av" style="margin-top:8px"><span>💾</span><span>${ultimaCopia ? "Hace tiempo que no guardas una copia de seguridad." : "Guarda una copia para no perder tus datos si le pasa algo al ordenador."} Pulsa «Descargar copia».</span></div>` : ""}`
@@ -1927,6 +2076,7 @@
     todosValores: soloPropio(todosValores),
     menuMarca: soloPropio(id => abreMenuMarca(id)),
     verObs: soloPropio(id => abreObs(id)),
+    verFact: soloPropio(id => abreAdjuntos(id)),
     nuevoApartado: soloPropio(() => formApartado(null)),
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
@@ -2506,7 +2656,7 @@
     notas: pintarNotas,
     // Navegar a una sección de «Mis datos» desde fuera (p. ej. la paleta de acciones).
     ir(v) {
-      if (["activos", "deudas", "apartados", "flujos", "saldos", "config", "importar", "copias"].includes(v)) {
+      if (["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "config", "importar", "copias"].includes(v)) {
         E.vista = v; recuerda.guarda("patrimonio.editor", v);
       }
       pinta();

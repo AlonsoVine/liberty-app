@@ -147,6 +147,34 @@ table.dt tbody tr:hover .obsBtn.add{opacity:.5}
 .obsTxt{line-height:1.5;margin-bottom:10px;overflow-wrap:anywhere;max-height:220px;overflow:auto}
 .obsVacio{color:var(--tinta3);margin-bottom:10px}
 .obsAcc{text-align:right}
+/* Facturas: indicador en la tabla, gestor (modal) y archivador central */
+table.dt td.cFact{text-align:center;width:1%;white-space:nowrap}
+.factBtn{border:0;background:none;cursor:pointer;font-size:14px;line-height:1;padding:2px 6px;border-radius:6px;transition:.1s;position:relative}
+.factBtn.tiene{color:var(--s1)}
+.factBtn.tiene:hover{background:color-mix(in srgb,var(--s1) 16%,transparent)}
+.factBtn.add{color:var(--tinta3);opacity:0}
+table.dt tbody tr:hover .factBtn.add{opacity:.5}
+.factBtn.add:hover{opacity:1;color:var(--tinta);background:var(--sup3)}
+.factN{font-size:10px;font-weight:700;vertical-align:super;margin-left:1px}
+.adjLista{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.adjItem{display:flex;align-items:center;gap:10px;padding:8px 10px;border:1px solid var(--borde);border-radius:9px;background:var(--sup2)}
+.adjItem.imp{border-color:color-mix(in srgb,var(--oro) 55%,var(--borde))}
+.adjIco{font-size:1.2rem;flex:none}
+.adjNombre{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.adjTam{color:var(--tinta3);font-size:12px}
+.adjEstrella{border:0;background:none;cursor:pointer;color:var(--tinta3);font-size:16px;line-height:1;padding:2px 5px;border-radius:6px}
+.adjEstrella:hover{color:var(--oro)}
+.adjEstrella.on{color:var(--oro)}
+.adjSubir{display:inline-block;cursor:pointer}
+.factGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:12px}
+.factCard{background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px}
+.factCard.imp{border-color:color-mix(in srgb,var(--oro) 55%,var(--borde));box-shadow:0 0 0 1px color-mix(in srgb,var(--oro) 30%,transparent)}
+.factAbrir{display:flex;align-items:center;gap:9px;color:var(--tinta);font-weight:600}
+.factAbrir:hover{text-decoration:none;color:var(--s1)}
+.factIco{font-size:1.4rem;flex:none}
+.factNom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.factMeta{font-size:12.5px;color:var(--tinta3)}
+.factPie{display:flex;align-items:center;gap:6px;margin-top:2px}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
 .filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
@@ -1597,7 +1625,7 @@ body.video .tarjetaCanal{display:none}
           <b>Deudas y vencimientos</b>. Arriba del Panel puedes fijar el <b>Periodo</b> (un día concreto, el fin de un
           mes o un rango).</li>
         <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, <b>Saldos y movimientos</b>,
-          <b>Ingresos y gastos</b>, Configuración, Importar y Copias y seguridad.</li>
+          <b>Ingresos y gastos</b>, <b>Facturas</b>, Configuración, Importar y Copias y seguridad.</li>
         <li><b>🗒️ Notas</b>: tus notas (con etiquetas y listas de tareas), un <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos.</li>
         <li><b>❓ Ayuda</b>: esto.</li>
         <li><b>⚙️ Ajustes</b>: tamaño de texto, tema claro/oscuro, vista amplia, modo vídeo y ocultar importes.</li>
@@ -1675,6 +1703,15 @@ body.video .tarjetaCanal{display:none}
       ocupar espacio no se muestran como columna: verás un <b>📝</b> en los apuntes que tengan observaciones (pulsa para
       leerlas o editarlas) y puedes <b>filtrar por «con/sin nota»</b>. Estas observaciones son solo del apunte: <b>no</b>
       tienen que ver con la pestaña <b>Notas</b> ni aparecen en la Agenda.</p></div></details>
+
+    <details class="faq"><summary>¿Puedo adjuntar la factura o el ticket de un gasto?</summary><div>
+      <p>Sí. En <b>Mis datos → Ingresos y gastos</b>, en la columna <b>📎</b> de cada apunte, pulsa para <b>adjuntar</b>
+      una factura o ticket (PDF o imagen, hasta 15 MB). Puedes poner varias por apunte, abrirlas con un clic, marcar las
+      <b>importantes ★</b> y filtrar por <b>«con/sin factura»</b>. Además, la pestaña <b>«Facturas»</b> reúne <b>todas</b>
+      en un solo sitio, con buscador y un filtro de «solo importantes».</p>
+      <p>Los archivos se guardan <b>en tu ordenador</b>, en la carpeta <code>mis_datos</code> (nunca suben a ningún sitio).
+      Si te mueves de equipo copiando esa carpeta, se llevan las facturas; la copia de un <b>solo archivo</b>
+      (Copias y seguridad) todavía no las incluye.</p></div></details>
 
     <details class="faq"><summary>¿Para qué sirven las marcas de los apuntes?</summary><div>
       <p>Son etiquetas rápidas con un emoji para señalar apuntes (por ejemplo «👁️ Revisar», «📎 Justificante» o

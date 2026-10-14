@@ -730,6 +730,11 @@ def guarda_flujo(cfg, datos):
     obs = texto(datos.get("observaciones"), 2000)
     if obs:
         fl["observaciones"] = obs
+    # Los adjuntos (facturas) se gestionan por sus propios endpoints, no por el
+    # formulario; al editar un apunte hay que conservarlos.
+    _prev_adj = next((x for x in cfg.get("flujos", []) if x.get("id") == datos.get("id")), None) if datos.get("id") else None
+    if _prev_adj and _prev_adj.get("adjuntos"):
+        fl["adjuntos"] = _prev_adj["adjuntos"]
     # Si escribes una categoría que no está en la lista maestra, se da de alta sola
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
@@ -881,3 +886,56 @@ def marca_flujo(cfg, fid, marca):
     else:
         fl.pop("marca", None)
     return fl
+
+
+# ---------------------------------------------------------------- adjuntos (facturas)
+# Cada apunte de ingreso/gasto puede llevar facturas/tickets. Los ARCHIVOS viven en
+# disco (carpeta «adjuntos/» de la cartera); aquí solo se guardan las referencias.
+MAX_ADJUNTOS = 12            # por apunte
+ADJ_EXT = (".pdf", ".jpg", ".jpeg", ".png", ".webp", ".heic", ".gif")
+
+
+def _flujo(cfg, fid):
+    fl = next((x for x in cfg.get("flujos", []) if x.get("id") == fid), None)
+    if not fl:
+        raise ErrorValidacion(["Ese apunte ya no existe."])
+    return fl
+
+
+def anota_adjunto(cfg, fid, adj_id, archivo, nombre, tipo, tam):
+    """Registra una factura ya guardada en disco en su apunte. Devuelve el adjunto."""
+    fl = _flujo(cfg, fid)
+    adjs = fl.setdefault("adjuntos", [])
+    if len(adjs) >= MAX_ADJUNTOS:
+        raise ErrorValidacion([f"Este apunte ya tiene {MAX_ADJUNTOS} facturas."])
+    adj = {"id": texto(adj_id, 40), "archivo": texto(archivo, 120),
+           "nombre": texto(nombre, 200) or "factura", "tipo": texto(tipo, 80), "tam": int(tam or 0)}
+    adjs.append(adj)
+    return adj
+
+
+def quita_adjunto(cfg, fid, adj_id):
+    """Quita la referencia de un adjunto del apunte. Devuelve el adjunto (para que el
+    servidor borre su archivo del disco)."""
+    fl = _flujo(cfg, fid)
+    adjs = fl.get("adjuntos", [])
+    adj = next((a for a in adjs if a.get("id") == adj_id), None)
+    if not adj:
+        raise ErrorValidacion(["Esa factura ya no está."])
+    fl["adjuntos"] = [a for a in adjs if a.get("id") != adj_id]
+    if not fl["adjuntos"]:
+        fl.pop("adjuntos", None)
+    return adj
+
+
+def marca_adjunto(cfg, fid, adj_id, importante):
+    """Marca o desmarca una factura como importante."""
+    fl = _flujo(cfg, fid)
+    adj = next((a for a in fl.get("adjuntos", []) if a.get("id") == adj_id), None)
+    if not adj:
+        raise ErrorValidacion(["Esa factura ya no está."])
+    if importante:
+        adj["importante"] = True
+    else:
+        adj.pop("importante", None)
+    return adj
