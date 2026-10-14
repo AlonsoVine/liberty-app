@@ -1902,18 +1902,19 @@
         <span class="subt">Un archivo con todo tu patrimonio, para guardarlo donde quieras o pasarlo a otro ordenador.</span></header>
       <div class="dosCol">
         <div class="bloque"><b>Guardar una copia</b>
-          <p class="ayuda">Descarga un archivo <code>.json</code> con todos tus productos, movimientos y saldos.
-            Guárdalo en tu nube o en un USB de vez en cuando.
-            <span class="subt">(Las facturas adjuntas no van en este archivo; para llevarlas, copia toda la carpeta <code>mis_datos</code>.)</span></p>
-          ${propio ? `<a class="btn prim" href="api/copia/descargar" download data-acc="marcaCopia">Descargar copia</a>
-            <p class="ayuda" style="margin-top:8px">${ultimaCopia ? `Última copia descargada: hace ${diasCopia} día${diasCopia === 1 ? "" : "s"}.` : "Todavía no has descargado ninguna copia."}</p>
-            ${avisoCopia ? `<div class="av" style="margin-top:8px"><span>💾</span><span>${ultimaCopia ? "Hace tiempo que no guardas una copia de seguridad." : "Guarda una copia para no perder tus datos si le pasa algo al ordenador."} Pulsa «Descargar copia».</span></div>` : ""}`
+          <p class="ayuda">Descárgate todo tu patrimonio para guardarlo en tu nube o en un USB. Si tienes facturas, elige el <code>.zip</code>.</p>
+          ${propio ? `<div class="botones" style="display:flex;gap:8px;flex-wrap:wrap">
+              <a class="btn prim" href="api/copia/descargar?formato=zip" download data-acc="marcaCopia">⬇ Copia con facturas (.zip)</a>
+              <a class="btn" href="api/copia/descargar" download data-acc="marcaCopia">Solo datos (.json)</a></div>
+            <p class="ayuda" style="margin-top:8px">El <code>.zip</code> incluye tus facturas con nombres descriptivos (fecha, importe, concepto…); el <code>.json</code> es más ligero pero sin ellas.
+              ${ultimaCopia ? ` Última copia: hace ${diasCopia} día${diasCopia === 1 ? "" : "s"}.` : " Todavía no has descargado ninguna copia."}</p>
+            ${avisoCopia ? `<div class="av" style="margin-top:8px"><span>💾</span><span>${ultimaCopia ? "Hace tiempo que no guardas una copia de seguridad." : "Guarda una copia para no perder tus datos si le pasa algo al ordenador."} Descarga una copia.</span></div>` : ""}`
             : '<span class="subt">Disponible cuando empieces tu propio patrimonio.</span>'}</div>
         <div class="bloque"><b>Recuperar desde un archivo</b>
-          <p class="ayuda">Sube una copia <code>.json</code> que descargaste antes. Puedes <b>crear un patrimonio nuevo</b> con ella
+          <p class="ayuda">Sube una copia <code>.json</code> o <code>.zip</code> que descargaste antes. Puedes <b>crear un patrimonio nuevo</b> con ella
             (así no pierdes el actual) o <b>sustituir</b> el que tienes abierto. En ambos casos, lo que haya ahora se guarda
             antes en «Copias automáticas» (abajo), así que podrás volver atrás.</p>
-          ${zona(".json", false, "Arrastra aquí tu copia")}
+          ${zona(".json,.zip", false, "Arrastra aquí tu copia (.json o .zip)")}
           <div class="imErr" id="copFallo" hidden></div>
           <div class="imAcc" style="gap:8px"><span class="sp"></span>
             <button class="btn" data-acc="subirCopiaNuevo" id="copNuevoBtn">Crear un patrimonio nuevo</button>

@@ -75,6 +75,27 @@ def test_migra_es_idempotente(tmp_path, monkeypatch):
     assert sorted(os.listdir(str(tmp_path))) == antes
 
 
+def test_migra_archivos_demo_a_app(tmp_path, monkeypatch):
+    srv = _datos(tmp_path, monkeypatch)
+    # Archivos de trabajo de la demo sueltos en la raíz (layout anterior), sin cartera.
+    _escribe(os.path.join(str(tmp_path), "calculado_demo.json"), {"x": 1})
+    _escribe(os.path.join(str(tmp_path), "estado.json"), {"y": 2})
+    _escribe(os.path.join(str(tmp_path), "historico.json"), {"z": 3})
+    _escribe(os.path.join(str(tmp_path), "cache", "p.json"), {})
+
+    srv.migra_layout()
+
+    # La raíz queda limpia (solo quedarán app/ y, si hay, carteras/).
+    raiz = set(os.listdir(str(tmp_path)))
+    for n in ("calculado_demo.json", "estado.json", "historico.json", "cache"):
+        assert n not in raiz
+    demo = os.path.join(str(tmp_path), "app", "demo")
+    assert json.load(open(os.path.join(demo, "estado.json"), encoding="utf-8"))["y"] == 2
+    assert os.path.exists(os.path.join(demo, "cache", "p.json"))
+    # En modo demo, la app ya escribe en app/demo/.
+    assert srv.modo() == "demo" and srv.carpeta() == demo
+
+
 # ---------------------------------------------------------------- empezar limpio
 
 def test_empezar_crea_cartera_en_su_carpeta(tmp_path, monkeypatch):
