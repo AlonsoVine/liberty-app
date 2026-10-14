@@ -28,4 +28,4 @@ dist/
 *.exe
 
 # Carpeta de datos de pruebas local (no versionar)
-datos_m/
+datos_*/

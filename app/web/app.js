@@ -2462,15 +2462,28 @@
   /* ---------------------------------------------- tour guiado (primer uso + Ayuda) */
   // Recorrido con foco (spotlight) sobre elementos reales, sin librerías. Cambia solo
   // a la pestaña/subpestaña de cada paso y señala el elemento con un globo explicativo.
+  // Navega a Mis datos y a una de sus sub-vistas (Activos, Ingresos y gastos, Config…).
+  const irMisDatos = v => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
   const PASOS_TOUR = [
-    { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», puedes verlo a un día o a un tramo pasado.", antes: () => { irA("panel"); irVista("patrimonio"); } },
-    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas e Informe fiscal. Con las teclas 1–7 saltas entre ellas.", antes: () => irVista("patrimonio") },
-    { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada tipo.", antes: () => irVista("distribucion") },
-    { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo ha crecido tu patrimonio. Enciende y apaga componentes en la leyenda; las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
-    { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (con coste FIFO) y los dividendos y cupones cobrados, por año, listos para la declaración.", antes: () => irVista("fiscal") },
-    { sel: '[data-tab="datos"]', tit: "Mis datos", txt: "Aquí añades y editas tus activos, deudas, reservados e ingresos/gastos, importas del banco y haces copias de seguridad.", antes: () => irA("panel") },
-    { sel: "#btnPaleta", tit: "Buscar (⌘K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
-    { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100% en tu ordenador.", antes: () => irA("panel") },
+    // --- Panel: entender tus cifras ---
+    { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», lo ves a un día concreto, a fin de un mes o en un rango (y cuánto ganaste en ese tramo).", antes: () => { irA("panel"); irVista("patrimonio"); } },
+    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Siete vistas para analizarlo todo: Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos e Informe fiscal. Con las teclas 1–7 saltas al instante.", antes: () => irVista("patrimonio") },
+    { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero, por tipo, titular o tus propias dimensiones. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada cosa para volver a tus objetivos.", antes: () => irVista("distribucion") },
+    { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo crece tu patrimonio en el tiempo. Enciende y apaga componentes en la leyenda, míralo mes a mes o en reparto %, y compáralo con un indexado. Las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
+    { sel: "#igNav", tit: "Ingresos y gastos", txt: "Entiende tu dinero: Resumen (con la cascada y tu tasa de ahorro), Categorías (en qué se va), Tendencias (mes a mes y mapa de calor) y Presupuesto con semáforo.", antes: () => irVista("ingresos") },
+    { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (coste FIFO) y los dividendos y cupones cobrados, por año y listos para la declaración. Imprímelo o guárdalo en PDF.", antes: () => irVista("fiscal") },
+    { sel: "#btnPaleta", tit: "Buscar (Ctrl/⌘ + K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
+    // --- Mis datos: introducir y gestionar ---
+    { sel: "#edVistas", tit: "Mis datos", txt: "Aquí introduces y editas todo, en tres bloques: lo que tienes (Activos, Deudas, Reservados), el día a día (Saldos y movimientos, Ingresos y gastos, Facturas) y las herramientas (Configuración, Importar, Copias). Vamos a ver lo principal.", antes: () => irA("datos") },
+    { sel: '[data-acc="nuevoProducto"]', tit: "Activos (y deudas, reservados)", txt: "Añade cuentas, fondos, acciones, cripto, planes, inmuebles… Eliges su tipo (puedes crear los tuyos) y de dónde sale el precio: automático (fondos/acciones/cripto) o «a mano» para lo que no cotiza. Igual para tus Deudas y Reservados.", antes: () => irMisDatos("activos") },
+    { sel: "#anotarRapido", tit: "Ingresos y gastos", txt: "Anota un ingreso o gasto al vuelo con «Anotar rápido». Cada apunte lleva categoría, titular, entidad, marcas, un «Concepto» (lo del banco) y «Observaciones» (tu nota libre). Arriba tienes filtros potentes para encontrar cualquier cosa.", antes: () => irMisDatos("flujos") },
+    { sel: ".factBtn", tit: "Facturas 📎", txt: "Adjunta la factura o el ticket de un gasto desde la columna 📎 (PDF o imagen); se guardan en tu ordenador. La pestaña «Facturas» las reúne todas, con buscador y «solo importantes ★».", antes: () => irMisDatos("flujos") },
+    { sel: '[data-acc="editarConfig"]', tit: "Configuración (lo más potente)", txt: "El corazón de la personalización: titulares del hogar, colchón de liquidez, categorías, entidades, tus dimensiones de clasificación, objetivos de asignación por tipo, marcas y el centro de avisos. Pulsa «Editar» para ajustarlo a tu caso.", antes: () => irMisDatos("config") },
+    { sel: '[data-acc="imDestino"]', tit: "Importar tus datos", txt: "Tráelos de golpe. Elige qué importar: «Activos e inversiones» (MyInvestor, plantilla Excel/CSV o con ayuda de una IA) o «Datos del banco» (tus ingresos y gastos). Consejo: asigna la ENTIDAD (banco) al importar — así luego el Panel te da métricas y análisis por entidad.", antes: () => irMisDatos("importar") },
+    { sel: "#imZona", tit: "Copias de seguridad", txt: "Descarga una copia cuando quieras: el «.zip» incluye tus datos y tus facturas (con nombres descriptivos); el «.json» es más ligero. Para recuperar, arrastra aquí un .json o .zip. Y antes de cada cambio se guarda una copia automática.", antes: () => irMisDatos("copias") },
+    // --- Organización y ajustes ---
+    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, y una Agenda con calendario que reúne tus recordatorios y los vencimientos que la app detecta.", antes: () => irA("panel") },
+    { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
   ];
   function iniciaTour() {
     if ($(".tourFoco")) return;   // ya hay un tour abierto
