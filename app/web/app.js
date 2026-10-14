@@ -2698,6 +2698,10 @@
       const r = await fetch("api/actualizar", { method: "POST" });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error);
+      // De paso, comprueba si hay versión nueva (sin esperar al chequeo diario). Es
+      // invisible: solo refresca el aviso de versión. Respeta «Buscar actualizaciones»
+      // (si está apagado, no sale a internet) y no bloquea si falla.
+      try { await fetch("api/version?forzar=1"); } catch (e) { /* da igual */ }
       recargaHoy();
     } catch (e) {
       alert(e.message || "No he podido actualizar los precios. ¿Tienes conexión a internet?");

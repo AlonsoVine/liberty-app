@@ -54,3 +54,28 @@ def test_actualizar_cuando_ya_esta_al_dia(tmp_path, monkeypatch):
                         lambda req, timeout=0: io.BytesIO(json.dumps({"tag_name": "v1.0.0"}).encode()))
     j = servidor.app.test_client().post("/api/descargar-version").get_json()
     assert j["ok"] is False and j["motivo"] == "al-dia"
+
+
+def test_version_forzar_salta_la_cache(tmp_path, monkeypatch):
+    import os
+
+    from app import almacen, servidor
+    monkeypatch.setattr(servidor, "DATOS", str(tmp_path))
+    os.makedirs(str(tmp_path), exist_ok=True)
+    cfg = json.loads(json.dumps(almacen.CARTERA_VACIA))
+    cfg["config"]["buscarActualizaciones"] = True
+    with open(os.path.join(str(tmp_path), "cartera.json"), "w", encoding="utf-8") as fh:
+        json.dump(cfg, fh)
+    servidor._VERSION.clear()
+    monkeypatch.setattr(servidor, "version_actual", lambda: "1.0.0")
+    tag = {"v": "v9.9.9"}
+    monkeypatch.setattr(servidor.urllib.request, "urlopen",
+                        lambda req, timeout=0: io.BytesIO(json.dumps({"tag_name": tag["v"]}).encode()))
+    client = servidor.app.test_client()
+    j = client.get("/api/version?forzar=1").get_json()
+    assert j["ultima"] == "9.9.9" and j["hayNueva"] is True
+    # Cambia la última release; con forzar debe RE-consultar (no usar la caché).
+    tag["v"] = "v2.0.0"
+    assert client.get("/api/version?forzar=1").get_json()["ultima"] == "2.0.0"
+    # Sin forzar, usa la caché (el último valor fresco ya guardado).
+    assert client.get("/api/version").get_json()["ultima"] == "2.0.0"

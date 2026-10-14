@@ -972,7 +972,10 @@ def api_version():
     if not activado:
         return jsonify(actual=actual, ultima=None, repo=REPO, descarga=DESCARGA,
                        hayNueva=False, desactivado=True)
-    if not _VERSION or dt.datetime.now() - _VERSION["cuando"] > dt.timedelta(hours=24):
+    # Normalmente se consulta como mucho una vez al día; con ?forzar=1 (p. ej. al pulsar
+    # «Actualizar precios») se salta esa caché y se comprueba al momento.
+    forzar = request.args.get("forzar") == "1"
+    if forzar or not _VERSION or dt.datetime.now() - _VERSION["cuando"] > dt.timedelta(hours=24):
         try:
             req = urllib.request.Request(_API_RELEASE, headers=motor.UA)
             with urllib.request.urlopen(req, timeout=5) as r:
