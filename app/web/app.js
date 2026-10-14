@@ -1644,7 +1644,7 @@
     }
     if (!estado.anioFiscal || !fisc[estado.anioFiscal]) estado.anioFiscal = anios[0];
     selC.innerHTML = `<label for="selAnioFisc" style="font-size:13px;color:var(--tinta2)">Año fiscal: </label>
-      <select id="selAnioFisc">${anios.map(a => `<option value="${esc(a)}"${a === estado.anioFiscal ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>
+      <select id="selAnioFisc" class="selApp">${anios.map(a => `<option value="${esc(a)}"${a === estado.anioFiscal ? " selected" : ""}>${esc(a)}</option>`).join("")}</select>
       <button class="btn prim" id="btnFiscalPdf" style="margin-left:10px">🖨 Imprimir / Guardar PDF</button>
       <button class="btn" id="btnFiscalCsv">⬇ Descargar CSV</button>`;
     $("#selAnioFisc").onchange = e => { estado.anioFiscal = e.target.value; pintaFiscal(); };
@@ -2078,8 +2078,10 @@
     const hoy = new Date(D.fechaExtracto);
     const cab = ["Fecha", "Aportado", p.etqUnidades || "Participaciones",
       esFondo ? "VL de compra" : "Precio de compra", "Vale hoy", "Plusvalía", "Rent.", "Días"];
+    const puedeAnotar = D.modo === "propio" && window.Editor && window.Editor.nuevoMovimiento;
     sec.innerHTML = `<header><h2>Aportaciones a este producto</h2>
-        <span class="subt">${filas.length} en total · ${G.fmtEur(p.aportado, 0)}</span></header>
+        <span class="subt">${filas.length} en total · ${G.fmtEur(p.aportado, 0)}</span>
+        ${puedeAnotar ? `<span class="sp"></span><button class="btn mini" id="btnNuevaAportacion" title="Anotar una nueva aportación o movimiento de este producto en «Saldos y movimientos»">+ Añadir aportación</button>` : ""}</header>
       <div class="tablaEnv alto"><table class="dt">
         <thead><tr>${cab.map(c => `<th>${c}</th>`).join("")}</tr></thead>
         <tbody>${filas.map(a => {
@@ -2096,6 +2098,8 @@
             <td class="${rt >= 0 ? "pos" : "neg"}">${rt != null ? G.fmtPctSigno(rt, 1) : "—"}</td>
             <td>${dias}</td></tr>`;
         }).join("")}</tbody></table></div>`;
+    const bm = $("#btnNuevaAportacion");
+    if (bm) bm.onclick = () => window.Editor.nuevoMovimiento(p.id);
   }
 
   /* ================================================================
@@ -2241,8 +2245,20 @@
     el.innerHTML = `<b>Liberty v${esc(VERINFO.actual || "?")}</b>${estado}`;
     const a = $("#pieActualizar"); if (a) a.onclick = actualizaDesdePie;
   }
+  // Píldora naranja «hay versión nueva» junto al selector de patrimonio (arriba).
+  function pintaAvisoVersion() {
+    const b = $("#avisoVersion");
+    if (!b) return;
+    if (VERINFO && VERINFO.hayNueva) {
+      b.textContent = `⬆ Nueva versión (${VERINFO.ultima || ""})`.trim();
+      b.hidden = false;
+      b.onclick = actualizaDesdePie;
+    } else {
+      b.hidden = true;
+    }
+  }
   (function cargaVersion() {
-    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); }).catch(() => { /* sin red: nada */ });
+    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); pintaAvisoVersion(); }).catch(() => { /* sin red: nada */ });
   })();
 
   function pintaComun() {

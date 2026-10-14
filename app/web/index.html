@@ -166,15 +166,24 @@ table.dt tbody tr:hover .factBtn.add{opacity:.5}
 .adjEstrella:hover{color:var(--oro)}
 .adjEstrella.on{color:var(--oro)}
 .adjSubir{display:inline-block;cursor:pointer}
-.factGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-top:12px}
-.factCard{background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:7px}
-.factCard.imp{border-color:color-mix(in srgb,var(--oro) 55%,var(--borde));box-shadow:0 0 0 1px color-mix(in srgb,var(--oro) 30%,transparent)}
-.factAbrir{display:flex;align-items:center;gap:9px;color:var(--tinta);font-weight:600}
+/* Facturas en formato registro (una por línea): ves más de un vistazo. */
+.factRows{display:flex;flex-direction:column;gap:6px;margin-top:12px}
+.factRow{display:flex;align-items:center;gap:12px;background:var(--sup2);border:1px solid var(--borde);
+  border-radius:10px;padding:8px 12px}
+.factRow.imp{border-color:color-mix(in srgb,var(--oro) 55%,var(--borde));box-shadow:0 0 0 1px color-mix(in srgb,var(--oro) 30%,transparent)}
+.factRow .factAbrir{min-width:0;flex:1 1 40%}
+.factRow .factMeta{flex:0 1 auto;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.factRow .adjEstrella{flex:none}
+.factRow .btn.mini{flex:none}
+.factAbrir{display:flex;align-items:center;gap:9px;color:var(--tinta);font-weight:600;min-width:0}
 .factAbrir:hover{text-decoration:none;color:var(--s1)}
 .factIco{font-size:1.4rem;flex:none}
 .factNom{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .factMeta{font-size:12.5px;color:var(--tinta3)}
-.factPie{display:flex;align-items:center;gap:6px;margin-top:2px}
+@media(max-width:620px){.factRow{flex-wrap:wrap;gap:7px}.factRow .factAbrir{flex:1 1 100%}.factRow .factMeta{flex:1 1 100%;white-space:normal}}
+/* Apunte resaltado al llegar desde «Ver apunte» (Facturas): destello que se desvanece. */
+table.dt tr.resaltado>td{background:color-mix(in srgb,var(--s1) 18%,transparent);transition:background .6s ease}
+table.dt tr.resaltado>td:first-child{box-shadow:inset 3px 0 0 var(--s1)}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
 .filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
@@ -343,6 +352,12 @@ table.dt tbody tr:hover .factBtn.add{opacity:.5}
 .selCartera{font:inherit;font-size:14px;font-weight:600;color:var(--tinta);background:var(--sup);
   border:1px solid var(--borde);border-radius:8px;padding:5px 8px;cursor:pointer;max-width:220px}
 .selCartera:hover{border-color:var(--tinta3)}
+/* Aviso compacto «hay versión nueva» junto al selector de patrimonio. */
+.avisoVersion{font:inherit;font-size:12.5px;font-weight:700;color:#fff;background:#e8830c;
+  border:0;border-radius:999px;padding:4px 11px;margin-left:4px;cursor:pointer;line-height:1.2;
+  white-space:nowrap;box-shadow:0 1px 4px rgba(0,0,0,.18);transition:filter .12s,transform .12s}
+.avisoVersion:hover{filter:brightness(1.07);transform:translateY(-1px)}
+@media print{.avisoVersion{display:none !important}}
 /* Accesibilidad: texto más grande (C4). Escala toda la interfaz. */
 body.textoGrande{zoom:1.15}
 body.textoMuyGrande{zoom:1.3}
@@ -507,6 +522,12 @@ body.vistaAmplia .segm button{padding:10px 16px}
   background:var(--sup);color:var(--tinta);border:1px solid var(--borde);border-radius:9px;
   padding:8px 12px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;
 }
+/* Selector de la app para zonas FUERA de «Mis datos» (p. ej. el año del informe fiscal),
+   con la misma flecha y estilo que los selects del editor. */
+.selApp{appearance:none;-webkit-appearance:none;font:inherit;font-size:14px;font-weight:600;color:var(--tinta);
+  background:var(--sup) var(--flecha) no-repeat right 11px center;border:1px solid var(--borde);border-radius:9px;
+  height:36px;padding:0 34px 0 12px;cursor:pointer}
+.selApp:hover{border-color:var(--tinta3)}
 .mesTarjetas{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:22px 0 16px}
 .mesT{background:var(--sup);border:1px solid var(--borde);border-radius:12px;padding:16px 18px;position:relative;overflow:hidden}
 .mesT .barra{position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
@@ -722,6 +743,16 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 .mForm > footer .btn{height:40px;padding:0 18px;font-size:14px;border-radius:11px}
 .mErr{flex:0 0 auto;margin:0 26px 10px;padding:11px 14px;border-radius:11px;white-space:pre-line;font-size:13.5px;
   background:color-mix(in srgb,var(--mal) 13%,transparent);border:1px solid color-mix(in srgb,var(--mal) 40%,transparent)}
+
+/* Pestañas dentro del modal de Configuración: General / Activos / Ingresos y gastos. */
+.cfgTabs{position:sticky;top:0;z-index:3;display:flex;gap:4px;flex-wrap:wrap;background:var(--sup);
+  padding:6px 0 0;margin:-6px 0 2px;border-bottom:1px solid var(--borde)}
+.cfgTab{font:inherit;font-size:13.5px;font-weight:600;color:var(--tinta2);background:none;border:0;
+  border-bottom:2.5px solid transparent;padding:9px 13px;cursor:pointer;border-radius:8px 8px 0 0;white-space:nowrap}
+.cfgTab:hover{color:var(--tinta);background:var(--sup2)}
+.cfgTab.activa{color:var(--s1);border-bottom-color:var(--s1)}
+.cfgPanel[hidden]{display:none}
+.cfgPanel .secc:first-child{margin-top:16px}
 
 .secc{display:flex;align-items:center;gap:12px;margin:26px 0 12px;font-size:11px;font-weight:700;
   letter-spacing:.09em;text-transform:uppercase;color:var(--tinta3)}
@@ -1110,7 +1141,7 @@ body.video .tarjetaCanal{display:none}
 <div class="top">
   <div class="env">
     <div class="topFila">
-      <div class="marca"><img class="logoIcono" src="icono-64.png" alt="" width="24" height="24"><span class="nombreApp">Liberty</span><span class="marcaSep"></span><span id="marcaTexto">Mi patrimonio</span><select id="selCartera" class="selCartera" aria-label="Elegir o crear patrimonio" hidden></select></div>
+      <div class="marca"><img class="logoIcono" src="icono-64.png" alt="" width="24" height="24"><span class="nombreApp">Liberty</span><span class="marcaSep"></span><span id="marcaTexto">Mi patrimonio</span><select id="selCartera" class="selCartera" aria-label="Elegir o crear patrimonio" hidden></select><button id="avisoVersion" class="avisoVersion" hidden type="button" title="Hay una versión nueva disponible — pulsa para descargarla"></button></div>
       <div class="sep"></div>
       <span class="meta" id="metaFecha"></span>
       <button class="btn" id="btnPaleta" title="Buscar e ir a cualquier sitio (Ctrl+K)" aria-label="Buscar acciones">🔍 Buscar <kbd>⌘K</kbd></button>

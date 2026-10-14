@@ -695,45 +695,55 @@
     // Nombre legible de un tipo (base o propio) a partir de su clave.
     const nomTipo = k => E.tipos[k] || (E.tiposBase && E.tiposBase[k]) || (propios.find(t => t.id === k) || {}).nombre || k;
     const objFilas = Object.entries(obj).map(([k, v]) => `${esc(nomTipo(k))}: <b>${pct(v)}</b>`).join(" · ");
+    const tablaCats = cats.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Categoría</th><th>Tipo</th><th style="text-align:right">Presupuesto</th></tr></thead>
+        <tbody>${cats.map(c => `<tr><td>${esc(c.nombre)}</td><td class="${c.tipo === "ingreso" ? "pos" : "neg"}">${c.tipo === "ingreso" ? "Ingreso" : "Gasto"}</td>
+          <td style="text-align:right">${c.presupuesto != null ? eur(c.presupuesto) : "—"}</td></tr>`).join("")}</tbody></table></div>` : "";
+    const tablaDims = dims.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Dimensión</th><th>Valores sugeridos</th></tr></thead>
+        <tbody>${dims.map(d => `<tr><td>${esc(d.nombre)}</td><td>${(d.valores || []).map(esc).join(", ") || "—"}</td></tr>`).join("")}</tbody></table></div>` : "";
+    const tablaAvisos = catal.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Aviso</th><th>Estado</th><th>Ahora mismo</th></tr></thead>
+        <tbody>${catal.map(a => {
+          const activo = !avisosOff.includes(a.clave);
+          const ahora = !activo ? sub("—") : firing.has(a.clave) ? '<span class="neg">⚠ saltando</span>' : '<span class="pos">todo bien</span>';
+          return `<tr><td>${esc(a.nombre)}</td><td class="${activo ? "pos" : ""}">${activo ? "Activo" : sub("desactivado")}</td><td>${ahora}</td></tr>`;
+        }).join("")}</tbody></table></div>` : "";
     return `<section class="tarjeta"><header><h2>Configuración</h2>
-        <span class="subt">Todo lo que defines del hogar: titulares, tipos, categorías, monedas y avisos (como la hoja «Configuración» del Excel). Es lo mismo que ves al pulsar «Editar».</span>
+        <span class="subt">Todo lo que defines del hogar, en tres bloques: lo general, lo de tus activos e inversiones y lo de tus ingresos y gastos. Es lo mismo que ves al pulsar «Editar».</span>
         <span class="sp"></span><button class="btn prim" data-acc="editarConfig">Editar</button></header>
+      <div class="secc">🏠 General del hogar</div>
       <table class="leyenda">
         ${fila("Nombre del patrimonio", esc(E.cfg.titular || "Mi patrimonio"))}
         ${fila("Objetivo de patrimonio", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : sub("sin meta"))}
         ${fila("Titulares", tits.length ? tits.map(t => esc(t) + (t === ((conf.titularDefecto && tits.includes(conf.titularDefecto)) ? conf.titularDefecto : tits[0]) ? ' <span class="subt">(por defecto)</span>' : "")).join(", ") : sub("solo tú"))}
         ${fila("Colchón deseado", eur(conf.colchon || 0))}
         ${fila("Inflación de referencia", conf.inflacion != null ? pct(conf.inflacion) : sub("sin fijar"))}
+        ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
+        ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
+      </table>
+      ${tablaAvisos}
+      <div class="secc">📈 Activos e inversiones</div>
+      <table class="leyenda">
         ${fila("Tipos propios", propios.length ? propios.map(t => esc(t.nombre)).join(", ") : sub("ninguno"))}
         ${fila("Tipos de base ocultos", ocultos.length ? ocultos.map(k => esc(nomTipo(k))).join(", ") : sub("ninguno"))}
         ${fila("Objetivos de asignación", objFilas || sub("sin objetivos"))}
         ${fila("Umbral de concentración", pct(conf.umbralConcentracion))}
         ${fila("Desviación máxima", pct(conf.desviacionMax))}
         ${fila("Días de aviso de vencimientos", (conf.diasAviso != null ? conf.diasAviso : "—"))}
-        ${fila("Recordatorio sin anotar", (conf.diasSinAnotar != null ? conf.diasSinAnotar + " días" : "—"))}
         ${fila("Monedas (cambio manual)", monedas.length ? monedas.map(m => `${esc(m.codigo)} = ${esc(String(m.tipo))}`).join(", ") : "EUR")}
+        ${fila("Dimensiones de clasificación de activos", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
+      </table>
+      ${tablaDims}
+      <div class="secc">💶 Ingresos y gastos</div>
+      <table class="leyenda">
+        ${fila("Recordatorio sin anotar", (conf.diasSinAnotar != null ? conf.diasSinAnotar + " días" : "—"))}
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
         ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.emoji || "") + (m.nombre ? " " + esc(m.nombre) : "")).join(", ") : sub("varias por defecto (🚩 ⭐ ❗ …)"))}
-        ${fila("Dimensiones de clasificación de activos", dims.length ? dims.map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
         ${fila("Entidades / bancos", (conf.entidades || []).length ? (conf.entidades || []).map(esc).join(", ") : sub("ninguna"))}
         ${fila("Dimensiones de ingresos/gastos", (conf.dimensionesFlujos || []).length ? (conf.dimensionesFlujos || []).map(d => esc(d.nombre)).join(", ") : sub("ninguna"))}
-        ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
-        ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
       </table>
-      <p class="ayuda">El <b>colchón</b> es la liquidez mínima que quieres mantener; la <b>concentración</b> avisa cuando un tipo o entidad pesa demasiado;
+      ${tablaCats}
+      <p class="ayuda" style="margin-top:14px">El <b>colchón</b> es la liquidez mínima que quieres mantener; la <b>concentración</b> avisa cuando un tipo o entidad pesa demasiado;
         las <b>categorías</b> alimentan el desplegable de ingresos y gastos; las <b>dimensiones</b> son ejes propios para agrupar tus activos.</p>
-      ${cats.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Categoría</th><th>Tipo</th><th style="text-align:right">Presupuesto</th></tr></thead>
-        <tbody>${cats.map(c => `<tr><td>${esc(c.nombre)}</td><td class="${c.tipo === "ingreso" ? "pos" : "neg"}">${c.tipo === "ingreso" ? "Ingreso" : "Gasto"}</td>
-          <td style="text-align:right">${c.presupuesto != null ? eur(c.presupuesto) : "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
-      ${dims.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Dimensión</th><th>Valores sugeridos</th></tr></thead>
-        <tbody>${dims.map(d => `<tr><td>${esc(d.nombre)}</td><td>${(d.valores || []).map(esc).join(", ") || "—"}</td></tr>`).join("")}</tbody></table></div>` : ""}
-      ${catal.length ? `<div class="tablaEnv" style="margin-top:12px"><table class="dt"><thead><tr><th>Aviso</th><th>Estado</th><th>Ahora mismo</th></tr></thead>
-        <tbody>${catal.map(a => {
-          const activo = !avisosOff.includes(a.clave);
-          const ahora = !activo ? sub("—") : firing.has(a.clave) ? '<span class="neg">⚠ saltando</span>' : '<span class="pos">todo bien</span>';
-          return `<tr><td>${esc(a.nombre)}</td><td class="${activo ? "pos" : ""}">${activo ? "Activo" : sub("desactivado")}</td><td>${ahora}</td></tr>`;
-        }).join("")}</tbody></table></div>` : ""}
     </section>`;
   }
 
@@ -786,90 +796,107 @@
     const tiposPropios = (conf.tipos || []).map(t => t.nombre);
     const objInputs = Object.entries(E.tipos).map(([clave, label]) =>
       `<label class="campo"><span class="et">${esc(label)} <em>%</em></span><input name="obj_${clave}" inputmode="decimal" placeholder="0"></label>`).join("");
+    const avisosHTML = (E.avisosCatalogo || []).map(a => `<label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
+          <span><b>${esc(a.nombre)}</b><small>${esc(a.desc)}${a.umbral ? ` · Se ajusta con «${esc(UMBRAL_NOMBRE[a.umbral] || a.umbral)}»` : ""}</small></span></label>`).join("");
     const f = abreModal("Configuración", `
-      ${seccion("Este patrimonio")}
-      <div class="rejilla">
-        ${campo("Nombre de este patrimonio", '<input name="nombreCartera" maxlength="60" required>', "aparece arriba, en el selector")}
-        ${campo("Objetivo de patrimonio", '<input name="objetivoImporte" inputmode="decimal" placeholder="100000">', "€, la meta de la barra del panel; vacío = sin meta")}
+      <div class="cfgTabs" role="tablist">
+        <button type="button" class="cfgTab activa" data-cfg="general">🏠 General del hogar</button>
+        <button type="button" class="cfgTab" data-cfg="activos">📈 Activos e inversiones</button>
+        <button type="button" class="cfgTab" data-cfg="flujos">💶 Ingresos y gastos</button>
       </div>
-      ${seccion("Colchón de seguridad")}
-      <div class="rejilla">
-        ${campo("Colchón deseado", '<input name="colchon" inputmode="decimal" placeholder="3000">', "€, liquidez mínima")}
-        ${campo("Inflación anual", '<input name="inflacion" inputmode="decimal" placeholder="2,5">', "%, referencia en Evolución; puedes cambiarla también en la gráfica")}
+
+      <div class="cfgPanel" data-cfgp="general">
+        ${seccion("Este patrimonio")}
+        <div class="rejilla">
+          ${campo("Nombre de este patrimonio", '<input name="nombreCartera" maxlength="60" required>', "aparece arriba, en el selector")}
+          ${campo("Objetivo de patrimonio", '<input name="objetivoImporte" inputmode="decimal" placeholder="100000">', "€, la meta de la barra del panel; vacío = sin meta")}
+        </div>
+        ${seccion("Titulares del hogar")}
+        <div id="edTits" class="rejilla"></div>
+        <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y reservados.
+          Añade más miembros con «+ Añadir titular». <b>Con un solo titular</b>, la app no te pregunta por titular en ningún sitio ni muestra los filtros por titular.</p>
+        ${seccion("Colchón e inflación")}
+        <div class="rejilla">
+          ${campo("Colchón deseado", '<input name="colchon" inputmode="decimal" placeholder="3000">', "€, liquidez mínima")}
+          ${campo("Inflación anual", '<input name="inflacion" inputmode="decimal" placeholder="2,5">', "%, referencia en Evolución; puedes cambiarla también en la gráfica")}
+        </div>
+        ${seccion("Avisos automáticos")}
+        <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
+        <div class="rejilla">${avisosHTML}</div>
+        ${seccion("Privacidad")}
+        <div class="rejilla">
+          <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
+            <span><b>Buscar actualizaciones</b><small>Si lo activas, la app comprueba en GitHub (una vez al día) si hay una versión nueva. Apagado, la app no sale a internet salvo para descargar los precios. Viene apagado.</small></span></label>
+        </div>
       </div>
-      ${seccion("Titulares del hogar")}
-      <div id="edTits" class="rejilla"></div>
-      <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y reservados.
-        Añade más miembros con «+ Añadir titular». <b>Con un solo titular</b>, la app no te pregunta por titular en ningún sitio ni muestra los filtros por titular.</p>
-      ${seccion("Tipos de activo")}
-      <div class="campo ancho"><span class="et">Tipos de base <em>desmarca los que no uses</em></span>
-        <div class="tiposBase">${Object.entries(E.tiposBase).map(([k, v]) =>
-          `<label class="chkTipo"><input type="checkbox" class="tbChk" value="${esc(k)}"${ocultos.includes(k) ? "" : " checked"}> ${esc(v)}</label>`).join("")}</div></div>
-      <div class="campo ancho"><span class="et">Tus tipos <em>se añaden a los de base</em></span>
-        <div id="edTipos"></div></div>
-      <p class="ayuda">Puedes crear tus propios tipos (p. ej. <code>Crowdlending</code>, <code>Arte</code>, <code>Coche</code>) además de los de base.
-        Aparecen al clasificar un activo y en el objetivo de asignación de abajo. Los de base no se borran: solo se ocultan si los desmarcas.</p>
-      ${seccion("Control de asignación")}
-      <div class="rejilla tres">
-        ${campo("Umbral de concentración", '<input name="umbralConcentracion" inputmode="decimal" placeholder="40">', "%")}
-        ${campo("Desviación máxima", '<input name="desviacionMax" inputmode="decimal" placeholder="5">', "puntos %")}
-        ${campo("Días de aviso", '<input name="diasAviso" inputmode="numeric" placeholder="90">', "vencimientos")}
-        ${campo("Recordatorio sin anotar", '<input name="diasSinAnotar" inputmode="numeric" placeholder="30">', "días")}
+
+      <div class="cfgPanel" data-cfgp="activos" hidden>
+        ${seccion("Tipos de activo")}
+        <div class="campo ancho"><span class="et">Tipos de base <em>desmarca los que no uses</em></span>
+          <div class="tiposBase">${Object.entries(E.tiposBase).map(([k, v]) =>
+            `<label class="chkTipo"><input type="checkbox" class="tbChk" value="${esc(k)}"${ocultos.includes(k) ? "" : " checked"}> ${esc(v)}</label>`).join("")}</div></div>
+        <div class="campo ancho"><span class="et">Tus tipos <em>se añaden a los de base</em></span>
+          <div id="edTipos"></div></div>
+        <p class="ayuda">Puedes crear tus propios tipos (p. ej. <code>Crowdlending</code>, <code>Arte</code>, <code>Coche</code>) además de los de base.
+          Aparecen al clasificar un activo y en el objetivo de asignación de abajo. Los de base no se borran: solo se ocultan si los desmarcas.</p>
+        ${seccion("Control de asignación")}
+        <div class="rejilla tres">
+          ${campo("Umbral de concentración", '<input name="umbralConcentracion" inputmode="decimal" placeholder="40">', "%")}
+          ${campo("Desviación máxima", '<input name="desviacionMax" inputmode="decimal" placeholder="5">', "puntos %")}
+          ${campo("Días de aviso", '<input name="diasAviso" inputmode="numeric" placeholder="90">', "vencimientos")}
+        </div>
+        <div class="secc">Objetivo de asignación por tipo (%)</div>
+        <div class="rejilla tres">${objInputs}</div>
+        <p class="ayuda">Los objetivos por tipo deberían sumar 100 %. Déjalos vacíos si no quieres objetivos.
+          La concentración avisa cuando un tipo o entidad supera el umbral.</p>
+        ${seccion("Monedas (tipo de cambio manual)")}
+        <div class="rejilla">
+          ${campo("Una moneda por línea: código y euros por unidad", '<textarea name="monedas" rows="3" placeholder="USD 0,92\nGBP 1,17"></textarea>', "EUR = 1, implícito", "ancho")}
+        </div>
+        <p class="ayuda">Solo para productos «a mano» en otra divisa. Es un tipo único para todo el histórico
+          (aproximación). Los productos con cotización usan su cambio diario.</p>
+        ${seccion("Dimensiones de clasificación de activos")}
+        <div class="rejilla">
+          ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
+        </div>
+        <p class="ayuda">Ejes propios para clasificar tus activos (además de Tipo y Entidad). A cada activo le asignas un valor por eje en su ficha; luego puedes agrupar y filtrar <b>Distribución</b>, <b>Reparto %</b> y <b>Estructura</b> por ellos. Los valores tras los dos puntos son sugerencias; en la ficha del activo puedes escribir otro.</p>
       </div>
-      <div class="secc">Objetivo de asignación por tipo (%)</div>
-      <div class="rejilla tres">${objInputs}</div>
-      <p class="ayuda">Los objetivos por tipo deberían sumar 100 %. Déjalos vacíos si no quieres objetivos.
-        La concentración avisa cuando un tipo o entidad supera el umbral.</p>
-      ${seccion("Monedas (tipo de cambio manual)")}
-      <div class="rejilla">
-        ${campo("Una moneda por línea: código y euros por unidad", '<textarea name="monedas" rows="3" placeholder="USD 0,92\nGBP 1,17"></textarea>', "EUR = 1, implícito", "ancho")}
-      </div>
-      <p class="ayuda">Solo para productos «a mano» en otra divisa. Es un tipo único para todo el histórico
-        (aproximación). Los productos con cotización usan su cambio diario.</p>
-      ${seccion("Categorías de ingresos y gastos")}
-      <div class="rejilla">
-        ${campo("Categorías de ingresos (una por línea)", '<textarea name="catIng" rows="3" placeholder="Nómina\nAlquileres cobrados\nIntereses y dividendos"></textarea>', "", "ancho")}
-        ${campo("Categorías de gastos (una por línea; opcional «= presupuesto»)", '<textarea name="catGas" rows="5" placeholder="Vivienda = 750\nAlimentación = 600\nTransporte\nOcio = 250"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Aparecen en el desplegable al anotar. En los gastos puedes añadir un presupuesto mensual con
-        «= importe» (p. ej. <code>Alimentación = 600</code>); el Panel te dirá si te pasas. Si las dejas vacías, escribes la categoría a mano.</p>
-      ${seccion("Reglas para categorizar el banco")}
-      <div class="rejilla">
-        ${campo("Una regla por línea: «palabra = Categoría»", '<textarea name="reglasCat" rows="4" placeholder="mercadona = Alimentación\niberdrola = Suministros\nnetflix = Ocio y restaurantes"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Al <b>importar movimientos del banco</b>, si el concepto contiene esa palabra se asigna esa categoría
-        (si existe y es del tipo correcto). Tienen prioridad sobre las que trae la app. Al importar puedes marcar
-        «recordar mis correcciones» y se añaden aquí solas.</p>
-      ${seccion("Marcas de apuntes")}
-      <div class="rejilla">
-        ${campo("Una marca por línea: «emoji» o «emoji = nombre»", '<textarea name="marcasTxt" rows="7" placeholder="👁️ = Revisar\n❗ = Importante\n❓ = Duda\n🔖 = Seguimiento\n⚠️ = Incidencia\n📎 = Justificante\n✅ = Verificado"></textarea>', "el nombre es opcional", "ancho")}
-      </div>
-      <p class="ayuda">Pon un <b>emoji</b> por línea (y, si quieres, un nombre tras «=»). En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila (solo el icono) y puedes filtrar por marca (ahí sí sale el nombre, si lo pusiste).</p>
-      ${seccion("Entidades / bancos (ingresos y gastos)")}
-      <div class="rejilla">
-        ${campo("Una entidad por línea", '<textarea name="entidadesTxt" rows="3" placeholder="BBVA\nING\nRevolut\nEfectivo"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Define tus bancos o cuentas. Al <b>importar</b> del banco eliges a cuál corresponde esa importación y se asigna a todos sus apuntes. Luego puedes <b>filtrar y analizar</b> Ingresos y gastos por entidad.</p>
-      ${seccion("Dimensiones de ingresos y gastos")}
-      <div class="rejilla">
-        ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimFlujos" rows="3" placeholder="Necesidad: Fijo, Variable, Caprichos\nProyecto: Casa, Viaje, Coche"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Como las dimensiones de activos, pero para los apuntes: ejes propios para clasificar y filtrar tus ingresos y gastos.</p>
-      ${seccion("Dimensiones de clasificación de activos")}
-      <div class="rejilla">
-        ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimensiones" rows="4" placeholder="Clase de activo: Renta variable, Renta fija, Liquidez, Alternativos\nGeografía: Global, EEUU, Europa, Emergentes"></textarea>', "", "ancho")}
-      </div>
-      <p class="ayuda">Ejes propios para clasificar tus activos (además de Tipo y Entidad). A cada activo le asignas un valor por eje en su ficha; luego puedes agrupar y filtrar <b>Distribución</b>, <b>Reparto %</b> y <b>Estructura</b> por ellos. Los valores tras los dos puntos son sugerencias; en la ficha del activo puedes escribir otro.</p>
-      ${seccion("Avisos automáticos")}
-      <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
-      <div class="rejilla">
-        ${(E.avisosCatalogo || []).map(a => `<label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
-          <span><b>${esc(a.nombre)}</b><small>${esc(a.desc)}${a.umbral ? ` · Se ajusta con «${esc(UMBRAL_NOMBRE[a.umbral] || a.umbral)}»` : ""}</small></span></label>`).join("")}
-      </div>
-      ${seccion("Privacidad")}
-      <div class="rejilla">
-        <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
-          <span><b>Buscar actualizaciones</b><small>Si lo activas, la app comprueba en GitHub (una vez al día) si hay una versión nueva. Apagado, la app no sale a internet salvo para descargar los precios. Viene apagado.</small></span></label>
+
+      <div class="cfgPanel" data-cfgp="flujos" hidden>
+        ${seccion("Categorías de ingresos y gastos")}
+        <div class="rejilla">
+          ${campo("Categorías de ingresos (una por línea)", '<textarea name="catIng" rows="3" placeholder="Nómina\nAlquileres cobrados\nIntereses y dividendos"></textarea>', "", "ancho")}
+          ${campo("Categorías de gastos (una por línea; opcional «= presupuesto»)", '<textarea name="catGas" rows="5" placeholder="Vivienda = 750\nAlimentación = 600\nTransporte\nOcio = 250"></textarea>', "", "ancho")}
+        </div>
+        <p class="ayuda">Aparecen en el desplegable al anotar. En los gastos puedes añadir un presupuesto mensual con
+          «= importe» (p. ej. <code>Alimentación = 600</code>); el Panel te dirá si te pasas. Si las dejas vacías, escribes la categoría a mano.</p>
+        ${seccion("Reglas para categorizar el banco")}
+        <div class="rejilla">
+          ${campo("Una regla por línea: «palabra = Categoría»", '<textarea name="reglasCat" rows="4" placeholder="mercadona = Alimentación\niberdrola = Suministros\nnetflix = Ocio y restaurantes"></textarea>', "", "ancho")}
+        </div>
+        <p class="ayuda">Al <b>importar movimientos del banco</b>, si el concepto contiene esa palabra se asigna esa categoría
+          (si existe y es del tipo correcto). Tienen prioridad sobre las que trae la app. Al importar puedes marcar
+          «recordar mis correcciones» y se añaden aquí solas.</p>
+        ${seccion("Marcas de apuntes")}
+        <div class="rejilla">
+          ${campo("Una marca por línea: «emoji» o «emoji = nombre»", '<textarea name="marcasTxt" rows="7" placeholder="👁️ = Revisar\n❗ = Importante\n❓ = Duda\n🔖 = Seguimiento\n⚠️ = Incidencia\n📎 = Justificante\n✅ = Verificado"></textarea>', "el nombre es opcional", "ancho")}
+        </div>
+        <p class="ayuda">Pon un <b>emoji</b> por línea (y, si quieres, un nombre tras «=»). En <b>Ingresos y gastos</b> eliges la marca de cada apunte con el desplegable de su fila (solo el icono) y puedes filtrar por marca (ahí sí sale el nombre, si lo pusiste).</p>
+        ${seccion("Entidades / bancos")}
+        <div class="rejilla">
+          ${campo("Una entidad por línea", '<textarea name="entidadesTxt" rows="3" placeholder="BBVA\nING\nRevolut\nEfectivo"></textarea>', "", "ancho")}
+        </div>
+        <p class="ayuda">Define tus bancos o cuentas. Al <b>importar</b> del banco eliges a cuál corresponde esa importación y se asigna a todos sus apuntes. Luego puedes <b>filtrar y analizar</b> Ingresos y gastos por entidad.</p>
+        ${seccion("Dimensiones de ingresos y gastos")}
+        <div class="rejilla">
+          ${campo("Una dimensión por línea: «Nombre: valor1, valor2, …»", '<textarea name="dimFlujos" rows="3" placeholder="Necesidad: Fijo, Variable, Caprichos\nProyecto: Casa, Viaje, Coche"></textarea>', "", "ancho")}
+        </div>
+        <p class="ayuda">Como las dimensiones de activos, pero para los apuntes: ejes propios para clasificar y filtrar tus ingresos y gastos.</p>
+        ${seccion("Recordatorio «sin anotar»")}
+        <div class="rejilla">
+          ${campo("Avisar si no anoto nada", '<input name="diasSinAnotar" inputmode="numeric" placeholder="30">', "días sin registrar ingresos/gastos")}
+        </div>
+        <p class="ayuda">La app te recuerda que lleves al día tus ingresos y gastos si pasan estos días sin anotar ninguno. Déjalo vacío para no recibir el aviso.</p>
       </div>`,
     async f => {
       const d = campos(f);
@@ -972,6 +999,14 @@
     f.elements.entidadesTxt.value = (conf.entidades || []).join("\n");
     f.elements.dimFlujos.value = (conf.dimensionesFlujos || [])
       .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
+    // Pestañas del modal: General / Activos / Ingresos y gastos. Todas las secciones
+    // siguen en el DOM (solo se ocultan), así que «Guardar» guarda el formulario entero.
+    const paneles = f.querySelectorAll(".cfgPanel");
+    f.querySelectorAll(".cfgTab").forEach(bt => bt.onclick = () => {
+      f.querySelectorAll(".cfgTab").forEach(x => x.classList.toggle("activa", x === bt));
+      paneles.forEach(p => { p.hidden = p.dataset.cfgp !== bt.dataset.cfg; });
+      const cuerpo = f.querySelector(".mCuerpo"); if (cuerpo) cuerpo.scrollTop = 0;
+    });
     return f;
   }
 
@@ -1241,6 +1276,25 @@
     const fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
     return filtraFlujos(fs);
   }
+  // Ir a «Ingresos y gastos» y SELECCIONAR un apunte concreto (resaltado + scroll).
+  // Lo usa «Ver apunte» de la pestaña Facturas. Si algún filtro deja el apunte fuera,
+  // se limpian los filtros para que se vea.
+  function irAFlujo(fid) {
+    E.resaltaFlujo = fid;
+    if (!flujosFiltrados().some(x => x.id === fid)) {
+      E.flujoFiltros = { dim: {} };
+      try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* da igual */ }
+    }
+    E.vista = "flujos";
+    recuerda.guarda("patrimonio.editor", "flujos");
+    pinta();
+    requestAnimationFrame(() => {
+      const fila = document.getElementById("fila-flujo-" + fid);
+      if (!fila) { E.resaltaFlujo = null; return; }
+      try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
+      setTimeout(() => { fila.classList.remove("resaltado"); E.resaltaFlujo = null; }, 2600);
+    });
+  }
   function filasFlujosHTML(fs) {
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
@@ -1252,7 +1306,7 @@
     const factInd = x => { const n = (x.adjuntos || []).length; return n
       ? `<button class="factBtn tiene" data-acc="verFact" data-id="${esc(x.id)}" title="${n} factura${n > 1 ? "s" : ""} — pulsa para verlas">📎${n > 1 ? `<span class="factN">${n}</span>` : ""}</button>`
       : `<button class="factBtn add" data-acc="verFact" data-id="${esc(x.id)}" title="Adjuntar factura">📎</button>`; };
-    return fs.map(x => `<tr>
+    return fs.map(x => `<tr id="fila-flujo-${esc(x.id)}"${x.id === E.resaltaFlujo ? ' class="resaltado"' : ""}>
       <td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
@@ -1278,6 +1332,26 @@
     const c = document.getElementById("flujosContador");
     if (c) c.innerHTML = hayFiltroFlujos()
       ? `<p class="subt" style="margin:10px 0 0">Mostrando <b>${fs.length}</b> de ${(E.cfg.flujos || []).length} apuntes.</p>` : "";
+    // El botón «Limpiar filtros» vive en la barra; como las fechas hacen este refresco
+    // ligero (sin reconstruir la barra, para no perder el foco), hay que mostrarlo u
+    // ocultarlo a mano. Antes no aparecía al poner SOLO un rango de fechas.
+    const F = filtrosFlujos(), hay = hayFiltroFlujos();
+    const spanFechas = document.querySelector('#tab-datos [data-ff="fdesde"]');
+    const campoFechas = spanFechas && spanFechas.closest(".filtroCampo");
+    if (campoFechas) {
+      campoFechas.classList.toggle("activo", !!(F.fdesde || F.fhasta));
+      let lb = document.querySelector("#tab-datos [data-ff-limpiar]");
+      if (hay && !lb) {
+        lb = document.createElement("button");
+        lb.type = "button";
+        lb.className = "btn mini filtroQuitar";
+        lb.setAttribute("data-ff-limpiar", "");
+        lb.textContent = "✕ Limpiar filtros";
+        campoFechas.parentNode.insertBefore(lb, campoFechas.nextSibling);
+      }
+      if (lb && !hay) lb.remove();
+      else if (lb) lb.onclick = () => { E.flujoFiltros = { dim: {} }; try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* */ } pinta(); };
+    }
   }
   function vistaFlujos() {
     const fs = flujosFiltrados();
@@ -1330,15 +1404,16 @@
       if (busca) items = items.filter(i => ((i.a.nombre || "") + " " + (i.fl.categoria || "") + " " + (i.fl.entidad || "") + " " + (i.fl.nota || "") + " " + (i.fl.observaciones || "")).toLowerCase().includes(busca));
       items.sort((x, y) => (!!y.a.importante - !!x.a.importante) || (x.fl.fecha < y.fl.fecha ? 1 : x.fl.fecha > y.fl.fecha ? -1 : 0));
       if (!items.length) { cont.innerHTML = `<p class="subt" style="margin-top:12px">${total ? "Ninguna factura coincide con el filtro." : "Todavía no has adjuntado ninguna factura. Hazlo desde la columna 📎 de «Ingresos y gastos»."}</p>`; return; }
-      cont.innerHTML = `<div class="factGrid">${items.map(i => {
+      cont.innerHTML = `<div class="factRows">${items.map(i => {
         const fl = i.fl, a = i.a, signo = fl.tipo === "gasto" ? "−" : "";
-        return `<div class="factCard${a.importante ? " imp" : ""}">
+        return `<div class="factRow${a.importante ? " imp" : ""}">
           <a class="factAbrir" href="${urlAdj(i.fid, a)}" target="_blank" rel="noopener" title="Abrir la factura"><span class="factIco">${iconoAdj(a)}</span><span class="factNom">${esc(a.nombre)}</span></a>
-          <div class="factMeta">${fecha(fl.fecha)} · <b class="${fl.tipo === "ingreso" ? "pos" : "neg"}">${signo}${eur(fl.importe)}</b>${fl.categoria ? " · " + esc(fl.categoria) : ""}${fl.entidad ? " · " + esc(fl.entidad) : ""}</div>
-          <div class="factPie"><span class="adjTam">${tamHum(a.tam)}</span><span class="sp"></span>
-            <button type="button" class="adjEstrella${a.importante ? " on" : ""}" data-fimp="${esc(i.fid)}|${esc(a.id)}" title="Marcar/quitar importante" aria-label="Importante">★</button>
-            <button type="button" class="btn mini" data-fver="${esc(i.fid)}">Ver apunte</button>
-            <button type="button" class="btn mini" data-fdel="${esc(i.fid)}|${esc(a.id)}">Quitar</button></div></div>`;
+          <span class="factMeta">${fecha(fl.fecha)} · <b class="${fl.tipo === "ingreso" ? "pos" : "neg"}">${signo}${eur(fl.importe)}</b>${fl.categoria ? " · " + esc(fl.categoria) : ""}${fl.entidad ? " · " + esc(fl.entidad) : ""}</span>
+          <span class="sp"></span>
+          <span class="adjTam">${tamHum(a.tam)}</span>
+          <button type="button" class="adjEstrella${a.importante ? " on" : ""}" data-fimp="${esc(i.fid)}|${esc(a.id)}" title="Marcar/quitar importante" aria-label="Importante">★</button>
+          <button type="button" class="btn mini" data-fver="${esc(i.fid)}">Ver apunte</button>
+          <button type="button" class="btn mini" data-fdel="${esc(i.fid)}|${esc(a.id)}">Quitar</button></div>`;
       }).join("")}</div>`;
       cont.querySelectorAll("[data-fimp]").forEach(b => b.onclick = async () => {
         const [fid, aid] = b.dataset.fimp.split("|");
@@ -1350,7 +1425,7 @@
         if (!confirm("¿Quitar esta factura? Se borrará de tu ordenador.")) return;
         try { const j = await api("POST", "api/flujo-adjunto-quitar", { flujo: fid, adjunto: aid }); E.cfg = j.cartera; montaFacturas(); } catch (x) { alert(x.message); }
       });
-      cont.querySelectorAll("[data-fver]").forEach(b => b.onclick = () => { E.vista = "flujos"; recuerda.guarda("patrimonio.editor", "flujos"); pinta(); });
+      cont.querySelectorAll("[data-fver]").forEach(b => b.onclick = () => irAFlujo(b.dataset.fver));
     }
     const bq = $("#factBusca"); if (bq) bq.oninput = e => { E.factBusca = e.target.value; const pos = bq.selectionStart; pintaLista(); const nb = $("#factBusca"); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (_) { /* */ } } };
     const chk = $("#factSoloImp"); if (chk) chk.onchange = e => { E.factImp = e.target.checked; pintaLista(); };
@@ -2661,6 +2736,15 @@
         E.vista = v; recuerda.guarda("patrimonio.editor", v);
       }
       pinta();
+    },
+    // Ir a «Saldos y movimientos» y abrir el formulario de movimiento con un producto
+    // precargado. Lo usa el «+» de «Aportaciones a este producto» del Panel.
+    nuevoMovimiento(productId) {
+      E.vista = "saldos";
+      recuerda.guarda("patrimonio.editor", "saldos");
+      const tab = document.querySelector('[data-tab="datos"]');
+      if (tab) tab.click(); else pinta();
+      formMovimiento(null, productId);
     },
     // Abrir la pestaña Notas y mostrar las notas enlazadas a una entidad (activo/deuda/
     // reservado), resaltadas. Lo usan los indicadores «📝» del resto de la app.
