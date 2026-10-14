@@ -7,6 +7,7 @@ referencia. Carpeta temporal, sin red. Modo «propio» (cartera.json suelto en D
 import io
 import json
 import os
+import zipfile
 
 
 def _prepara(tmp_path, monkeypatch):
@@ -70,9 +71,46 @@ def test_borrar_apunte_conserva_sus_facturas(tmp_path, monkeypatch):
     r = client.delete("/api/flujos/f1")
     j = r.get_json()
     assert j["ok"] is True
-    # La factura es independiente: NO se borra; se conserva con su nombre legible.
+    # La factura es independiente: NO se borra; se conserva con su nombre descriptivo.
     assert not os.path.exists(os.path.join(adj_dir, a["archivo"]))   # ya no con el nombre aleatorio
     h = j["adjuntosHuerfanos"]
-    assert h["archivos"] == ["factura_luz.pdf"]
-    assert os.path.exists(os.path.join(adj_dir, "factura_luz.pdf"))
+    assert h["archivos"] == ["2026-01-10 - 50€ - Alimentación - factura luz.pdf"]
+    assert os.path.exists(os.path.join(adj_dir, h["archivos"][0]))
     assert h["carpeta"] == os.path.abspath(adj_dir)
+
+
+def test_zip_export_import_no_pierde_facturas(tmp_path, monkeypatch):
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    # Sube una factura al apunte f1 (gasto 50 €, Alimentación, 2026-01-10).
+    data = {"id": "f1", "archivo": (io.BytesIO(b"%PDF datos factura"), "ticket compra.pdf")}
+    client.post("/api/flujo-adjunto", data=data, content_type="multipart/form-data")
+    desc = "2026-01-10 - 50€ - Alimentación - ticket compra.pdf"
+
+    # Exporta el .zip: cartera.json + adjuntos/ con nombre descriptivo y ref reescrita.
+    r = client.get("/api/copia/descargar?formato=zip")
+    assert r.status_code == 200 and r.mimetype == "application/zip"
+    zip_bytes = r.data
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
+        assert "cartera.json" in z.namelist()
+        assert "adjuntos/" + desc in z.namelist()
+        assert z.read("adjuntos/" + desc) == b"%PDF datos factura"
+        cfg_zip = json.loads(z.read("cartera.json"))
+        assert cfg_zip["flujos"][0]["adjuntos"][0]["archivo"] == desc
+
+    # Simula una pérdida: quita la factura del apunte (borra su archivo).
+    adj_id = _carga(servidor)["flujos"][0]["adjuntos"][0]["id"]
+    client.post("/api/flujo-adjunto-quitar", json={"flujo": "f1", "adjunto": adj_id})
+    assert not _carga(servidor)["flujos"][0].get("adjuntos")
+
+    # Restaura el .zip: la factura VUELVE, con el ref del zip y el archivo en disco.
+    r = client.post("/api/copia/subir",
+                    data={"archivo": (io.BytesIO(zip_bytes), "copia.zip")},
+                    content_type="multipart/form-data")
+    assert r.get_json()["ok"] is True
+    adj = _carga(servidor)["flujos"][0]["adjuntos"][0]
+    assert adj["archivo"] == desc
+    ruta = os.path.join(str(tmp_path), "adjuntos", desc)
+    assert os.path.exists(ruta)
+    with open(ruta, "rb") as fh:
+        assert fh.read() == b"%PDF datos factura"

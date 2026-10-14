@@ -9,6 +9,7 @@ a internet solo se sale para descargar precios.
 
 import copy
 import datetime as dt
+import io
 import json
 import logging
 import os
@@ -21,10 +22,10 @@ import threading
 import time
 import urllib.request
 import webbrowser
+import zipfile
 
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.serving import make_server
-from werkzeug.utils import secure_filename
 
 from . import almacen, buscar, exportar, importar, motor, plantilla
 
@@ -140,6 +141,12 @@ def _app_dir():
     return os.path.join(DATOS, "app")
 
 
+def _demo_dir():
+    # Archivos de trabajo de la DEMO (cálculo, estado, histórico, caché). Van dentro de
+    # app/ para que la raíz de mis_datos tenga SOLO app/ y carteras/.
+    return os.path.join(_app_dir(), "demo")
+
+
 def registro():
     # Nuevo sitio (app/registro.json); si no, el de la raíz (layout antiguo).
     r = lee_json(os.path.join(_app_dir(), "registro.json"))
@@ -184,9 +191,22 @@ def migra_layout():
         if os.path.exists(viejo_reg) and not os.path.exists(nuevo_reg):
             os.makedirs(_app_dir(), exist_ok=True)
             os.replace(viejo_reg, nuevo_reg)
-        asegura_multi()   # cartera suelta del modo antiguo -> carteras/<id>/
+        asegura_multi()       # cartera suelta del modo antiguo -> carteras/<id>/
+        _migra_demo_a_app()   # archivos de la demo sueltos en la raíz -> app/demo/
     except OSError:
         pass   # si algo está bloqueado, se intentará en el próximo arranque
+
+
+def _migra_demo_a_app():
+    """Mueve a app/demo/ los archivos de trabajo de la demo que las versiones anteriores
+    dejaban sueltos en la raíz de mis_datos (cálculo, estado, histórico y caché). Solo
+    mueve si existe el origen y NO existe el destino: idempotente y no destructivo."""
+    destino = _demo_dir()
+    for n in ("calculado_demo.json", "estado.json", "historico.json", "cache"):
+        viejo, nuevo = os.path.join(DATOS, n), os.path.join(destino, n)
+        if os.path.exists(viejo) and not os.path.exists(nuevo):
+            os.makedirs(destino, exist_ok=True)
+            os.replace(viejo, nuevo)
 
 
 def carteras():
@@ -222,8 +242,8 @@ def dir_activa():
 
 
 def carpeta():
-    """Dónde leer/escribir cartera, cálculo, estado y copias. En demo, DATOS."""
-    return dir_activa() or DATOS
+    """Dónde leer/escribir cartera, cálculo, estado y copias. En demo, app/demo/."""
+    return dir_activa() or _demo_dir()
 
 
 def modo():
@@ -388,7 +408,7 @@ def api_borrar(coleccion, ident):
         adjs = (fl or {}).get("adjuntos", []) or []
     resp = cambia(lambda cfg: BORRAR[coleccion](cfg, ident))
     if adjs and not isinstance(resp, tuple):   # tuple = error (jsonify, código); Response = OK
-        huerfanos = _conserva_adjuntos_huerfanos(adjs)
+        huerfanos = _conserva_adjuntos_huerfanos(fl, adjs)
         if huerfanos["archivos"]:
             data = resp.get_json()
             data["adjuntosHuerfanos"] = huerfanos
@@ -396,21 +416,17 @@ def api_borrar(coleccion, ident):
     return resp
 
 
-def _conserva_adjuntos_huerfanos(adjs):
-    """Al borrar un apunte, sus facturas NO se borran: se renombran a un nombre legible
-    (el original) en la carpeta «adjuntos», para que el usuario las encuentre. Devuelve
-    la carpeta y los nombres finales."""
+def _conserva_adjuntos_huerfanos(fl, adjs):
+    """Al borrar un apunte, sus facturas NO se borran: se renombran a su nombre
+    descriptivo (fecha - importe - concepto - original) en la carpeta «adjuntos», para
+    que el usuario las encuentre. Devuelve la carpeta y los nombres finales."""
     adj_dir = os.path.join(carpeta(), "adjuntos")
-    finales = []
+    finales, usados = [], {n.lower() for n in os.listdir(adj_dir)} if os.path.isdir(adj_dir) else set()
     for a in adjs:
         origen = os.path.join(adj_dir, os.path.basename(a.get("archivo") or ""))
         if not os.path.exists(origen):
             continue
-        base = secure_filename(a.get("nombre") or "") or ("factura" + os.path.splitext(origen)[1])
-        root, ext = os.path.splitext(base)
-        destino, i = os.path.join(adj_dir, base), 2
-        while os.path.exists(destino):
-            destino, i = os.path.join(adj_dir, f"{root} ({i}){ext}"), i + 1
+        destino = os.path.join(adj_dir, _nombre_factura(fl or {}, a, usados))
         try:
             os.rename(origen, destino)
             finales.append(os.path.basename(destino))
@@ -861,6 +877,76 @@ def crea_desde_copia(cfg, nombre):
     return cid
 
 
+# ---- copia en .zip (cartera.json + facturas con nombre descriptivo) ----
+
+def _san_nombre(s, maximo=60):
+    """Sanea un trozo para usarlo en un nombre de archivo (quita caracteres ilegales,
+    respeta tildes y espacios) y lo acorta."""
+    s = re.sub(r'[\\/:*?"<>|\x00-\x1f]', " ", str(s or ""))
+    s = re.sub(r"\s+", " ", s).strip()
+    return s[:maximo].strip()
+
+
+def _nombre_factura(fl, adj, usados):
+    """Nombre descriptivo para una factura dentro del zip:
+    «AAAA-MM-DD - IMPORTE€ - CONCEPTO/CATEGORÍA - nombre_original.ext». Dedup con (2), (3)…"""
+    fecha = (fl.get("fecha") or "")[:10]
+    try:
+        imp_txt = format(float(fl.get("importe")), "g").replace(".", ",") + "€"
+    except (TypeError, ValueError):
+        imp_txt = ""
+    concepto = _san_nombre(fl.get("nota") or fl.get("categoria") or "apunte", 60)
+    original = _san_nombre(adj.get("nombre") or "factura", 80)
+    root, ext = os.path.splitext(original)
+    base = " - ".join(p for p in (fecha, imp_txt, concepto, root) if p)[:150].strip() or "factura"
+    nombre, i = base + ext, 2
+    while nombre.lower() in usados:
+        nombre, i = f"{base} ({i}){ext}", i + 1
+    usados.add(nombre.lower())
+    return nombre
+
+
+def _zip_cartera():
+    """Construye en memoria un .zip con la cartera actual y sus facturas renombradas
+    descriptivamente; reescribe las referencias en el cartera.json del zip para que se
+    restaure sin perder ningún enlace. Solo lee (no toca nada en disco)."""
+    cfg = copy.deepcopy(cartera())
+    adj_dir = os.path.join(carpeta(), "adjuntos")
+    buf, usados = io.BytesIO(), set()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
+        for fl in cfg.get("flujos", []):
+            for adj in fl.get("adjuntos", []):
+                origen = os.path.join(adj_dir, os.path.basename(adj.get("archivo") or ""))
+                if os.path.exists(origen):
+                    nombre = _nombre_factura(fl, adj, usados)
+                    z.write(origen, "adjuntos/" + nombre)
+                    adj["archivo"] = nombre     # referencia -> nombre descriptivo
+        z.writestr("cartera.json", json.dumps(cfg, ensure_ascii=False, indent=1))
+    return buf.getvalue()
+
+
+def _escribe_adjuntos(destino, adjuntos):
+    """Vuelca las facturas extraídas de un zip en la carpeta de adjuntos de una cartera."""
+    if not adjuntos:
+        return
+    os.makedirs(destino, exist_ok=True)
+    for nombre, data in adjuntos.items():
+        safe = os.path.basename(nombre)     # seguridad: solo el nombre, sin rutas
+        if safe:
+            with open(os.path.join(destino, safe), "wb") as fh:
+                fh.write(data)
+
+
+def _respalda_adjuntos():
+    """Antes de restaurar (sustituir), mueve las facturas actuales a una copia con sello,
+    para no perder NINGUNA aunque el zip traiga otras con el mismo nombre."""
+    adj = os.path.join(carpeta(), "adjuntos")
+    if os.path.isdir(adj) and os.listdir(adj):
+        os.makedirs(ruta_copias(), exist_ok=True)
+        sello = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
+        os.rename(adj, os.path.join(ruta_copias(), f"adjuntos_antes_de_recuperar_{sello}"))
+
+
 @app.get("/api/copias")
 def api_copias():
     lista = []
@@ -885,32 +971,49 @@ def api_copias():
 def api_copia_descargar():
     if modo() != "propio":
         return jsonify(ok=False, errores=["Todavía no tienes una cartera propia que guardar."]), 400
+    slug = almacen.slug(cartera().get("titular") or "patrimonio", set())
+    base = f"copia_patrimonio_{slug}_{dt.date.today().isoformat()}"
+    # Con ?formato=zip: la cartera + las facturas (nombre descriptivo). Si no, solo el .json.
+    if request.args.get("formato") == "zip":
+        return Response(_zip_cartera(), mimetype="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{base}.zip"'})
     with open(os.path.join(carpeta(), "cartera.json"), "rb") as f:
         contenido = f.read()
-    # Nombre del archivo: "copia_patrimonio_<nombre>_<fecha>.json" (el nombre, saneado a ASCII).
-    slug = almacen.slug(cartera().get("titular") or "patrimonio", set())
-    nombre = f"copia_patrimonio_{slug}_{dt.date.today().isoformat()}.json"
     return Response(contenido, mimetype="application/json",
-                    headers={"Content-Disposition": f'attachment; filename="{nombre}"'})
+                    headers={"Content-Disposition": f'attachment; filename="{base}.json"'})
 
 
 @app.post("/api/copia/subir")
 def api_copia_subir():
-    """Importa una copia descargada antes (por ejemplo, al cambiar de ordenador)."""
+    """Importa una copia descargada antes (al cambiar de ordenador, etc.). Acepta el
+    .json de siempre y el .zip nuevo (que incluye las facturas)."""
     f = request.files.get("archivo")
     if not f:
-        return jsonify(ok=False, errores=["Elige el archivo de la copia (termina en .json)."]), 400
+        return jsonify(ok=False, errores=["Elige el archivo de la copia (.json o .zip)."]), 400
+    raw = f.read()
+    es_zip = (f.filename or "").lower().endswith(".zip") or raw[:2] == b"PK"
+    adjuntos = {}
     try:
-        cfg = valida_copia(json.loads(importar.decodifica(f.read())))
-    except ValueError:
+        if es_zip:
+            with zipfile.ZipFile(io.BytesIO(raw)) as z:
+                cfg = valida_copia(json.loads(z.read("cartera.json").decode("utf-8")))
+                adjuntos = {os.path.basename(n): z.read(n) for n in z.namelist()
+                            if n.startswith("adjuntos/") and not n.endswith("/")}
+        else:
+            cfg = valida_copia(json.loads(importar.decodifica(raw)))
+    except (ValueError, KeyError, zipfile.BadZipFile):
         return jsonify(ok=False, errores=["Ese archivo no es una copia de seguridad de esta app."]), 400
     except almacen.ErrorValidacion as e:
         return jsonify(ok=False, errores=e.errores), 400
     # «nuevo»: crea un patrimonio aparte con la copia; por defecto, sustituye el actual.
     if request.form.get("destino") == "nuevo":
-        crea_desde_copia(cfg, request.form.get("nombre"))
+        cid = crea_desde_copia(cfg, request.form.get("nombre"))
+        _escribe_adjuntos(os.path.join(_carteras_dir(), cid, "adjuntos"), adjuntos)
     else:
+        if adjuntos:
+            _respalda_adjuntos()   # pone a salvo las facturas actuales antes de sustituir
         restaura(cfg)
+        _escribe_adjuntos(os.path.join(carpeta(), "adjuntos"), adjuntos)
     return jsonify(ok=True)
 
 
