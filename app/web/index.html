@@ -184,6 +184,8 @@ table.dt tbody tr:hover .factBtn.add{opacity:.5}
 /* Apunte resaltado al llegar desde «Ver apunte» (Facturas): destello que se desvanece. */
 table.dt tr.resaltado>td{background:color-mix(in srgb,var(--s1) 18%,transparent);transition:background .6s ease}
 table.dt tr.resaltado>td:first-child{box-shadow:inset 3px 0 0 var(--s1)}
+table.dt tr.filaClic{cursor:pointer}
+table.dt tr.filaClic:hover>td{background:color-mix(in srgb,var(--s1) 9%,transparent)}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
 .filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
@@ -670,7 +672,10 @@ input[type=range]{width:100%;accent-color:var(--s1);height:22px}
 [hidden]{display:none !important}
 .btn.prim{background:var(--s1);border-color:transparent;color:#fff;font-weight:600}
 .btn.prim:hover{filter:brightness(1.1);color:#fff;background:var(--s1)}
-body.sinDatos #tabs button:not([data-tab="datos"]):not([data-tab="ayuda"]):not([data-tab="ajustes"]),body.sinDatos #btnPrecios,body.sinDatos #metaFecha{display:none}
+body.sinDatos #tabs button:not([data-tab="datos"]),body.sinDatos #btnPrecios,body.sinDatos #metaFecha{display:none}
+.icoBtn{padding:7px 11px;font-size:15px;line-height:1}
+.icoBtn[aria-selected="true"]{background:var(--s1);border-color:transparent;color:#fff}
+.volverBar{margin:6px 0 2px}
 
 /* ---- Mis datos ---- */
 .sp{flex:1}
@@ -966,6 +971,58 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 /* Paleta de acciones (Ctrl/⌘+K) */
 dialog.paleta{padding:0;border:none;background:none;margin-top:9vh}
 dialog.paleta::backdrop{background:rgba(0,0,0,.45)}
+/* ---- Novedades de la versión ---- */
+dialog.novedades{border:none;background:none;padding:0}
+dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
+.novCuerpo{width:min(540px,94vw);max-height:86vh;overflow:auto;background:var(--sup);border:1px solid var(--borde);
+  border-radius:18px;box-shadow:0 24px 70px rgba(0,0,0,.4);padding:26px 26px 22px}
+.novCab{text-align:center;margin-bottom:18px}
+.novVer{display:inline-block;font-size:12px;font-weight:700;color:#fff;background:var(--s1);border-radius:999px;padding:3px 11px;margin-bottom:10px}
+.novCab h2{margin:0 0 4px;font-size:21px}
+.novLista{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:14px}
+.novLista li{display:flex;gap:13px;align-items:flex-start}
+.novIco{font-size:22px;flex:0 0 auto;line-height:1.2}
+.novLista li div{display:flex;flex-direction:column;gap:2px}
+.novLista li b{font-size:14.5px}
+.novLista li span{font-size:13.5px;color:var(--tinta2);line-height:1.4}
+.novPie{margin-top:22px;text-align:center}
+.novPie .btn{padding:10px 22px;font-size:15px}
+/* ---- Panel de inicio (resumen) ---- */
+.inicioHero{margin-top:8px}
+.inicioTit{font-size:14px;color:var(--tinta2);font-weight:600;margin:22px 0 10px;letter-spacing:.01em}
+.inicioGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:860px){.inicioGrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:460px){.inicioGrid{grid-template-columns:1fr}}
+.inicioTile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;
+  background:var(--sup);border:1px solid var(--borde);border-radius:14px;padding:15px 16px;cursor:pointer;
+  font:inherit;color:var(--tinta);transition:transform .08s ease,border-color .15s ease,box-shadow .15s ease}
+.inicioTile:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:0 8px 24px rgba(0,0,0,.1)}
+.inicioTile .itIco{font-size:20px}
+.inicioTile .itVal{font-size:22px;font-weight:700;line-height:1.1}
+.inicioTile .itEtq{font-size:13.5px;font-weight:600}
+.inicioTile .itSub{font-size:12px;color:var(--tinta2)}
+.inicioTile.ok .itVal{color:var(--s7,#2a9d6f)}
+.inicioTile.warn .itVal{color:var(--s2,#d4604a)}
+/* ---- Biblioteca de documentos ---- */
+.bibMigas{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:14px 0 10px;font-size:13.5px}
+.bibMiga{background:none;border:0;color:var(--s1);font:inherit;font-size:13.5px;cursor:pointer;padding:2px 4px;border-radius:7px}
+.bibMiga:hover{background:var(--sup2)}
+.bibSep{color:var(--tinta2)}
+.bibZona{border:1.5px dashed transparent;border-radius:14px;transition:border-color .15s ease,background .15s ease;min-height:90px}
+.bibZona.bibDrag{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 7%,transparent)}
+.bibVacio{text-align:center;color:var(--tinta2);padding:34px 18px;line-height:1.6}
+.bibLista{display:flex;flex-direction:column;gap:7px;padding:2px}
+.bibItem{display:flex;align-items:center;gap:11px;background:var(--sup2);border:1px solid var(--borde);
+  border-radius:11px;padding:9px 12px}
+.bibItem:hover{border-color:color-mix(in srgb,var(--s1) 35%,var(--borde))}
+.bibIco{font-size:19px;flex:0 0 auto}
+.bibNom{flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+  font:inherit;font-size:14.5px;font-weight:600;color:var(--tinta);text-decoration:none;background:none;border:0;text-align:left;cursor:pointer}
+a.bibNom:hover,button.bibNom:hover{color:var(--s1);text-decoration:underline}
+.bibMeta{flex:0 0 auto;color:var(--tinta2);font-size:12.5px;white-space:nowrap}
+.bibAcc{flex:0 0 auto;display:flex;gap:4px;align-items:center}
+.bibAcc .btn.mini{padding:4px 8px;text-decoration:none}
+@media(max-width:620px){.bibItem{flex-wrap:wrap}.bibNom{flex:1 1 100%}.bibMeta{order:3}.bibAcc{margin-left:auto}}
 .palCuerpo{width:min(560px,92vw);background:var(--sup);border:1px solid var(--borde);border-radius:16px;
   box-shadow:0 20px 60px rgba(0,0,0,.35);overflow:hidden}
 #palInput{width:100%;box-sizing:border-box;border:0;border-bottom:1px solid var(--borde);background:none;
@@ -1154,13 +1211,13 @@ body.video .tarjetaCanal{display:none}
       <button class="btn" id="btnPaleta" title="Buscar e ir a cualquier sitio (Ctrl+K)" aria-label="Buscar acciones">🔍 Buscar <kbd>⌘K</kbd></button>
       <button class="btn" id="btnPrecios" title="Descarga los precios de hoy de cada producto">↻ Actualizar precios</button>
       <button class="btn" id="btnImprimir" title="Imprimir esta vista o guardarla como PDF (elige «Guardar como PDF» en el destino)">🖨 Imprimir</button>
+      <button class="btn icoBtn" id="btnAyuda" data-tab="ayuda" role="tab" aria-selected="false" title="Ayuda" aria-label="Ayuda">❓</button>
+      <button class="btn icoBtn" id="btnAjustes" data-tab="ajustes" role="tab" aria-selected="false" title="Ajustes" aria-label="Ajustes">⚙️</button>
     </div>
     <nav class="tabs tabsPrin" id="tabs" role="tablist">
       <button data-tab="panel" role="tab" aria-selected="true">📊 Panel</button>
       <button data-tab="datos" role="tab" aria-selected="false">✏️ Mis datos</button>
       <button data-tab="notas" role="tab" aria-selected="false">📝 Notas</button>
-      <button data-tab="ayuda" role="tab" aria-selected="false">❓ Ayuda</button>
-      <button data-tab="ajustes" role="tab" aria-selected="false">⚙️ Ajustes</button>
     </nav>
   </div>
 </div>
@@ -1178,7 +1235,8 @@ body.video .tarjetaCanal{display:none}
 <div class="panel" id="tab-panel" role="tabpanel">
 
   <nav class="subtabs" id="subtabs" role="tablist">
-    <button data-pv="patrimonio" aria-selected="true">Patrimonio</button>
+    <button data-pv="inicio" aria-selected="true">Inicio</button>
+    <button data-pv="patrimonio" aria-selected="false">Patrimonio</button>
     <button data-pv="distribucion" aria-selected="false">Distribución</button>
     <button data-pv="rentabilidad" aria-selected="false">Rentabilidad</button>
     <button data-pv="evolucion" aria-selected="false">Evolución</button>
@@ -1192,8 +1250,13 @@ body.video .tarjetaCanal{display:none}
   <div id="resultadoPeriodo" hidden></div>
   <div id="bannerAlertas" class="bannerAlertas"></div>
 
+  <!-- ===== INICIO (resumen de un vistazo) ===== -->
+  <div class="pv" id="pv-inicio" hidden>
+    <div id="inicioCuerpo"></div>
+  </div>
+
   <!-- ===== PATRIMONIO ===== -->
-  <div class="pv" id="pv-patrimonio">
+  <div class="pv" id="pv-patrimonio" hidden>
     <div id="resumenMes"></div>
     <section class="hero">
       <div class="hEtq" id="heroEtq">Patrimonio neto</div>
@@ -1255,6 +1318,7 @@ body.video .tarjetaCanal{display:none}
 
   <!-- ===== PRODUCTO (detalle, se abre desde Distribución) ===== -->
   <div class="pv" id="pv-producto" hidden>
+    <div class="volverBar"><button class="btn mini" id="btnVolverDist" type="button" title="Volver al listado de componentes">← Volver a Distribución</button></div>
     <div class="selFondo" id="selFondo" style="margin-top:8px"></div>
     <section class="tarjeta" id="fondoFicha"></section>
     <section class="tarjeta" id="fondoExpo" hidden></section>

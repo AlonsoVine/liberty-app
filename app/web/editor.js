@@ -1303,6 +1303,23 @@
       setTimeout(() => { fila.classList.remove("resaltado"); E.resaltaFlujo = null; }, 2600);
     });
   }
+  // Ir a «Saldos y movimientos» y SELECCIONAR un movimiento concreto (resaltado + scroll).
+  // Lo usan las listas de aportaciones del Panel (ficha de un componente). Filtra por su
+  // producto para que la fila esté a la vista.
+  function irAMovimiento(movId, prodId) {
+    E.vista = "movimientos";
+    recuerda.guarda("patrimonio.editor", "movimientos");
+    if (prodId) E.filtro = prodId;
+    E.resaltaMov = movId;
+    const tab = document.querySelector('[data-tab="datos"]');
+    if (tab) tab.click(); else pinta();
+    requestAnimationFrame(() => {
+      const fila = document.getElementById("fila-mov-" + movId);
+      if (!fila) { E.resaltaMov = null; return; }
+      try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
+      setTimeout(() => { fila.classList.remove("resaltado"); E.resaltaMov = null; }, 2600);
+    });
+  }
   function filasFlujosHTML(fs) {
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
@@ -1502,7 +1519,7 @@
     const filas = movs.map(m => {
       const p = prod(m.producto);
       const precio = m.unidades ? (m.importe - (m.comision || 0)) / m.unidades : null;
-      return `<tr><td>${fecha(m.fecha)}</td><td style="text-align:left">${p ? `<i class="pt" style="background:var(--s${p.slot || 1})"></i>` : ""}${esc(nombre(p))}</td>
+      return `<tr id="fila-mov-${esc(m.id)}"${m.id === E.resaltaMov ? ' class="resaltado"' : ""}><td>${fecha(m.fecha)}</td><td style="text-align:left">${p ? `<i class="pt" style="background:var(--s${p.slot || 1})"></i>` : ""}${esc(nombre(p))}</td>
         <td style="text-align:left">${esc(E.tiposMov[m.tipo] || m.tipo)}</td>
         <td>${m.unidades ? num(m.unidades) : "—"}</td>
         <td class="${m.tipo === "compra" || m.tipo === "comision" ? "" : "pos"}">${eur(m.importe)}</td>
@@ -2751,6 +2768,203 @@
     cont.querySelectorAll("[data-cnuevo]").forEach(c => c.onclick = () => formRecordatorio(null, c.dataset.cnuevo));
   }
 
+  /* ================================================================
+     NOTAS · BIBLIOTECA DE DOCUMENTOS (gestor de archivos integrado)
+     ================================================================ */
+  function bibData() {
+    const b = (E.cfg && E.cfg.biblioteca) || {};
+    return { carpetas: b.carpetas || [], archivos: b.archivos || [] };
+  }
+  async function bibPost(url, body) {
+    const j = await api("POST", url, body);
+    E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+    return j;
+  }
+  function bibDescendientes(id) {
+    const { carpetas } = bibData();
+    const hijos = {};
+    carpetas.forEach(c => (hijos[c.padre || ""] = hijos[c.padre || ""] || []).push(c.id));
+    const set = new Set([id]), pila = [id];
+    while (pila.length) { const x = pila.pop(); (hijos[x] || []).forEach(h => { if (!set.has(h)) { set.add(h); pila.push(h); } }); }
+    return set;
+  }
+  function bibOpcionesCarpetas(excluir) {
+    const { carpetas } = bibData();
+    const hijos = {};
+    carpetas.forEach(c => (hijos[c.padre || ""] = hijos[c.padre || ""] || []).push(c));
+    const out = [{ id: "", nombre: "🗂️ Biblioteca (raíz)" }];
+    const rec = (padre, prof) => {
+      (hijos[padre || ""] || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).forEach(c => {
+        if (excluir && excluir.has(c.id)) return;
+        out.push({ id: c.id, nombre: "  ".repeat(prof) + "📁 " + c.nombre });
+        rec(c.id, prof + 1);
+      });
+    };
+    rec("", 1);
+    return out;
+  }
+  const bibFmtTam = b => { b = +b || 0; return b < 1024 ? b + " B" : b < 1048576 ? (b / 1024).toFixed(0) + " KB" : (b / 1048576).toFixed(1) + " MB"; };
+  function bibIcono(a) {
+    const t = (a.tipo || "").toLowerCase(), n = (a.nombre || "").toLowerCase();
+    if (t.includes("pdf") || n.endsWith(".pdf")) return "📄";
+    if (t.startsWith("image/") || /\.(png|jpe?g|gif|webp|heic|bmp|svg)$/.test(n)) return "🖼️";
+    if (/zip|rar|7z|compress/.test(t) || /\.(zip|rar|7z|gz)$/.test(n)) return "🗜️";
+    if (/sheet|excel|csv/.test(t) || /\.(xlsx?|csv|ods)$/.test(n)) return "📊";
+    if (/word|document/.test(t) && !/sheet/.test(t) || /\.(docx?|odt|rtf)$/.test(n)) return "📝";
+    if (t.startsWith("text/") || /\.(txt|md)$/.test(n)) return "📃";
+    return "📎";
+  }
+  function bibNuevaCarpeta() {
+    const f = abreModal("Nueva carpeta", `<div class="campo"><label>Nombre de la carpeta</label>
+      <input name="nombre" maxlength="120" placeholder="Por ejemplo: Hacienda 2025" autocomplete="off"></div>`,
+      async f => {
+        const d = campos(f);
+        if (!d.nombre.trim()) throw new Error("Ponle un nombre a la carpeta.");
+        await bibPost("api/biblioteca/carpeta", { nombre: d.nombre.trim(), padre: E.bibCarpeta || null });
+        return () => pintarNotas();
+      }, "Crear carpeta");
+    setTimeout(() => { const i = f.elements.nombre; if (i) i.focus(); }, 30);
+  }
+  function bibRenombra(tipo, id, actual) {
+    const f = abreModal(tipo === "carpeta" ? "Renombrar carpeta" : "Renombrar archivo",
+      `<div class="campo"><label>Nombre</label><input name="nombre" maxlength="200" value="${esc(actual)}" autocomplete="off"></div>`,
+      async f => {
+        const d = campos(f);
+        if (!d.nombre.trim()) throw new Error("El nombre no puede quedar vacío.");
+        await bibPost("api/biblioteca/renombra", { tipo, id, nombre: d.nombre.trim() });
+        return () => pintarNotas();
+      });
+    setTimeout(() => { const i = f.elements.nombre; if (i) { i.focus(); i.select(); } }, 30);
+  }
+  function bibMover(tipo, id) {
+    const excl = tipo === "carpeta" ? bibDescendientes(id) : null;
+    const ops = bibOpcionesCarpetas(excl);
+    abreModal("Mover a…", `<div class="campo"><label>Carpeta de destino</label>
+      <select name="destino">${ops.map(o => `<option value="${esc(o.id)}">${esc(o.nombre)}</option>`).join("")}</select></div>`,
+      async f => {
+        const d = campos(f);
+        await bibPost("api/biblioteca/mover", { tipo, id, destino: d.destino || null });
+        return () => pintarNotas();
+      }, "Mover");
+  }
+  async function bibBorraCarpeta(id, nombre) {
+    const { archivos } = bibData();
+    const desc = bibDescendientes(id);
+    const nArch = archivos.filter(a => desc.has(a.carpeta)).length;
+    const nSub = desc.size - 1;
+    let msg = `¿Borrar la carpeta «${nombre}»?`;
+    if (nArch || nSub) msg += `\n\nSe borrarán también ${nSub} subcarpeta(s) y ${nArch} archivo(s), que se eliminan de tu ordenador. No se puede deshacer.`;
+    if (!confirm(msg)) return;
+    try {
+      await bibPost("api/biblioteca/carpeta-borra", { id });
+      if (E.bibCarpeta && desc.has(E.bibCarpeta)) E.bibCarpeta = null;
+      if (window.toast) window.toast("Borrado ✓");
+      pintarNotas();
+    } catch (x) { alert(x.message); }
+  }
+  async function bibBorraArchivo(id, nombre) {
+    if (!confirm(`¿Borrar «${nombre}»? Se elimina de tu ordenador. No se puede deshacer.`)) return;
+    try {
+      await bibPost("api/biblioteca/borrar", { id });
+      if (window.toast) window.toast("Borrado ✓");
+      pintarNotas();
+    } catch (x) { alert(x.message); }
+  }
+  async function bibSube(archivos) {
+    for (const file of archivos) {
+      const fd = new FormData();
+      fd.append("archivo", file);
+      if (E.bibCarpeta) fd.append("carpeta", E.bibCarpeta);
+      try {
+        const r = await fetch("api/biblioteca/subir", { method: "POST", body: fd });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) throw new Error((j.errores || ["No se pudo subir."]).join("\n"));
+        E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+      } catch (x) { alert(`No se pudo subir «${file.name}»: ${x.message}`); }
+    }
+    if (window.toast) window.toast("Subido ✓");
+    pintarNotas();
+  }
+  function montaBiblioteca() {
+    const cont = $("#notasCuerpo"); if (!cont) return;
+    const { carpetas, archivos } = bibData();
+    if (E.bibCarpeta && !carpetas.some(c => c.id === E.bibCarpeta)) E.bibCarpeta = null;
+    const aqui = E.bibCarpeta || null;
+    const subcar = carpetas.filter(c => (c.padre || null) === aqui).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    const misArch = archivos.filter(a => (a.carpeta || null) === aqui).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+
+    // migas de pan (ruta desde la raíz)
+    const idx = {}; carpetas.forEach(x => idx[x.id] = x);
+    const ruta = []; let c = aqui;
+    while (c) { const x = idx[c]; if (!x) break; ruta.unshift(x); c = x.padre || null; }
+    const migas = `<nav class="bibMigas"><button type="button" class="bibMiga" data-ir="">🗂️ Biblioteca</button>`
+      + ruta.map(x => `<span class="bibSep">›</span><button type="button" class="bibMiga" data-ir="${esc(x.id)}">${esc(x.nombre)}</button>`).join("") + `</nav>`;
+
+    const nSub = id => { const d = bibDescendientes(id); return { carp: d.size - 1, arch: archivos.filter(a => d.has(a.carpeta)).length }; };
+    const filaCarpeta = c => {
+      const n = nSub(c.id);
+      const resumen = (n.carp || n.arch)
+        ? `${n.arch} archivo${n.arch === 1 ? "" : "s"}${n.carp ? `, ${n.carp} carpeta${n.carp === 1 ? "" : "s"}` : ""}`
+        : "vacía";
+      return `<div class="bibItem">
+        <span class="bibIco">📁</span>
+        <button type="button" class="bibNom" data-abrir="${esc(c.id)}" title="Abrir carpeta">${esc(c.nombre)}</button>
+        <span class="bibMeta">${resumen}</span>
+        <span class="bibAcc">
+          <button type="button" class="btn mini" data-ren="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Renombrar">✎</button>
+          <button type="button" class="btn mini" data-mov="carpeta" data-id="${esc(c.id)}" title="Mover a otra carpeta">↪</button>
+          <button type="button" class="btn mini" data-delc="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Borrar carpeta">🗑</button>
+        </span></div>`;
+    };
+    const filaArchivo = a => `<div class="bibItem">
+        <span class="bibIco">${bibIcono(a)}</span>
+        <a class="bibNom" href="api/biblioteca/archivo/${esc(a.id)}" target="_blank" rel="noopener" title="Abrir / ver">${esc(a.nombre)}</a>
+        <span class="bibMeta">${bibFmtTam(a.tam)}${a.fecha ? " · " + fecha(a.fecha.slice(0, 10)) : ""}</span>
+        <span class="bibAcc">
+          <a class="btn mini" href="api/biblioteca/archivo/${esc(a.id)}?descargar=1" title="Descargar">⬇</a>
+          <button type="button" class="btn mini" data-ren="archivo" data-id="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Renombrar">✎</button>
+          <button type="button" class="btn mini" data-mov="archivo" data-id="${esc(a.id)}" title="Mover a otra carpeta">↪</button>
+          <button type="button" class="btn mini" data-dela="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Borrar archivo">🗑</button>
+        </span></div>`;
+
+    const vacio = !subcar.length && !misArch.length;
+    cont.innerHTML = `<section class="tarjeta bibWrap">
+        <header><h2>Biblioteca de documentos</h2>
+          <span class="subt">Guarda aquí tus documentos importantes (Hacienda, escrituras, contratos…). Todo se queda en tu ordenador, en «mis_datos».</span>
+          <span class="sp"></span>
+          <button class="btn" data-acc="bibNueva">+ Nueva carpeta</button>
+          <button class="btn prim" data-acc="bibSubir">⬆ Subir archivos</button>
+          <input type="file" id="bibFile" multiple hidden></header>
+        ${migas}
+        <div class="bibZona" id="bibZona">
+          ${vacio
+        ? `<p class="bibVacio">Esta carpeta está vacía.<br>Arrastra aquí tus archivos o pulsa <b>«⬆ Subir archivos»</b>.
+             <br><span class="subt">Admite cualquier tipo de archivo (PDF, imágenes, hojas de cálculo, Word…), hasta 50 MB cada uno.</span></p>`
+        : `<div class="bibLista">${subcar.map(filaCarpeta).join("")}${misArch.map(filaArchivo).join("")}</div>`}
+        </div></section>`;
+
+    cont.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => { E.bibCarpeta = b.dataset.ir || null; pintarNotas(); });
+    cont.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => { E.bibCarpeta = b.dataset.abrir; pintarNotas(); });
+    cont.querySelector('[data-acc="bibNueva"]').onclick = bibNuevaCarpeta;
+    const file = $("#bibFile");
+    cont.querySelector('[data-acc="bibSubir"]').onclick = () => file.click();
+    file.onchange = () => { if (file.files && file.files.length) bibSube([...file.files]); };
+    cont.querySelectorAll("[data-ren]").forEach(b => b.onclick = () => bibRenombra(b.dataset.ren, b.dataset.id, b.dataset.nom));
+    cont.querySelectorAll("[data-mov]").forEach(b => b.onclick = () => bibMover(b.dataset.mov, b.dataset.id));
+    cont.querySelectorAll("[data-delc]").forEach(b => b.onclick = () => bibBorraCarpeta(b.dataset.delc, b.dataset.nom));
+    cont.querySelectorAll("[data-dela]").forEach(b => b.onclick = () => bibBorraArchivo(b.dataset.dela, b.dataset.nom));
+    const zona = $("#bibZona");
+    if (zona) {
+      zona.ondragover = e => { e.preventDefault(); zona.classList.add("bibDrag"); };
+      zona.ondragleave = () => zona.classList.remove("bibDrag");
+      zona.ondrop = e => {
+        e.preventDefault(); zona.classList.remove("bibDrag");
+        const fs = e.dataTransfer && e.dataTransfer.files;
+        if (fs && fs.length) bibSube([...fs]);
+      };
+    }
+  }
+
   function pintarNotas() {
     const cont = $("#notas"); if (!cont) return;
     if (E.modo !== "propio") {
@@ -2762,12 +2976,16 @@
     cont.innerHTML = `<div class="segm notasNav">
         <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
         <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button>
-        <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button></div>
+        <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button>
+        <button data-nv="biblioteca" aria-pressed="${v === "biblioteca"}">🗂️ Biblioteca</button></div>
       <div id="notasCuerpo"></div>`;
     cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
       E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
     });
-    if (v === "tablero") montaTablero(); else if (v === "agenda") montaAgenda(); else montaNotasLista();
+    if (v === "tablero") montaTablero();
+    else if (v === "agenda") montaAgenda();
+    else if (v === "biblioteca") montaBiblioteca();
+    else montaNotasLista();
   }
   E.notasVista = recuerda.lee("patrimonio.notasVista") || "lista";
   E.notaOrden = recuerda.lee("patrimonio.notaOrden") || "fecha";
@@ -2791,6 +3009,16 @@
       const tab = document.querySelector('[data-tab="datos"]');
       if (tab) tab.click(); else pinta();
       formMovimiento(null, productId);
+    },
+    // Ir a un movimiento concreto y resaltarlo (desde las listas de aportaciones del Panel).
+    irAMovimiento,
+    // Abrir la pestaña Notas directamente en la Biblioteca de documentos.
+    biblioteca() {
+      E.notasVista = "biblioteca";
+      recuerda.guarda("patrimonio.notasVista", "biblioteca");
+      const tab = document.querySelector('[data-tab="notas"]');
+      if (tab) tab.click();
+      pintarNotas();
     },
     // Abrir la pestaña Notas y mostrar las notas enlazadas a una entidad (activo/deuda/
     // reservado), resaltadas. Lo usan los indicadores «📝» del resto de la app.

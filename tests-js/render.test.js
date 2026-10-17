@@ -129,7 +129,7 @@ test("el borrado de cartera pide confirmación (botón bloqueado hasta marcar)",
 
 test("la pestaña Ajustes muestra los controles y se aplican", () => {
   const { window, errores } = montaPanel();
-  window.document.querySelector('#tabs button[data-tab="ajustes"]').click();
+  window.document.querySelector('[data-tab="ajustes"]').click();
   const cont = window.document.getElementById("ajustesCont");
   assert.ok(cont.querySelectorAll(".ajusteSeg").length >= 5, "debería haber varios ajustes");
   cont.querySelector('.ajusteSeg[data-pref="ocultar"] button[data-val="1"]').click();

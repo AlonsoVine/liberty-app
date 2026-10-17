@@ -159,7 +159,7 @@
 
   const estado = {
     tab: "panel",
-    pv: "patrimonio",
+    pv: "inicio",
     titular: "todos",
     rango: "todo",
     vista: "apilado",
@@ -1706,6 +1706,75 @@
     cont.innerHTML = avisos + resumen + ventas + rend;
   }
 
+  /* ================================================================
+     PANEL · INICIO (resumen de un vistazo de TODA la app)
+     ================================================================ */
+  function pintaInicio(m) {
+    const cont = $("#inicioCuerpo"); if (!cont) return;
+    const t = D.total || {};
+    const C = D.conteos || {};
+    const em = (D.flujos && D.flujos.esteMes) || null;
+    const ir = pv => () => irVista(pv);
+    const irDatos = v => () => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
+    const irBib = () => { if (window.Editor && window.Editor.biblioteca) window.Editor.biblioteca(); else irA("notas"); };
+    const nAlertas = (D.alertas || []).length;
+    const nVenc = (D.vencimientos || []).length;
+    const vn = t.variacion && t.variacion.neto;
+    const varEur = vn && vn.varMes != null ? vn.varMes : null;
+    const varPct = vn && vn.varMes != null && vn.hace1Mes ? vn.varMes / vn.hace1Mes : null;
+
+    // Tarjeta grande: patrimonio neto.
+    let html = `<section class="hero inicioHero">
+        <div class="hEtq">Tu patrimonio neto</div>
+        <div class="hCifra">${G.fmtEur(t.patrimonioNeto != null ? t.patrimonioNeto : t.patrimonio || 0, 0)}</div>
+        <div class="hSub">${varEur != null
+          ? `<span class="${varEur >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(varEur, 0)}${varPct != null ? " · " + G.fmtPctSigno(varPct, 1) : ""}</span> desde el mes pasado`
+          : "Lo que tienes menos lo que debes"}</div>
+      </section>`;
+
+    // Tres bloques: patrimonio, día a día (ingresos/gastos) y tu archivo (facturas/documentos).
+    const tile = (ico, etq, valor, sub, onclick, cls) =>
+      `<button class="inicioTile${cls ? " " + cls : ""}" type="button" data-go="${onclick}">
+        <span class="itIco">${ico}</span>
+        <span class="itVal">${valor}</span>
+        <span class="itEtq">${esc(etq)}</span>
+        ${sub ? `<span class="itSub">${esc(sub)}</span>` : ""}</button>`;
+
+    html += `<h3 class="inicioTit">Tu patrimonio</h3><div class="inicioGrid">
+      ${tile("💼", "Activos", G.fmtEur(t.patrimonioBruto || 0, 0), `${C.activos || 0} componente${C.activos === 1 ? "" : "s"}`, "distribucion")}
+      ${tile("🏦", "Deudas", G.fmtEur(t.deudas || 0, 0), t.deudas ? "lo que debes" : "sin deudas", "deudas")}
+      ${tile("💧", "Dinero libre", G.fmtEur(t.dineroLibre || 0, 0), "listo para invertir", "patrimonio")}
+      ${tile("📈", "Evolución", "Ver", "cómo crece en el tiempo", "evolucion")}
+    </div>`;
+
+    if (em) {
+      html += `<h3 class="inicioTit">Este mes</h3><div class="inicioGrid">
+        ${tile("➕", "Ingresos", G.fmtEur(em.ingresos || 0, 0), "este mes", "ingresos", "ok")}
+        ${tile("➖", "Gastos", G.fmtEur(em.gastos || 0, 0), "este mes", "ingresos", "warn")}
+        ${tile("🐷", "Ahorro", G.fmtEur(em.ahorro || 0, 0), em.tasaAhorro != null ? G.fmtPct(em.tasaAhorro, 0) + " de tus ingresos" : "este mes", "ingresos")}
+        ${tile("🧾", "Facturas", String(C.facturas || 0), "tickets y facturas guardados", "facturas")}
+      </div>`;
+    }
+
+    html += `<h3 class="inicioTit">Tu archivo y tus avisos</h3><div class="inicioGrid">
+      ${tile("🗂️", "Documentos", String(C.documentos || 0), "en tu biblioteca", "biblioteca")}
+      ${tile("🧾", "Apuntes", String(C.apuntes || 0), "ingresos y gastos anotados", "ingresos")}
+      ${tile("⚠️", "Avisos", String(nAlertas), nAlertas ? "cosas que revisar" : "todo en orden", "patrimonio", nAlertas ? "warn" : "")}
+      ${tile("📅", "Vencimientos", String(nVenc), "próximos", "deudas")}
+    </div>`;
+
+    cont.innerHTML = html;
+    const acciones = {
+      inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
+      evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
+      facturas: irDatos("facturas"), biblioteca: irBib,
+    };
+    cont.querySelectorAll("[data-go]").forEach(b => {
+      const fn = acciones[b.dataset.go];
+      if (fn) b.onclick = fn;
+    });
+  }
+
   function pintaPatrimonio() {
     const mTodo = metricas(TODOS());
     const mVis = filtrando() ? metricas(visibles()) : mTodo;
@@ -1727,7 +1796,8 @@
     pintaChips();
     pintaHitos(mTodo);
     // Gráficos: solo los de la vista visible (un SVG en un panel oculto sale con ancho 0).
-    if (pv === "evolucion") { pintaPrincipal(mVis); pintaBarras(); pintaMes(); pintaEvolucionHogar(); pintaCtrlInflacion(); }
+    if (pv === "inicio") pintaInicio(mTodo);
+    else if (pv === "evolucion") { pintaPrincipal(mVis); pintaBarras(); pintaMes(); pintaEvolucionHogar(); pintaCtrlInflacion(); }
     else if (pv === "distribucion") {
       const modo = estado.distModo || "anillo";
       $("#distDonutWrap").hidden = modo !== "anillo";
@@ -1999,6 +2069,10 @@
     }
 
     const verVL = hayVL && estado.serieDetalle === "vl";
+    // Las deudas tienen serie negativa: si anclamos el eje en 0 la escala colapsa y la
+    // curva se dibuja fuera del gráfico. En ese caso dejamos que el eje se adapte.
+    const serieVista = corta(verVL ? p.navSerie : p.serie);
+    const hayNegativos = serieVista.some(v => v != null && v < 0);
     const paleta = tonos(color(p));
     const fechas = corta(D.fechas);
     const eventos = (p.aportaciones || []).filter(a => a.importe).map(a => {
@@ -2010,8 +2084,8 @@
     });
     G.lineaConEventos($("#grafFondo"), {
       fechas,
-      valores: corta(verVL ? p.navSerie : p.serie),
-      color: color(p), alto: 280, eventos, desdeCero: !verVL,
+      valores: serieVista,
+      color: color(p), alto: 280, eventos, desdeCero: !verVL && !hayNegativos,
       overlay: verVL ? null : ((p.serieAportado || []).some(v => v)
         ? { nombre: "Aportado", valores: corta(p.serieAportado) } : null),
       formatoY: verVL ? (v => G.fmtEur(v, v > 500 ? 0 : 2)) : null,
@@ -2089,7 +2163,8 @@
           const rt = pl != null && a.importe ? pl / a.importe : null;
           const dias = Math.round((hoy - new Date(a.fecha)) / 864e5);
           const niv = a.nivel == null ? 1 : a.nivel;
-          return `<tr><td>${G.fmtFecha(a.fecha)}</td>
+          const clic = a.movId && D.modo === "propio";
+          return `<tr${clic ? ` class="filaClic" data-mov="${esc(a.movId)}" title="Ver este movimiento en «Saldos y movimientos»"` : ""}><td>${G.fmtFecha(a.fecha)}</td>
             <td><i class="pt" style="background:${paleta[niv]}"></i>${G.fmtEur(a.importe)}</td>
             <td>${G.nfNum.format(a.participaciones || 0)}</td>
             <td>${a.precio != null ? G.fmtEur(a.precio) : "—"}</td>
@@ -2100,6 +2175,9 @@
         }).join("")}</tbody></table></div>`;
     const bm = $("#btnNuevaAportacion");
     if (bm) bm.onclick = () => window.Editor.nuevoMovimiento(p.id);
+    sec.querySelectorAll("[data-mov]").forEach(tr => tr.onclick = () => {
+      if (window.Editor && window.Editor.irAMovimiento) window.Editor.irAMovimiento(tr.dataset.mov, p.id);
+    });
   }
 
   /* ================================================================
@@ -2258,8 +2336,54 @@
     }
   }
   (function cargaVersion() {
-    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); pintaAvisoVersion(); }).catch(() => { /* sin red: nada */ });
+    fetch("api/version").then(r => r.json()).then(v => { VERINFO = v; pintaPieVersion(); pintaAvisoVersion(); quizaNovedades(); }).catch(() => { /* sin red: nada */ });
   })();
+
+  // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
+  // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
+  const NOVEDADES = {
+    version: "1.10.0",
+    titulo: "Novedades de esta versión",
+    puntos: [
+      ["🗂️", "Biblioteca de documentos", "En «Notas» tienes una biblioteca para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en las carpetas que quieras. Todo en tu ordenador."],
+      ["🏠", "Panel de inicio", "Un nuevo resumen que reúne de un vistazo tu patrimonio, tus ingresos y gastos, tus facturas y tus documentos, con accesos directos a cada sección."],
+      ["🧭", "Moverte mejor", "Ayuda y Ajustes ahora están arriba a la derecha. Desde la ficha de un componente puedes «Volver a Distribución» con un botón, y en el buscador (⌘K) Ayuda y Ajustes salen las primeras."],
+      ["👆", "Aportaciones enlazadas", "En la ficha de un componente, pulsa una fila de «Aportaciones» para ir directo a ese movimiento en «Saldos y movimientos»."],
+      ["📉", "Gráfico de deudas", "Arreglada la curva de los préstamos y deudas en su ficha (el eje ya se adapta a los valores negativos)."],
+    ],
+  };
+  function quizaNovedades() {
+    try {
+      if (!VERINFO || !VERINFO.actual) return;
+      if (D.modo !== "propio" || !(D.productos || []).length) return;   // demo o sin datos: nada
+      if (NOVEDADES.version !== VERINFO.actual) return;                 // solo las de la versión instalada
+      if (recuerda.lee("patrimonio.novedadesVistas") === VERINFO.actual) return;
+      muestraNovedades();
+    } catch (e) { /* nunca debe romper el arranque */ }
+  }
+  function muestraNovedades() {
+    let dlg = $("#dlgNovedades");
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.id = "dlgNovedades"; dlg.className = "modal novedades";
+      document.body.appendChild(dlg);
+    }
+    dlg.innerHTML = `<div class="novCuerpo">
+        <div class="novCab"><span class="novVer">Liberty v${esc(VERINFO.actual)}</span>
+          <h2>${esc(NOVEDADES.titulo)}</h2>
+          <p class="subt">Esto es lo nuevo desde la última vez. Tus datos siguen intactos.</p></div>
+        <ul class="novLista">${NOVEDADES.puntos.map(p => `<li>
+          <span class="novIco">${p[0]}</span>
+          <div><b>${esc(p[1])}</b><span>${esc(p[2])}</span></div></li>`).join("")}</ul>
+        <div class="novPie"><button class="btn prim" id="novOk">¡Genial, a verlo!</button></div></div>`;
+    const cierra = () => {
+      try { recuerda.guarda("patrimonio.novedadesVistas", VERINFO.actual); } catch (e) { /* da igual */ }
+      try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); }
+    };
+    dlg.querySelector("#novOk").onclick = cierra;
+    dlg.addEventListener("click", e => { if (e.target === dlg) cierra(); });
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+  }
 
   function pintaComun() {
     $("#avisos").innerHTML = (D.avisos || [])
@@ -2332,7 +2456,7 @@
       return;
     }
     estado.tab = tab;
-    document.querySelectorAll("#tabs button").forEach(b =>
+    document.querySelectorAll("[data-tab]").forEach(b =>
       b.setAttribute("aria-selected", String(b.dataset.tab === tab)));
     document.querySelectorAll(".panel").forEach(p => { p.hidden = p.id !== "tab-" + tab; });
     // «Imprimir» solo tiene sentido en el Panel (imprime la vista activa del panel).
@@ -2483,7 +2607,7 @@
   const PASOS_TOUR = [
     // --- Panel: entender tus cifras ---
     { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», lo ves a un día concreto, a fin de un mes o en un rango (y cuánto ganaste en ese tramo).", antes: () => { irA("panel"); irVista("patrimonio"); } },
-    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Siete vistas para analizarlo todo: Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos e Informe fiscal. Con las teclas 1–7 saltas al instante.", antes: () => irVista("patrimonio") },
+    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Empiezas en «Inicio», un resumen de todo. Y tienes siete vistas más para analizarlo: Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos e Informe fiscal. Con las teclas 1–8 saltas al instante.", antes: () => irVista("inicio") },
     { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero, por tipo, titular o tus propias dimensiones. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada cosa para volver a tus objetivos.", antes: () => irVista("distribucion") },
     { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo crece tu patrimonio en el tiempo. Enciende y apaga componentes en la leyenda, míralo mes a mes o en reparto %, y compáralo con un indexado. Las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
     { sel: "#igNav", tit: "Ingresos y gastos", txt: "Entiende tu dinero: Resumen (con la cascada y tu tasa de ahorro), Categorías (en qué se va), Tendencias (mes a mes y mapa de calor) y Presupuesto con semáforo.", antes: () => irVista("ingresos") },
@@ -2498,7 +2622,7 @@
     { sel: '[data-acc="imDestino"]', tit: "Importar tus datos", txt: "Tráelos de golpe. Elige qué importar: «Activos e inversiones» (MyInvestor, plantilla Excel/CSV o con ayuda de una IA) o «Datos del banco» (tus ingresos y gastos). Consejo: asigna la ENTIDAD (banco) al importar — así luego el Panel te da métricas y análisis por entidad.", antes: () => irMisDatos("importar") },
     { sel: "#imZona", tit: "Copias de seguridad", txt: "Descarga una copia cuando quieras: el «.zip» incluye tus datos y tus facturas (con nombres descriptivos); el «.json» es más ligero. Para recuperar, arrastra aquí un .json o .zip. Y antes de cada cambio se guarda una copia automática.", antes: () => irMisDatos("copias") },
     // --- Organización y ajustes ---
-    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, y una Agenda con calendario que reúne tus recordatorios y los vencimientos que la app detecta.", antes: () => irA("panel") },
+    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, una Agenda con calendario y una Biblioteca para guardar tus documentos importantes (Hacienda, escrituras, contratos…), todo en tu ordenador.", antes: () => irA("panel") },
     { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
   ];
   function iniciaTour() {
@@ -2655,9 +2779,12 @@
   const _norm = s => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   function construyeComandos() {
     const c = [];
+    // Ayuda y Ajustes van siempre las primeras de la lista (lo pidió el usuario).
+    c.push({ ico: "❓", label: "Ayuda", run: () => irA("ayuda") });
+    c.push({ ico: "⚙️", label: "Ajustes", run: () => irA("ajustes") });
     const irPanel = pv => () => { if (estado.tab !== "panel") irA("panel"); irVista(pv); };
     const irDatos = v => () => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
-    const pvN = { patrimonio: "Patrimonio", distribucion: "Distribución", rentabilidad: "Rentabilidad", evolucion: "Evolución", ingresos: "Ingresos y gastos", deudas: "Deudas y vencimientos", fiscal: "Informe fiscal" };
+    const pvN = { inicio: "Inicio", patrimonio: "Patrimonio", distribucion: "Distribución", rentabilidad: "Rentabilidad", evolucion: "Evolución", ingresos: "Ingresos y gastos", deudas: "Deudas y vencimientos", fiscal: "Informe fiscal" };
     Object.entries(pvN).forEach(([pv, nm]) => { if (document.getElementById("pv-" + pv)) c.push({ ico: "📊", label: "Panel · " + nm, hint: "ver", run: irPanel(pv) }); });
     c.push({ ico: "⚡", label: "Anotar un gasto o ingreso", hint: "acción", run: irDatos("flujos") });
     c.push({ ico: "➕", label: "Añadir un activo", hint: "acción", run: irDatos("activos") });
@@ -2666,8 +2793,6 @@
     if ($("#btnPrecios") && !$("#btnPrecios").hidden) c.push({ ico: "↻", label: "Actualizar precios", hint: "acción", run: () => $("#btnPrecios").click() });
     const dv = { activos: "Activos", deudas: "Deudas", apartados: "Reservados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
-    c.push({ ico: "❓", label: "Ayuda", run: () => irA("ayuda") });
-    c.push({ ico: "⚙️", label: "Ajustes", run: () => irA("ajustes") });
     c.push({ ico: "⌨️", label: "Ver atajos de teclado", run: () => muestraAtajos() });
     (D.productos || []).forEach(p => c.push({ ico: "🔎", label: p.corto || p.nombre, hint: "activo", run: () => { estado.fondo = p.id; if (estado.tab !== "panel") irA("panel"); irVista("producto"); } }));
     return c;
@@ -2739,8 +2864,9 @@
     }
   };
   if (location.protocol === "file:" && $("#btnPrecios")) $("#btnPrecios").hidden = true;
-  document.querySelectorAll("#tabs button").forEach(b => { b.onclick = () => irA(b.dataset.tab); });
+  document.querySelectorAll("[data-tab]").forEach(b => { b.onclick = () => irA(b.dataset.tab); });
   document.querySelectorAll("#subtabs button").forEach(b => { b.onclick = () => irVista(b.dataset.pv); });
+  if ($("#btnVolverDist")) $("#btnVolverDist").onclick = () => irVista("distribucion");
   document.querySelectorAll("#igNav button").forEach(b => {
     b.onclick = () => { estado.ig = b.dataset.ig; recuerda.guarda("patrimonio.ig", b.dataset.ig); pintaIngresos(); };
   });
@@ -2780,9 +2906,9 @@
     }
     if (e.key === "?") { muestraAtajos(); return; }
     if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); abrePaleta(); return; }
-    // Teclas 1-7: sub-pestañas del Panel.
-    const n = "1234567".indexOf(e.key);
-    const pv = ["patrimonio", "distribucion", "rentabilidad", "evolucion", "ingresos", "deudas", "fiscal"][n];
+    // Teclas 1-8: sub-pestañas del Panel.
+    const n = "12345678".indexOf(e.key);
+    const pv = ["inicio", "patrimonio", "distribucion", "rentabilidad", "evolucion", "ingresos", "deudas", "fiscal"][n];
     if (n >= 0 && pv && document.getElementById("pv-" + pv)) { if (estado.tab !== "panel") irA("panel"); irVista(pv); }
   });
 
@@ -2797,7 +2923,7 @@
   if (pvGuardada === "estructura") { pvGuardada = "distribucion"; estado.distModo = "mapa"; }  // la antigua pestaña se fusionó
   if (pvGuardada && document.getElementById("pv-" + pvGuardada)) estado.pv = pvGuardada;
   estado.distModo = estado.distModo || recuerda.lee("patrimonio.distModo") || "anillo";
-  document.querySelectorAll("#tabs button").forEach(b =>
+  document.querySelectorAll("[data-tab]").forEach(b =>
     b.setAttribute("aria-selected", String(b.dataset.tab === estado.tab)));
   document.querySelectorAll(".panel").forEach(p => { p.hidden = p.id !== "tab-" + estado.tab; });
   document.querySelectorAll(".pv").forEach(el => { el.hidden = el.id !== "pv-" + estado.pv; });

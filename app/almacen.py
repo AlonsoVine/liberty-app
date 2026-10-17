@@ -942,3 +942,141 @@ def marca_adjunto(cfg, fid, adj_id, importante):
     else:
         adj.pop("importante", None)
     return adj
+
+
+# ---------------------------------------------------------------- biblioteca
+# Un gestor de archivos sencillo dentro de la cartera: carpetas anidadas y archivos.
+# Los metadatos viven en cfg["biblioteca"]; los ficheros, en «biblioteca/» del disco.
+MAX_CARPETAS = 300
+MAX_ARCHIVOS = 3000
+MAX_PROF_CARPETA = 10          # niveles de anidamiento
+
+
+def _biblioteca(cfg):
+    b = cfg.setdefault("biblioteca", {})
+    b.setdefault("carpetas", [])
+    b.setdefault("archivos", [])
+    return b
+
+
+def _prof_carpeta(carpetas, cid):
+    """Cuántos niveles cuelga una carpeta de la raíz (la raíz es 0)."""
+    idx = {c["id"]: c for c in carpetas}
+    prof, visto = 0, set()
+    while cid and cid not in visto:
+        visto.add(cid)
+        c = idx.get(cid)
+        if not c:
+            break
+        cid = c.get("padre")
+        prof += 1
+    return prof
+
+
+def _existe_carpeta(cfg, cid):
+    return cid is None or any(c["id"] == cid for c in _biblioteca(cfg)["carpetas"])
+
+
+def biblioteca_crea_carpeta(cfg, car_id, nombre, padre):
+    b = _biblioteca(cfg)
+    nombre = texto(nombre, 120)
+    if not nombre:
+        raise ErrorValidacion(["Ponle un nombre a la carpeta."])
+    if len(b["carpetas"]) >= MAX_CARPETAS:
+        raise ErrorValidacion([f"Has llegado al máximo de {MAX_CARPETAS} carpetas."])
+    padre = texto(padre, 40) or None
+    if not _existe_carpeta(cfg, padre):
+        raise ErrorValidacion(["La carpeta donde quieres crearla ya no existe."])
+    if padre and _prof_carpeta(b["carpetas"], padre) >= MAX_PROF_CARPETA:
+        raise ErrorValidacion([f"No puedes anidar más de {MAX_PROF_CARPETA} niveles de carpetas."])
+    car = {"id": texto(car_id, 40), "nombre": nombre, "padre": padre}
+    b["carpetas"].append(car)
+    return car
+
+
+def biblioteca_renombra(cfg, tipo, ident, nombre):
+    b = _biblioteca(cfg)
+    nombre = texto(nombre, 200 if tipo == "archivo" else 120)
+    if not nombre:
+        raise ErrorValidacion(["El nombre no puede quedar vacío."])
+    col = b["archivos"] if tipo == "archivo" else b["carpetas"]
+    it = next((x for x in col if x.get("id") == ident), None)
+    if not it:
+        raise ErrorValidacion(["Ese elemento ya no está."])
+    it["nombre"] = nombre
+    return it
+
+
+def biblioteca_mueve(cfg, tipo, ident, destino):
+    """Mueve un archivo o una carpeta a otra carpeta (destino None = raíz)."""
+    b = _biblioteca(cfg)
+    destino = texto(destino, 40) or None
+    if not _existe_carpeta(cfg, destino):
+        raise ErrorValidacion(["La carpeta de destino ya no existe."])
+    if tipo == "archivo":
+        it = next((x for x in b["archivos"] if x.get("id") == ident), None)
+        if not it:
+            raise ErrorValidacion(["Ese archivo ya no está."])
+        it["carpeta"] = destino
+        return it
+    # carpeta: no se puede meter dentro de sí misma ni de un descendiente suyo
+    it = next((x for x in b["carpetas"] if x.get("id") == ident), None)
+    if not it:
+        raise ErrorValidacion(["Esa carpeta ya no está."])
+    d = destino
+    idx = {c["id"]: c for c in b["carpetas"]}
+    while d:
+        if d == ident:
+            raise ErrorValidacion(["No puedes mover una carpeta dentro de sí misma."])
+        d = (idx.get(d) or {}).get("padre")
+    if _prof_carpeta(b["carpetas"], destino) >= MAX_PROF_CARPETA:
+        raise ErrorValidacion([f"No puedes anidar más de {MAX_PROF_CARPETA} niveles de carpetas."])
+    it["padre"] = destino
+    return it
+
+
+def biblioteca_borra_carpeta(cfg, ident):
+    """Borra una carpeta y TODO lo que contiene (subcarpetas y archivos).
+    Devuelve la lista de nombres de fichero en disco que el servidor debe borrar."""
+    b = _biblioteca(cfg)
+    if not any(c.get("id") == ident for c in b["carpetas"]):
+        raise ErrorValidacion(["Esa carpeta ya no está."])
+    # conjunto de carpetas a eliminar: la carpeta y sus descendientes
+    hijos = {}
+    for c in b["carpetas"]:
+        hijos.setdefault(c.get("padre"), []).append(c["id"])
+    borrar, pila = set(), [ident]
+    while pila:
+        cid = pila.pop()
+        if cid in borrar:
+            continue
+        borrar.add(cid)
+        pila.extend(hijos.get(cid, []))
+    ficheros = [a.get("archivo") for a in b["archivos"] if a.get("carpeta") in borrar]
+    b["archivos"] = [a for a in b["archivos"] if a.get("carpeta") not in borrar]
+    b["carpetas"] = [c for c in b["carpetas"] if c["id"] not in borrar]
+    return [f for f in ficheros if f]
+
+
+def biblioteca_anota_archivo(cfg, arch_id, archivo, nombre, tipo, tam, carpeta, fecha):
+    b = _biblioteca(cfg)
+    if len(b["archivos"]) >= MAX_ARCHIVOS:
+        raise ErrorValidacion([f"Has llegado al máximo de {MAX_ARCHIVOS} archivos."])
+    carpeta = texto(carpeta, 40) or None
+    if not _existe_carpeta(cfg, carpeta):
+        raise ErrorValidacion(["La carpeta donde quieres guardarlo ya no existe."])
+    arch = {"id": texto(arch_id, 40), "archivo": texto(archivo, 120),
+            "nombre": texto(nombre, 200) or "documento", "tipo": texto(tipo, 80),
+            "tam": int(tam or 0), "carpeta": carpeta, "fecha": texto(fecha, 30)}
+    b["archivos"].append(arch)
+    return arch
+
+
+def biblioteca_quita_archivo(cfg, ident):
+    """Quita la referencia de un archivo. Devuelve el archivo (para borrarlo del disco)."""
+    b = _biblioteca(cfg)
+    arch = next((a for a in b["archivos"] if a.get("id") == ident), None)
+    if not arch:
+        raise ErrorValidacion(["Ese archivo ya no está."])
+    b["archivos"] = [a for a in b["archivos"] if a.get("id") != ident]
+    return arch

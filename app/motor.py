@@ -909,6 +909,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                     "fecha": m["fecha"], "importe": round(imp, 2),
                     "participaciones": round(u, 6), "precio": r4((imp - com) / u) if u else None,
                     "comision": com, "tipoOrden": m.get("nota") or None,
+                    # id del movimiento de origen: el Panel lo usa para saltar a él.
+                    "movId": m.get("id"),
                     # De una compra ya vendida (toda o en parte) no se enseña "cuánto vale hoy".
                     "valor": None if id(m) in mv["vendidas"] else round(u * nav_hoy, 2),
                 })
@@ -920,7 +922,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             p["snapshots"] = snaps
             for m in movs:
                 if m.get("tipo") == "compra":
-                    p["aportaciones"].append({"fecha": m["fecha"], "importe": round(float(m.get("importe") or 0), 2)})
+                    p["aportaciones"].append({"fecha": m["fecha"], "importe": round(float(m.get("importe") or 0), 2),
+                                              "movId": m.get("id")})
 
         pf = d(min(fechas_p))
         primera = pf if primera is None else min(primera, pf)
@@ -1871,6 +1874,14 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                          "marca": f.get("marca") or "",
                          "categorias": f.get("categorias") or {}}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
+        # Contadores para el panel de inicio (resumen de un vistazo).
+        "conteos": {
+            "facturas": sum(len(f.get("adjuntos") or []) for f in flujos_cfg),
+            "documentos": len(((cfg.get("biblioteca") or {}).get("archivos")) or []),
+            "apuntes": sum(1 for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")),
+            "activos": len(cfg.get("productos") or []),
+            "movimientos": len(cfg.get("movimientos") or []),
+        },
         "asignacion": asignacion,
         "concentracionEntidad": concentracion_entidad,
         "vencimientos": vencimientos,

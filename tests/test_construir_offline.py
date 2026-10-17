@@ -43,3 +43,34 @@ def test_construir_cartera_manual(cartera_manual, tmp_path):
 def test_construir_cartera_vacia_devuelve_none(tmp_path):
     vacia = {"version": 1, "productos": [], "movimientos": [], "valoraciones": []}
     assert motor.construir(vacia, str(tmp_path), descargar=False) is None
+
+
+def test_conteos_y_aportaciones_llevan_mov_id(cartera_manual, tmp_path):
+    """El panel expone contadores (inicio) y cada aportación lleva el id de su
+    movimiento de origen, para poder saltar a él desde la ficha del componente."""
+    cfg = dict(cartera_manual)
+    # Una compra del piso (movimiento con id) -> genera una aportación con movId.
+    cfg["movimientos"] = [{"id": "m1", "producto": "piso", "fecha": "2024-01-31",
+                           "tipo": "compra", "importe": 80000.0}]
+    cfg["flujos"] = [
+        {"id": "f1", "fecha": "2024-02-10", "tipo": "gasto", "importe": 50.0,
+         "categoria": "Casa", "adjuntos": [{"id": "a1", "archivo": "a1.pdf", "nombre": "x.pdf"}]},
+        {"id": "f2", "fecha": "2024-02-11", "tipo": "ingreso", "importe": 1000.0, "categoria": "Nómina"},
+    ]
+    cfg["biblioteca"] = {"carpetas": [{"id": "c1", "nombre": "Casa", "padre": None}],
+                         "archivos": [{"id": "d1", "archivo": "d1.pdf", "nombre": "escritura.pdf",
+                                       "carpeta": "c1", "tipo": "application/pdf", "tam": 10}]}
+
+    datos = motor.construir(cfg, str(tmp_path), descargar=False)
+    assert datos is not None
+
+    c = datos["conteos"]
+    assert c["facturas"] == 1
+    assert c["documentos"] == 1
+    assert c["apuntes"] == 2
+    assert c["activos"] == 2
+    assert c["movimientos"] == 1
+
+    piso = next(p for p in datos["productos"] if p["id"] == "piso")
+    aps = [a for a in piso["aportaciones"] if a.get("importe")]
+    assert aps and aps[0]["movId"] == "m1"

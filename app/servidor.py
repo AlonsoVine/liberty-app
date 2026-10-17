@@ -540,6 +540,131 @@ def api_adjunto(fid, adj_id):
     return send_from_directory(adj_dir, archivo, as_attachment=False, download_name=adj.get("nombre") or archivo)
 
 
+# ---- biblioteca: gestor de documentos (los archivos viven en «biblioteca/» de la cartera) ----
+BIB_MAX_BYTES = 50 * 1024 * 1024   # 50 MB por archivo
+
+
+def _borra_fichero_biblioteca(archivo):
+    try:
+        base = os.path.basename(archivo or "")
+        if base:
+            p = os.path.join(carpeta(), "biblioteca", base)
+            if os.path.exists(p):
+                os.remove(p)
+    except OSError:
+        pass
+
+
+@app.post("/api/biblioteca/carpeta")
+def api_bib_carpeta():
+    """Crea una carpeta en la biblioteca."""
+    d = request.get_json(silent=True) or {}
+    car_id = "car_" + secrets.token_hex(6)
+    return cambia(lambda cfg: almacen.biblioteca_crea_carpeta(cfg, car_id, d.get("nombre"), d.get("padre")), recalc=False)
+
+
+@app.post("/api/biblioteca/renombra")
+def api_bib_renombra():
+    """Renombra una carpeta o un archivo de la biblioteca."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.biblioteca_renombra(cfg, d.get("tipo"), d.get("id"), d.get("nombre")), recalc=False)
+
+
+@app.post("/api/biblioteca/mover")
+def api_bib_mover():
+    """Mueve una carpeta o un archivo a otra carpeta."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.biblioteca_mueve(cfg, d.get("tipo"), d.get("id"), d.get("destino")), recalc=False)
+
+
+@app.post("/api/biblioteca/carpeta-borra")
+def api_bib_carpeta_borra():
+    """Borra una carpeta y todo su contenido (subcarpetas y archivos del disco)."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    d = request.get_json(silent=True) or {}
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        try:
+            ficheros = almacen.biblioteca_borra_carpeta(cfg, d.get("id"))
+        except almacen.ErrorValidacion as e:
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+        for f in ficheros:
+            _borra_fichero_biblioteca(f)
+    return jsonify(ok=True, cartera=cfg)
+
+
+@app.post("/api/biblioteca/borrar")
+def api_bib_borrar():
+    """Borra un archivo de la biblioteca (metadato + fichero del disco)."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    d = request.get_json(silent=True) or {}
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        try:
+            arch = almacen.biblioteca_quita_archivo(cfg, d.get("id"))
+        except almacen.ErrorValidacion as e:
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+        _borra_fichero_biblioteca(arch.get("archivo"))
+    return jsonify(ok=True, cartera=cfg)
+
+
+@app.post("/api/biblioteca/subir")
+def api_bib_subir():
+    """Sube un archivo a la biblioteca. Se admite cualquier tipo (hasta 50 MB)."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    f = request.files.get("archivo")
+    if not f or not f.filename:
+        return jsonify(ok=False, errores=["Elige un archivo."]), 400
+    carpeta_destino = request.form.get("carpeta") or None
+    ext = os.path.splitext(f.filename)[1].lower()[:12]
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        if carpeta_destino and not almacen._existe_carpeta(cfg, carpeta_destino):
+            return jsonify(ok=False, errores=["La carpeta donde quieres guardarlo ya no existe."]), 400
+        bib_dir = os.path.join(carpeta(), "biblioteca")
+        os.makedirs(bib_dir, exist_ok=True)
+        arch_id = "arc_" + secrets.token_hex(6)
+        archivo = arch_id + ext
+        destino = os.path.join(bib_dir, archivo)
+        f.save(destino)
+        tam = os.path.getsize(destino)
+        if tam > BIB_MAX_BYTES:
+            _borra_fichero_biblioteca(archivo)
+            return jsonify(ok=False, errores=["El archivo es demasiado grande (máximo 50 MB)."]), 400
+        fecha = dt.datetime.now().replace(microsecond=0).isoformat()
+        try:
+            arch = almacen.biblioteca_anota_archivo(cfg, arch_id, archivo, f.filename,
+                                                    f.mimetype or "", tam, carpeta_destino, fecha)
+        except almacen.ErrorValidacion as e:
+            _borra_fichero_biblioteca(archivo)
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+    return jsonify(ok=True, cartera=cfg, item=arch)
+
+
+@app.get("/api/biblioteca/archivo/<arch_id>")
+def api_bib_archivo(arch_id):
+    """Sirve un archivo de la biblioteca (inline para verlo, o descarga con ?descargar=1)."""
+    bib = cartera().get("biblioteca") or {}
+    arch = next((a for a in bib.get("archivos", []) if a.get("id") == arch_id), None)
+    if not arch:
+        return jsonify(ok=False, errores=["No encuentro ese archivo."]), 404
+    bib_dir = os.path.join(carpeta(), "biblioteca")
+    archivo = os.path.basename(arch.get("archivo") or "")   # seguridad: solo el nombre del fichero
+    if not archivo or not os.path.exists(os.path.join(bib_dir, archivo)):
+        return jsonify(ok=False, errores=["El archivo ya no está en disco."]), 404
+    descarga = request.args.get("descargar") == "1"
+    return send_from_directory(bib_dir, archivo, as_attachment=descarga, download_name=arch.get("nombre") or archivo)
+
+
 @app.post("/api/notas")
 def api_notas():
     """Guarda la lista de notas (espacio libre del usuario). No recalcula el panel."""
@@ -912,6 +1037,7 @@ def _zip_cartera():
     restaure sin perder ningún enlace. Solo lee (no toca nada en disco)."""
     cfg = copy.deepcopy(cartera())
     adj_dir = os.path.join(carpeta(), "adjuntos")
+    bib_dir = os.path.join(carpeta(), "biblioteca")
     buf, usados = io.BytesIO(), set()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for fl in cfg.get("flujos", []):
@@ -921,6 +1047,12 @@ def _zip_cartera():
                     nombre = _nombre_factura(fl, adj, usados)
                     z.write(origen, "adjuntos/" + nombre)
                     adj["archivo"] = nombre     # referencia -> nombre descriptivo
+        # Biblioteca de documentos: se guardan tal cual (el nombre visible va en el metadato).
+        for arch in (cfg.get("biblioteca") or {}).get("archivos", []):
+            base = os.path.basename(arch.get("archivo") or "")
+            origen = os.path.join(bib_dir, base)
+            if base and os.path.exists(origen):
+                z.write(origen, "biblioteca/" + base)
         z.writestr("cartera.json", json.dumps(cfg, ensure_ascii=False, indent=1))
     return buf.getvalue()
 
@@ -992,13 +1124,15 @@ def api_copia_subir():
         return jsonify(ok=False, errores=["Elige el archivo de la copia (.json o .zip)."]), 400
     raw = f.read()
     es_zip = (f.filename or "").lower().endswith(".zip") or raw[:2] == b"PK"
-    adjuntos = {}
+    adjuntos, biblioteca = {}, {}
     try:
         if es_zip:
             with zipfile.ZipFile(io.BytesIO(raw)) as z:
                 cfg = valida_copia(json.loads(z.read("cartera.json").decode("utf-8")))
                 adjuntos = {os.path.basename(n): z.read(n) for n in z.namelist()
                             if n.startswith("adjuntos/") and not n.endswith("/")}
+                biblioteca = {os.path.basename(n): z.read(n) for n in z.namelist()
+                              if n.startswith("biblioteca/") and not n.endswith("/")}
         else:
             cfg = valida_copia(json.loads(importar.decodifica(raw)))
     except (ValueError, KeyError, zipfile.BadZipFile):
@@ -1009,11 +1143,13 @@ def api_copia_subir():
     if request.form.get("destino") == "nuevo":
         cid = crea_desde_copia(cfg, request.form.get("nombre"))
         _escribe_adjuntos(os.path.join(_carteras_dir(), cid, "adjuntos"), adjuntos)
+        _escribe_adjuntos(os.path.join(_carteras_dir(), cid, "biblioteca"), biblioteca)
     else:
         if adjuntos:
             _respalda_adjuntos()   # pone a salvo las facturas actuales antes de sustituir
         restaura(cfg)
         _escribe_adjuntos(os.path.join(carpeta(), "adjuntos"), adjuntos)
+        _escribe_adjuntos(os.path.join(carpeta(), "biblioteca"), biblioteca)
     return jsonify(ok=True)
 
 
