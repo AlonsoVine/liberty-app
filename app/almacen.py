@@ -33,7 +33,7 @@ CARTERA_VACIA = {
     "titulares": ["Yo"], "apartados": [], "flujos": [],
     "config": {"colchon": 0, "categorias": [], "objetivos": {}, "monedas": [],
                "umbralConcentracion": 0.4, "desviacionMax": 0.05, "diasAviso": 90,
-               "diasSinAnotar": 30, "diasSinActualizar": 90},
+               "diasSinAnotar": 30, "diasSinActualizar": 90, "papeleraMax": 5},
     "comparador": [{"id": "real", "nombre": "Mi cartera real", "real": True}],
     "hitos": [10000, 25000, 50000, 100000, 250000, 500000, 1000000],
     "objetivo": {"activo": True, "importe": 100000, "etiqueta": "Próximo objetivo"},
@@ -517,6 +517,9 @@ def guarda_config(cfg, datos):
     if "diasSinActualizar" in datos:
         dsa = numero(datos.get("diasSinActualizar"), "los días sin actualizar activos", errores, obligatorio=False, minimo=0)
         conf["diasSinActualizar"] = int(dsa) if dsa is not None else 90
+    if "papeleraMax" in datos:
+        pm = numero(datos.get("papeleraMax"), "la papelera de archivos", errores, obligatorio=False, minimo=0)
+        conf["papeleraMax"] = min(50, int(pm)) if pm is not None else 5
     if "asistenteOculto" in datos:
         conf["asistenteOculto"] = bool(datos.get("asistenteOculto"))
     if "buscarActualizaciones" in datos:
@@ -1080,3 +1083,62 @@ def biblioteca_quita_archivo(cfg, ident):
         raise ErrorValidacion(["Ese archivo ya no está."])
     b["archivos"] = [a for a in b["archivos"] if a.get("id") != ident]
     return arch
+
+
+# ---- papelera de la biblioteca: guarda los últimos N archivos borrados ----
+PAPELERA_MAX_DEF = 5
+
+
+def _papelera(cfg):
+    return _biblioteca(cfg).setdefault("papelera", [])
+
+
+def _nombre_carpeta(cfg, cid):
+    c = next((x for x in _biblioteca(cfg)["carpetas"] if x["id"] == cid), None)
+    return c["nombre"] if c else ""
+
+
+def biblioteca_borra_archivo(cfg, ident, maxN):
+    """Borra un archivo moviéndolo a la papelera (el fichero del disco NO se borra aún).
+    Devuelve (arch, purgar): purgar = ficheros de disco que han salido de la papelera
+    (por pasarse del tope) y que el servidor sí debe eliminar. Con maxN=0, borrado directo."""
+    b = _biblioteca(cfg)
+    arch = next((a for a in b["archivos"] if a.get("id") == ident), None)
+    if not arch:
+        raise ErrorValidacion(["Ese archivo ya no está."])
+    b["archivos"] = [a for a in b["archivos"] if a.get("id") != ident]
+    pap = _papelera(cfg)
+    entrada = dict(arch)
+    entrada["carpetaNombre"] = _nombre_carpeta(cfg, arch.get("carpeta"))
+    entrada["borrado"] = dt.datetime.now().replace(microsecond=0).isoformat()
+    pap.insert(0, entrada)
+    maxN = max(0, int(maxN if maxN is not None else PAPELERA_MAX_DEF))
+    purgar = [e.get("archivo") for e in pap[maxN:]]
+    del pap[maxN:]
+    return arch, [p for p in purgar if p]
+
+
+def biblioteca_restaura(cfg, ident):
+    """Saca un archivo de la papelera y lo devuelve a su carpeta (a la raíz si ya no existe)."""
+    b = _biblioteca(cfg)
+    pap = _papelera(cfg)
+    e = next((x for x in pap if x.get("id") == ident), None)
+    if not e:
+        raise ErrorValidacion(["Ese archivo ya no está en la papelera."])
+    b["papelera"] = [x for x in pap if x.get("id") != ident]
+    carpeta = e.get("carpeta")
+    if carpeta and not _existe_carpeta(cfg, carpeta):
+        carpeta = None
+    arch = {"id": e["id"], "archivo": e.get("archivo"), "nombre": e.get("nombre") or "documento",
+            "tipo": e.get("tipo") or "", "tam": int(e.get("tam") or 0), "carpeta": carpeta,
+            "fecha": e.get("fecha") or ""}
+    b["archivos"].append(arch)
+    return arch
+
+
+def biblioteca_vacia_papelera(cfg):
+    """Vacía la papelera. Devuelve los ficheros de disco a eliminar."""
+    b = _biblioteca(cfg)
+    files = [e.get("archivo") for e in b.get("papelera", [])]
+    b["papelera"] = []
+    return [f for f in files if f]

@@ -598,19 +598,44 @@ def api_bib_carpeta_borra():
 
 @app.post("/api/biblioteca/borrar")
 def api_bib_borrar():
-    """Borra un archivo de la biblioteca (metadato + fichero del disco)."""
+    """Borra un archivo moviéndolo a la papelera. El fichero del disco se conserva
+    mientras esté en la papelera; solo se elimina lo que se cae del tope configurado."""
     if modo() == "demo":
         return jsonify(ok=False, errores=[AVISO_DEMO]), 403
     d = request.get_json(silent=True) or {}
     with cerrojo:
         ruta = os.path.join(carpeta(), "cartera.json")
         cfg = almacen.carga(ruta)
+        maxN = (cfg.get("config") or {}).get("papeleraMax", almacen.PAPELERA_MAX_DEF)
         try:
-            arch = almacen.biblioteca_quita_archivo(cfg, d.get("id"))
+            _arch, purgar = almacen.biblioteca_borra_archivo(cfg, d.get("id"), maxN)
         except almacen.ErrorValidacion as e:
             return jsonify(ok=False, errores=e.errores), 400
         almacen.guarda(ruta, cfg)
-        _borra_fichero_biblioteca(arch.get("archivo"))
+        for f in purgar:
+            _borra_fichero_biblioteca(f)
+    return jsonify(ok=True, cartera=cfg)
+
+
+@app.post("/api/biblioteca/papelera-restaura")
+def api_bib_papelera_restaura():
+    """Saca un archivo de la papelera y lo devuelve a su carpeta."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.biblioteca_restaura(cfg, d.get("id")), recalc=False)
+
+
+@app.post("/api/biblioteca/papelera-vacia")
+def api_bib_papelera_vacia():
+    """Vacía la papelera y borra del disco sus ficheros."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        files = almacen.biblioteca_vacia_papelera(cfg)
+        almacen.guarda(ruta, cfg)
+        for f in files:
+            _borra_fichero_biblioteca(f)
     return jsonify(ok=True, cartera=cfg)
 
 
@@ -1190,8 +1215,10 @@ def _zip_cartera():
                     nombre = _nombre_factura(fl, adj, usados)
                     z.write(origen, "adjuntos/" + nombre)
                     adj["archivo"] = nombre     # referencia -> nombre descriptivo
-        # Biblioteca de documentos: se guardan tal cual (el nombre visible va en el metadato).
-        for arch in (cfg.get("biblioteca") or {}).get("archivos", []):
+        # Biblioteca de documentos (y su papelera): se guardan tal cual (el nombre visible
+        # va en el metadato de la cartera, así la estructura se recupera completa).
+        bib_cfg = cfg.get("biblioteca") or {}
+        for arch in list(bib_cfg.get("archivos", [])) + list(bib_cfg.get("papelera", [])):
             base = os.path.basename(arch.get("archivo") or "")
             origen = os.path.join(bib_dir, base)
             if base and os.path.exists(origen):

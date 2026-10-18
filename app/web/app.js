@@ -1757,6 +1757,20 @@
         </div>` : ""}
       </section>`;
 
+    // Vistazo visual: dónde está el dinero (donut) + ingresos vs gastos (barras).
+    const porTipo = (t.porTipo || []).filter(x => x.valor > 0);
+    const fl = D.flujos;
+    const hayBarras = fl && fl.meses && fl.meses.length;
+    if (porTipo.length || hayBarras) {
+      html += `<h3 class="inicioTit">De un vistazo 🛰️</h3><div class="inicioVisual">
+        ${porTipo.length ? `<div class="irCaja"><div class="irEtq">Dónde está tu dinero</div>
+          <div class="inicioDonut" id="inicioDonut"></div></div>` : ""}
+        ${hayBarras ? `<div class="irCaja"><div class="irEtq">Ingresos y gastos (últimos meses)</div>
+          <div class="inicioBarras" id="inicioBarras"></div>
+          <div class="irLeyenda"><span><i style="background:${G.css("--s6")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div></div>` : ""}
+      </div>`;
+    }
+
     const tile = (ico, etq, valor, sub, onclick, cls) =>
       `<button class="inicioTile${cls ? " " + cls : ""}" type="button" data-go="${onclick}">
         <span class="itIco">${ico}</span>
@@ -1822,6 +1836,30 @@
     cont.innerHTML = html;
     const sp = $("#inicioSpark");
     if (sp && serieNeto.length > 1) { try { G.mini(sp, serieNeto, G.css("--s1")); } catch (e) { /* sin sparkline */ } }
+    const dn = $("#inicioDonut");
+    if (dn && porTipo.length) {
+      try {
+        G.donut(dn, {
+          datos: porTipo.slice(0, 8).map(x => ({ nombre: x.nombre, valor: x.valor, color: x.color })),
+          alto: 200, tituloCentro: "Total", valorCentro: G.fmtEurCorto(t.patrimonioBruto || 0),
+          onClick: () => irVista("distribucion"),
+        });
+      } catch (e) { /* sin donut */ }
+    }
+    const bar = $("#inicioBarras");
+    if (bar && fl && fl.meses && fl.meses.length) {
+      try {
+        const n = Math.min(6, fl.meses.length), i0 = fl.meses.length - n;
+        G.barrasAgrupadas(bar, {
+          categorias: fl.meses.slice(i0).map(m => G.fmtMes(m)), alto: 200,
+          series: [
+            { nombre: "Ingresos", color: G.css("--s6"), valores: fl.ingresos.slice(i0) },
+            { nombre: "Gastos", color: G.css("--s8"), valores: fl.gastos.slice(i0) },
+          ],
+          formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v),
+        });
+      } catch (e) { /* sin barras */ }
+    }
     const acciones = {
       inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
       rentabilidad: ir("rentabilidad"), evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),

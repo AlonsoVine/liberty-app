@@ -824,6 +824,11 @@
         ${seccion("Avisos automáticos")}
         <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
         <div class="rejilla">${avisosHTML}</div>
+        ${seccion("Archivos")}
+        <div class="rejilla">
+          ${campo("Papelera de archivos", '<input name="papeleraMax" inputmode="numeric" placeholder="5">', "últimos borrados que se guardan")}
+        </div>
+        <p class="ayuda">En el Explorador de archivos, los archivos borrados se guardan en una papelera por si quieres recuperarlos. Aquí eliges cuántos conservar (0 = borrado directo, sin papelera).</p>
         ${seccion("Privacidad")}
         <div class="rejilla">
           <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
@@ -967,6 +972,7 @@
         diasAviso: d.diasAviso,
         diasSinAnotar: d.diasSinAnotar,
         diasSinActualizar: d.diasSinActualizar,
+        papeleraMax: d.papeleraMax,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
         entidades, dimensionesFlujos,
@@ -990,6 +996,7 @@
     f.elements.diasAviso.value = conf.diasAviso != null ? conf.diasAviso : "";
     f.elements.diasSinAnotar.value = conf.diasSinAnotar != null ? conf.diasSinAnotar : "";
     f.elements.diasSinActualizar.value = conf.diasSinActualizar != null ? conf.diasSinActualizar : "";
+    if (f.elements.papeleraMax) f.elements.papeleraMax.value = conf.papeleraMax != null ? conf.papeleraMax : 5;
     f.elements.buscarActualizaciones.checked = !!conf.buscarActualizaciones;
     Object.entries(obj).forEach(([clave, frac]) => {
       const el = f.elements["obj_" + clave];
@@ -1124,7 +1131,7 @@
     const r = btn.getBoundingClientRect();
     pop.style.left = Math.max(8, Math.min(r.left, innerWidth - pop.offsetWidth - 8)) + "px";
     pop.style.top = (r.bottom + 4 + pop.offsetHeight > innerHeight ? r.top - pop.offsetHeight - 4 : r.bottom + 4) + "px";
-    pop.querySelector("[data-obs-editar]").onclick = () => { cierraObs(); formFlujo(fl); };
+    pop.querySelector("[data-obs-editar]").onclick = () => { cierraObs(); formFlujo(fl, { focoObs: true }); };
     setTimeout(() => document.addEventListener("click", cierraObs, { once: true }), 0);
   }
   // ---- facturas adjuntas a un apunte ----
@@ -1457,7 +1464,7 @@
     const chk = $("#factSoloImp"); if (chk) chk.onchange = e => { E.factImp = e.target.checked; pintaLista(); };
     pintaLista();
   }
-  function formFlujo(x) {
+  function formFlujo(x, opts) {
     const nuevo = !x;
     x = x || { tipo: "gasto" };
     const tits = E.cfg.titulares || [];
@@ -1491,6 +1498,10 @@
       await guarda("flujos", d);
     }, nuevo ? "Guardar apunte" : "Guardar cambios");
     rellena(f, x);
+    if (opts && opts.focoObs && f.elements.observaciones) {
+      const ta = f.elements.observaciones;
+      setTimeout(() => { ta.focus(); const n = ta.value.length; try { ta.setSelectionRange(n, n); } catch (e) { /* da igual */ } }, 40);
+    }
     return f;
   }
 
@@ -1627,8 +1638,8 @@
     return `<section class="tarjeta"><header><h2>Saldos y valores</h2>
         <span class="subt">Lo que no tiene precio en internet. Cuanto más a menudo lo anotes (una vez al mes basta),
         mejor sale su curva.</span><span class="sp"></span>
-        <button class="btn prim" data-acc="todosValores">Cierre del mes: anotar saldos</button></header></section>
-      <div class="saldos">${tarjetas}</div>`;
+        <button class="btn prim" data-acc="todosValores">Cierre del mes: anotar saldos</button></header>
+      <div class="saldos">${tarjetas}</div></section>`;
   }
 
   function formValor(v, productoId) {
@@ -2873,6 +2884,37 @@
       montaBiblioteca();
     } catch (x) { alert(x.message); }
   }
+  function bibPapeleraLista() { return (E.cfg.biblioteca && E.cfg.biblioteca.papelera) || []; }
+  function bibAbrePapelera() {
+    const dlg = $("#modal");
+    const render = () => {
+      const pap = bibPapeleraLista();
+      const lista = pap.length ? pap.map(e => `<div class="papItem">
+          <span class="bibIco">${bibIcono(e)}</span>
+          <span class="papNom" title="${esc(e.nombre)}">${esc(e.nombre)}</span>
+          <span class="papMeta">${bibFmtTam(e.tam)}${e.carpetaNombre ? " · de 📁" + esc(e.carpetaNombre) : ""}${e.borrado ? " · " + fecha(e.borrado.slice(0, 10)) : ""}</span>
+          <button type="button" class="btn mini" data-rest="${esc(e.id)}">Restaurar</button>
+        </div>`).join("") : '<p class="subt">La papelera está vacía.</p>';
+      dlg.innerHTML = `<div class="mForm"><header><h2>Papelera de archivos</h2>
+          <button type="button" class="x" data-cerrar aria-label="Cerrar">×</button></header>
+        <div class="mCuerpo">
+          <p class="subt">Los últimos archivos borrados se guardan aquí y puedes restaurarlos. El número a conservar se ajusta en Configuración.</p>
+          <div class="papLista">${lista}</div></div>
+        <footer>${pap.length ? '<button type="button" class="btn" data-vaciar>Vaciar papelera</button>' : ""}
+          <span class="sp"></span><button type="button" class="btn prim" data-cerrar>Cerrar</button></footer></div>`;
+      dlg.querySelectorAll("[data-cerrar]").forEach(b => b.onclick = () => { try { dlg.close(); } catch (e) { /* */ } montaBiblioteca(); });
+      dlg.querySelectorAll("[data-rest]").forEach(b => b.onclick = async () => {
+        try { await bibPost("api/biblioteca/papelera-restaura", { id: b.dataset.rest }); render(); } catch (x) { alert(x.message); }
+      });
+      const vac = dlg.querySelector("[data-vaciar]");
+      if (vac) vac.onclick = async () => {
+        if (!confirm("¿Vaciar la papelera? Los archivos se eliminarán definitivamente de tu ordenador.")) return;
+        try { await bibPost("api/biblioteca/papelera-vacia", {}); if (window.toast) window.toast("Papelera vaciada ✓"); render(); } catch (x) { alert(x.message); }
+      };
+    };
+    render();
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+  }
   async function bibBorraCarpeta(id, nombre) {
     const { archivos } = bibData();
     const desc = bibDescendientes(id);
@@ -3012,6 +3054,7 @@
           <span class="bibDestino">Destino: <b id="bibRuta">${esc(bibRutaTexto(E.bibSel))}</b></span>
           <span class="sp"></span>
           ${clip ? `<button class="btn" data-acc="bibPegar" title="Pegar «${esc(clip.nombre || "")}» aquí">📋 Pegar${clip.modo === "cortar" ? " (movido)" : ""}</button>` : ""}
+          ${bibPapeleraLista().length ? `<button class="btn" data-acc="bibPapelera" title="Ver la papelera">🗑 Papelera (${bibPapeleraLista().length})</button>` : ""}
           <button class="btn" data-acc="bibNueva">+ Nueva carpeta</button>
           <button class="btn" data-acc="bibSubirCar">📁 Subir carpeta</button>
           <button class="btn prim" data-acc="bibSubir">⬆ Subir archivos</button>
@@ -3043,6 +3086,7 @@
       montaBiblioteca();
     });
     const pegar = cont.querySelector('[data-acc="bibPegar"]'); if (pegar) pegar.onclick = bibPega;
+    const pap = cont.querySelector('[data-acc="bibPapelera"]'); if (pap) pap.onclick = bibAbrePapelera;
     cont.querySelectorAll("[data-ren]").forEach(b => b.onclick = () => bibRenombra(b.dataset.ren, b.dataset.id, b.dataset.nom));
     cont.querySelectorAll("[data-cut]").forEach(b => b.onclick = () => bibCorta(b.dataset.cut, b.dataset.id, b.dataset.nom));
     cont.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => bibCopia(b.dataset.copy, b.dataset.id, b.dataset.nom));

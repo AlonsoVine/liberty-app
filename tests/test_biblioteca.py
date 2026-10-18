@@ -109,11 +109,12 @@ def test_biblioteca_ciclo_completo(tmp_path, monkeypatch):
     assert r.get_json()["ok"] is True
     assert _bib(servidor)["archivos"][0]["carpeta"] is None
 
-    # Borrar el archivo: desaparece del disco y de la cartera.
+    # Borrar el archivo: sale de «archivos» pero va a la papelera (el fichero se conserva).
     r = client.post("/api/biblioteca/borrar", json={"id": arch["id"]})
     assert r.get_json()["ok"] is True
-    assert not os.path.exists(os.path.join(str(tmp_path), "biblioteca", arch["archivo"]))
     assert _bib(servidor)["archivos"] == []
+    assert [e["id"] for e in _bib(servidor)["papelera"]] == [arch["id"]]
+    assert os.path.exists(os.path.join(str(tmp_path), "biblioteca", arch["archivo"]))
 
 
 def test_subir_carpeta_recrea_estructura(tmp_path, monkeypatch):
@@ -171,6 +172,38 @@ def test_copiar_archivo_y_carpeta(tmp_path, monkeypatch):
     # No se puede copiar una carpeta dentro de sí misma.
     r = client.post("/api/biblioteca/copiar", json={"tipo": "carpeta", "id": orig, "destino": sub})
     assert r.status_code == 400 and r.get_json()["ok"] is False
+
+
+def test_papelera_guarda_restaura_y_limita(tmp_path, monkeypatch):
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    # Tope de papelera = 2.
+    client.post("/api/config", json={"papeleraMax": 2})
+    ids, discos = [], []
+    for i in range(3):
+        data = {"archivo": (io.BytesIO(b"x" * (i + 1)), f"f{i}.txt")}
+        a = client.post("/api/biblioteca/subir", data=data, content_type="multipart/form-data").get_json()["item"]
+        ids.append(a["id"])
+        discos.append(a["archivo"])
+    # Borra los tres (en orden f0, f1, f2). La papelera guarda solo los 2 últimos (f2, f1).
+    for i in range(3):
+        r = client.post("/api/biblioteca/borrar", json={"id": ids[i]})
+        assert r.get_json()["ok"] is True
+    pap = _bib(servidor)["papelera"]
+    assert [e["nombre"] for e in pap] == ["f2.txt", "f1.txt"]
+    # f0 se cayó de la papelera -> su fichero ya no está en disco.
+    assert not os.path.exists(os.path.join(str(tmp_path), "biblioteca", discos[0]))
+    # f1 y f2 siguen en disco (están en la papelera).
+    assert os.path.exists(os.path.join(str(tmp_path), "biblioteca", discos[1]))
+    # Restaurar f1: vuelve a archivos.
+    r = client.post("/api/biblioteca/papelera-restaura", json={"id": ids[1]})
+    assert r.get_json()["ok"] is True
+    assert any(a["id"] == ids[1] for a in _bib(servidor)["archivos"])
+    # Vaciar papelera: borra lo que quede (f2) del disco.
+    r = client.post("/api/biblioteca/papelera-vacia")
+    assert r.get_json()["ok"] is True
+    assert _bib(servidor)["papelera"] == []
+    assert not os.path.exists(os.path.join(str(tmp_path), "biblioteca", discos[2]))
 
 
 def test_biblioteca_zip_export_import(tmp_path, monkeypatch):
