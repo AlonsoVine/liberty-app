@@ -859,6 +859,9 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                 aviso(f"{p['corto']}: todavía no tiene ningún saldo anotado.")
                 continue
             p["snapshots"] = snaps
+            # Para que la ficha del Panel pueda saltar a cada anotación de saldo concreta.
+            p["valores"] = [{"id": v.get("id"), "fecha": v["fecha"], "valor": round(float(v["valor"]) * fac, 2)}
+                            for v in sorted(vals_por.get(p["id"], []), key=lambda v: v["fecha"])]
             (otros if clave == "efectivo" else pasivos).append(p)
             primera = d(snaps[0][0]) if primera is None else min(primera, d(snaps[0][0]))
             continue
@@ -920,6 +923,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                 aviso(f"{p['corto']}: todavía no tiene ningún valor anotado.")
                 continue
             p["snapshots"] = snaps
+            p["valores"] = [{"id": v.get("id"), "fecha": v["fecha"], "valor": round(float(v["valor"]) * fac, 2)}
+                            for v in sorted(vals_por.get(p["id"], []), key=lambda v: v["fecha"])]
             for m in movs:
                 if m.get("tipo") == "compra":
                     p["aportaciones"].append({"fecha": m["fecha"], "importe": round(float(m.get("importe") or 0), 2),

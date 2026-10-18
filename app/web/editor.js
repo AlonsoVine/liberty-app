@@ -1307,7 +1307,7 @@
       const fila = document.getElementById("fila-flujo-" + fid);
       if (!fila) { E.resaltaFlujo = null; return; }
       try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
-      setTimeout(() => { fila.classList.remove("resaltado"); E.resaltaFlujo = null; }, 2600);
+      // El resaltado se queda fijo: no se desmarca hasta que se seleccione otra fila.
     });
   }
   // Ir a «Saldos y movimientos» y SELECCIONAR un movimiento concreto (resaltado + scroll).
@@ -1319,13 +1319,31 @@
     recuerda.guarda("patrimonio.editor", "saldos");
     if (prodId) E.filtro = prodId;
     E.resaltaMov = movId;
+    E.resaltaSaldo = null;
     const tab = document.querySelector('[data-tab="datos"]');
     if (tab) tab.click(); else pinta();
     requestAnimationFrame(() => {
       const fila = document.getElementById("fila-mov-" + movId);
       if (!fila) { E.resaltaMov = null; return; }
       try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
-      setTimeout(() => { fila.classList.remove("resaltado"); E.resaltaMov = null; }, 2600);
+      // El resaltado se queda fijo: no se desmarca hasta que se seleccione otra fila.
+    });
+  }
+  // Ir a «Saldos y movimientos» y SELECCIONAR un saldo/valor anotado a mano (resaltado + scroll).
+  // Lo usan las fichas de cuentas, efectivo y productos que se valoran a mano, cuyas
+  // «aportaciones» son en realidad anotaciones de saldo (no movimientos de compra).
+  function irAValor(prodId, valId) {
+    E.vista = "saldos";
+    recuerda.guarda("patrimonio.editor", "saldos");
+    E.resaltaSaldo = valId;
+    E.resaltaMov = null;
+    const tab = document.querySelector('[data-tab="datos"]');
+    if (tab) tab.click(); else pinta();
+    requestAnimationFrame(() => {
+      const fila = document.getElementById("fila-saldo-" + valId);
+      if (!fila) { E.resaltaSaldo = null; return; }
+      try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
+      // El resaltado se queda fijo: no se desmarca hasta que se seleccione otra fila.
     });
   }
   function filasFlujosHTML(fs) {
@@ -1625,7 +1643,7 @@
     const tarjetas = lista.map(p => {
       const vals = E.cfg.valoraciones.filter(v => v.producto === p.id).sort((a, b) => a.fecha < b.fecha ? 1 : -1);
       const conAportado = !soloSaldo(p);
-      const filas = vals.map(v => `<tr><td>${fecha(v.fecha)}</td><td>${eur(v.valor)}</td>
+      const filas = vals.map(v => `<tr id="fila-saldo-${esc(v.id)}"${v.id === E.resaltaSaldo ? ' class="resaltado"' : ""}><td>${fecha(v.fecha)}</td><td>${eur(v.valor)}</td>
         ${conAportado ? `<td>${v.aportado != null ? eur(v.aportado) : "—"}</td>` : ""}
         ${celdaAcc(v.id, { editar: "editarValor", borrar: "borrarValor" })}</tr>`).join("");
       return `<section class="tarjeta saldo"><header><h2><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}</h2>
@@ -2014,11 +2032,11 @@
         <span class="subt">Un archivo con todo tu patrimonio, para guardarlo donde quieras o pasarlo a otro ordenador.</span></header>
       <div class="dosCol">
         <div class="bloque"><b>Guardar una copia</b>
-          <p class="ayuda">Descárgate todo tu patrimonio para guardarlo en tu nube o en un USB. Si tienes facturas, elige el <code>.zip</code>.</p>
+          <p class="ayuda">Descárgate todo tu patrimonio para guardarlo en tu nube o en un USB. Si tienes facturas o documentos, elige el <code>.zip</code>.</p>
           ${propio ? `<div class="botones" style="display:flex;gap:8px;flex-wrap:wrap">
-              <a class="btn prim" href="api/copia/descargar?formato=zip" download data-acc="marcaCopia">⬇ Copia con facturas (.zip)</a>
+              <a class="btn prim" href="api/copia/descargar?formato=zip" download data-acc="marcaCopia">⬇ Copia con facturas y archivos (.zip)</a>
               <a class="btn" href="api/copia/descargar" download data-acc="marcaCopia">Solo datos (.json)</a></div>
-            <p class="ayuda" style="margin-top:8px">El <code>.zip</code> incluye tus facturas con nombres descriptivos (fecha, importe, concepto…); el <code>.json</code> es más ligero pero sin ellas.
+            <p class="ayuda" style="margin-top:8px">El <code>.zip</code> lo lleva todo: tus datos, la carpeta <code>facturas</code> (con nombres descriptivos: fecha, importe, concepto…) y la carpeta <code>archivos</code> con tus documentos tal cual los tienes organizados. El <code>.json</code> es más ligero pero solo los datos.
               ${ultimaCopia ? ` Última copia: hace ${diasCopia} día${diasCopia === 1 ? "" : "s"}.` : " Todavía no has descargado ninguna copia."}</p>
             ${avisoCopia ? `<div class="av" style="margin-top:8px"><span>💾</span><span>${ultimaCopia ? "Hace tiempo que no guardas una copia de seguridad." : "Guarda una copia para no perder tus datos si le pasa algo al ordenador."} Descarga una copia.</span></div>` : ""}`
             : '<span class="subt">Disponible cuando empieces tu propio patrimonio.</span>'}</div>
@@ -3151,6 +3169,8 @@
     },
     // Ir a un movimiento concreto y resaltarlo (desde las listas de aportaciones del Panel).
     irAMovimiento,
+    // Ir a un saldo/valor anotado a mano y resaltarlo (fichas de cuentas, efectivo, etc.).
+    irAValor,
     // Abrir la pestaña Notas directamente en la Biblioteca de documentos.
     biblioteca() {
       E.notasVista = "biblioteca";

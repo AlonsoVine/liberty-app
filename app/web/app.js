@@ -1720,15 +1720,16 @@
     const alertas = D.alertas || [], nAlertas = alertas.length;
     const vencs = (D.vencimientos || []).slice().sort((a, b) => (a.diasRestantes ?? 1e9) - (b.diasRestantes ?? 1e9));
     const nVenc = vencs.length, prox = vencs[0];
-    // Patrimonio neto: EXACTAMENTE la misma cifra que el hero de «Patrimonio» (m.valor,
-    // con precios en vivo), para que coincidan al céntimo.
+    // El patrimonio neto es el eje central de la pestaña «Patrimonio»; aquí no se repite
+    // como titular. La línea del tiempo ya muestra el valor actual en su extremo.
     const neto = m && m.valor != null ? m.valor : (t.patrimonioNeto != null ? t.patrimonioNeto : t.patrimonio || 0);
-    const vn = t.variacion && t.variacion.neto;
-    const varEur = vn && vn.varMes != null ? vn.varMes : null;
-    const varPct = vn && vn.varMes != null && vn.hace1Mes ? vn.varMes / vn.hace1Mes : null;
 
-    // Datos para el mini-cuadro de progreso y la sección de constancia (gamificación).
-    const serieNeto = (t.serie || []).filter(v => v != null);
+    // --- Banda superior: patrimonio en el tiempo + progreso al próximo hito ---
+    const serieNeto = (t.serie || []);
+    const limpios = serieNeto.filter(v => v != null);
+    const deltaVida = limpios.length >= 2 ? limpios[limpios.length - 1] - limpios[0] : null;
+    const deltaBadge = deltaVida != null
+      ? `<span class="spDelta ${deltaVida >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(deltaVida)} desde el inicio</span>` : "";
     const hitos = (t.hitos || []).slice().sort((a, b) => a.importe - b.importe);
     const sigHito = hitos.find(h => h.fecha == null);
     const metaImporte = sigHito ? sigHito.importe
@@ -1736,40 +1737,19 @@
     const progreso = metaImporte ? Math.max(0, Math.min(1, neto / metaImporte)) : null;
     const faltan = metaImporte ? Math.max(0, metaImporte - neto) : null;
 
-    let html = `<section class="hero inicioHero">
-        <div class="hEtq">Tu patrimonio neto</div>
-        <div class="hCifra">${G.fmtEur(neto)}</div>
-        <div class="hSub">${varEur != null
-          ? `<span class="${varEur >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(varEur)}${varPct != null ? " · " + G.fmtPctSigno(varPct, 1) : ""}</span> desde el mes pasado`
-          : "Lo que tienes menos lo que debes"}</div>
-      </section>`;
-
-    // Mini-cuadro: evolución (sparkline) + progreso al próximo hito/objetivo.
-    html += `<section class="inicioResumen">
+    let html = `<section class="inicioResumen inicioBanda">
         <div class="irCaja">
-          <div class="irEtq">Tu patrimonio en el tiempo</div>
+          <div class="irEtq">Tu patrimonio en el tiempo ${deltaBadge}</div>
           <div class="inicioSpark" id="inicioSpark"></div>
         </div>
         ${metaImporte ? `<div class="irCaja">
           <div class="irEtq">${sigHito ? "🎯 Próximo hito" : "🎯 Tu objetivo"}: <b>${G.fmtEur(metaImporte, 0)}</b></div>
-          <div class="metaBar"><div class="metaFill" style="width:${(progreso * 100).toFixed(1)}%"></div></div>
-          <div class="irSub">${progreso >= 1 ? "¡Conseguido! 🎉" : `Te faltan <b>${G.fmtEur(faltan, 0)}</b> · ${G.fmtPct(progreso, 0)} alcanzado`}</div>
+          <div class="prog inicioProg">
+            <div class="progBarra"><div class="progRelleno" style="width:${(progreso * 100).toFixed(1)}%"></div></div>
+            <div class="progPie"><span><b style="color:var(--tinta)">${G.fmtPct(progreso, 0)}</b> del camino</span><span>${progreso >= 1 ? "¡Conseguido! 🎉" : "Faltan " + G.fmtEur(faltan, 0)}</span></div>
+          </div>
         </div>` : ""}
       </section>`;
-
-    // Vistazo visual: dónde está el dinero (donut) + ingresos vs gastos (barras).
-    const porTipo = (t.porTipo || []).filter(x => x.valor > 0);
-    const fl = D.flujos;
-    const hayBarras = fl && fl.meses && fl.meses.length;
-    if (porTipo.length || hayBarras) {
-      html += `<h3 class="inicioTit">De un vistazo 🛰️</h3><div class="inicioVisual">
-        ${porTipo.length ? `<div class="irCaja"><div class="irEtq">Dónde está tu dinero</div>
-          <div class="inicioDonut" id="inicioDonut"></div></div>` : ""}
-        ${hayBarras ? `<div class="irCaja"><div class="irEtq">Ingresos y gastos (últimos meses)</div>
-          <div class="inicioBarras" id="inicioBarras"></div>
-          <div class="irLeyenda"><span><i style="background:${G.css("--s6")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div></div>` : ""}
-      </div>`;
-    }
 
     const tile = (ico, etq, valor, sub, onclick, cls) =>
       `<button class="inicioTile${cls ? " " + cls : ""}" type="button" data-go="${onclick}">
@@ -1778,45 +1758,122 @@
         <span class="itEtq">${esc(etq)}</span>
         ${sub ? `<span class="itSub">${esc(sub)}</span>` : ""}</button>`;
 
-    // --- Tu patrimonio ---
-    const subDeuda = t.deudas
-      ? (t.cuotaMensualDeudas ? G.fmtEur(t.cuotaMensualDeudas, 0) + "/mes en cuotas" : "lo que debes")
-      : "sin deudas";
-    const subLibre = t.colchon ? "colchón aparte: " + G.fmtEur(t.colchon, 0) : "listo para invertir";
-    const plus = m && m.plusvalia != null ? m.plusvalia : t.plusvalia;
-    const tir = m && m.tir != null ? m.tir : t.tir;
-    const subRent = tir != null ? "TIR anual " + G.fmtPctSigno(tir) : "sobre lo aportado";
-    html += `<h3 class="inicioTit">Tu patrimonio</h3><div class="inicioGrid">
-      ${tile("💼", "Activos", G.fmtEur(t.patrimonioBruto || 0, 0), `${C.activos || 0} componente${C.activos === 1 ? "" : "s"}`, "distribucion")}
-      ${tile("🏦", "Deudas", G.fmtEur(t.deudas || 0, 0), subDeuda, "deudas", t.deudas ? "warn" : "")}
-      ${tile("💧", "Dinero libre", G.fmtEur(t.dineroLibre || 0, 0), subLibre, "patrimonio")}
-      ${tile("📈", "Rentabilidad", plus != null ? G.fmtEurSigno(plus, 0) : "—", subRent, "rentabilidad", plus != null ? (plus >= 0 ? "ok" : "warn") : "")}
-    </div>`;
-
-    // --- Este mes (ingresos y gastos) ---
-    if (em) {
-      const mediaAhorro = D.flujos && D.flujos.media12 && D.flujos.media12.ahorro;
-      const subAhorro = em.tasaAhorro != null
-        ? "ahorras el " + G.fmtPct(em.tasaAhorro, 0) + " de lo que ingresas"
-        : (mediaAhorro != null ? "media 12m: " + G.fmtEur(mediaAhorro, 0) : "este mes");
-      html += `<h3 class="inicioTit">Este mes</h3><div class="inicioGrid">
-        ${tile("➕", "Ingresos", G.fmtEur(em.ingresos || 0, 0), "cobrado este mes", "ingresos", "ok")}
-        ${tile("➖", "Gastos", G.fmtEur(em.gastos || 0, 0), "gastado este mes", "ingresos", "warn")}
-        ${tile("🐷", "Ahorro", G.fmtEur(em.ahorro || 0, 0), subAhorro, "ingresos", (em.ahorro || 0) >= 0 ? "ok" : "warn")}
-      </div>`;
-    }
-
-    // --- Tu constancia (gamificación: anima a seguir registrando) ---
+    // --- Tu constancia (cuadro de mando: racha, ritmo, constancia de apuntes, trayectoria) ---
     const racha = t.racha || 0;
     const ritmo = t.ritmoMensual;
     const dias = t.diasInvertido;
-    const mesesFlujo = new Set((D.flujosLista || []).map(f => (f.fecha || "").slice(0, 7)).filter(Boolean)).size;
-    html += `<h3 class="inicioTit">Tu constancia 💪</h3><div class="inicioGrid">
-      ${tile("🔥", "Racha", racha ? racha + (racha === 1 ? " mes" : " meses") : "0", racha ? "seguidos aportando — ¡no la rompas!" : "aporta este mes para empezarla", "distribucion", racha ? "ok" : "")}
-      ${tile("💸", "Tu ritmo", ritmo != null ? G.fmtEur(ritmo, 0) : "—", "aportas de media al mes", "evolucion")}
-      ${tile("📝", "Apuntes", String(C.apuntes || 0), mesesFlujo ? `en ${mesesFlujo} mes${mesesFlujo === 1 ? "" : "es"} registrados` : "ingresos y gastos anotados", "ingresos")}
-      ${tile("⏳", "Trayectoria", dias != null ? dias + " días" : "—", "siguiendo tu patrimonio", "evolucion")}
-    </div>`;
+    const apm = D.aportacionesMensuales || { meses: [], total: [] };
+    const curYM = (D.fechas && D.fechas.length ? D.fechas[D.fechas.length - 1] : "").slice(0, 7);
+    const ymMenos = (ym, k) => {
+      let y = +ym.slice(0, 4), mo = +ym.slice(5, 7) - 1 - k;
+      while (mo < 0) { mo += 12; y--; }
+      return y + "-" + String(mo + 1).padStart(2, "0");
+    };
+    const mesesEntre = (a, b) => (+b.slice(0, 4) - +a.slice(0, 4)) * 12 + (+b.slice(5, 7) - +a.slice(5, 7));
+    const apSet = new Set((apm.meses || []).filter((_, i) => (apm.total || [])[i] > 0));
+    let dotsHtml = "";
+    if (curYM) for (let k = 11; k >= 0; k--) { const ym = ymMenos(curYM, k); dotsHtml += `<i class="${apSet.has(ym) ? "on" : ""}" title="${ym}"></i>`; }
+    const mesesApunte = new Set((D.flujosLista || []).map(f => (f.fecha || "").slice(0, 7)).filter(Boolean));
+    let transcurridos = 0;
+    if (mesesApunte.size && curYM) { const prim = [...mesesApunte].sort()[0]; transcurridos = Math.max(mesesApunte.size, mesesEntre(prim, curYM) + 1); }
+    const pctAp = transcurridos > 0 ? Math.min(1, mesesApunte.size / transcurridos) : 0;
+    // Trayectoria: dos lecturas del mismo dato (años como cifra grande + días en detalle).
+    const anios = dias != null ? dias / 365 : null;
+    const trayVal = dias == null ? "—" : (anios >= 1 ? anios.toFixed(1) : anios.toFixed(2));
+    const traySub = dias == null ? "sin histórico aún" : (anios === 1 ? "año siguiéndote" : "años siguiéndote");
+    const trayExtra = dias == null ? "" : `${G.nfNum.format(dias)} días`;
+    html += `<section class="tarjeta hud">
+      <header><h2>Tu constancia</h2><span class="subt">tu disciplina, al mando</span></header>
+      <div class="hudGrid">
+        <div class="hudCell c1" data-go="evolucion" role="button" tabindex="0">
+          <span class="hudEtq">🔥 Racha</span>
+          <b class="hudNum">${racha}</b>
+          <span class="hudUnidad">${racha === 1 ? "mes seguido aportando" : "meses seguidos aportando"}</span>
+          <div class="hudDots" title="Últimos 12 meses con aportaciones">${dotsHtml}</div>
+        </div>
+        <div class="hudCell c2" data-go="evolucion" role="button" tabindex="0">
+          <span class="hudEtq">💸 Ritmo de ahorro</span>
+          <b class="hudNum">${ritmo != null ? G.fmtEurCorto(ritmo) : "—"}</b>
+          <span class="hudUnidad">de media al mes</span>
+          <div class="hudSpark" id="hudSparkRitmo"></div>
+        </div>
+        <div class="hudCell c3" data-go="ingresos" role="button" tabindex="0">
+          <span class="hudEtq">📝 Constancia</span>
+          <div class="hudAro" id="hudAro"></div>
+          <span class="hudUnidad">meses con apuntes</span>
+        </div>
+        <div class="hudCell c4" data-go="evolucion" role="button" tabindex="0">
+          <span class="hudEtq">⏳ Trayectoria</span>
+          <b class="hudNum">${trayVal}</b>
+          <span class="hudUnidad">${traySub}</span>
+          ${trayExtra ? `<span class="hudExtra">${trayExtra}</span>` : ""}
+        </div>
+      </div>
+    </section>`;
+
+    // --- Mega-card «Tu patrimonio»: donut (dónde está tu dinero) + tiles ---
+    const ejes = [{ id: "tipo", et: "Tipo" }, { id: "clase", et: "Activo" }, { id: "entidad", et: "Entidad" }]
+      .concat((D.dimensiones || []).map(dm => ({ id: "dim:" + dm.id, et: dm.nombre })));
+    let eje = estado.inicioEje;
+    if (!ejes.some(e => e.id === eje)) eje = "tipo";
+    estado.inicioEje = eje;
+    // «Dónde está tu dinero» = reparto de los ACTIVOS (sin deudas), igual que patrimonio bruto.
+    const grupos = agrupa(D.productos.concat(D.otrosActivos || []), eje).filter(g => g.valor > 0);
+    const totalGrupos = grupos.reduce((a, g) => a + g.valor, 0);
+    const usarSelect = ejes.length > 3;
+    const ejeCtrl = usarSelect
+      ? `<select class="ejeSel" id="inicioEjeSel" aria-label="Agrupar el reparto por">${ejes.map(e => `<option value="${esc(e.id)}"${e.id === eje ? " selected" : ""}>${esc(e.et)}</option>`).join("")}</select>`
+      : `<div class="ejeChips" id="inicioEjeChips" role="group" aria-label="Agrupar el reparto por">${ejes.map(e => `<button type="button" class="ejeChip${e.id === eje ? " on" : ""}" data-eje="${esc(e.id)}">${esc(e.et)}</button>`).join("")}</div>`;
+
+    const subDeuda = t.deudas
+      ? (t.cuotaMensualDeudas ? G.fmtEur(t.cuotaMensualDeudas, 0) + "/mes en cuotas" : "lo que debes")
+      : "sin deudas";
+    const subColchon = t.colchon ? "reservado para imprevistos" : "aún sin colchón";
+    const plus = m && m.plusvalia != null ? m.plusvalia : t.plusvalia;
+    const tir = m && m.tir != null ? m.tir : t.tir;
+    const rentCaption = plus != null
+      ? `Rentabilidad <b class="${plus >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(plus, 0)}</b>${tir != null ? ` · TIR ${G.fmtPctSigno(tir)}` : ""} <span class="subt">sobre lo aportado</span>`
+      : "";
+    html += `<section class="tarjeta inicioMega megaPat">
+      <header><h2>Tu patrimonio</h2><span class="subt">dónde está tu dinero y cuánto te queda libre</span></header>
+      <div class="megaBody">
+        <div class="megaGraf">
+          <div class="megaGrafTop"><span class="irEtq">Dónde está tu dinero</span>${ejeCtrl}</div>
+          <div class="inicioDonut" id="inicioDonut"></div>
+          ${rentCaption ? `<div class="megaRent">${rentCaption}</div>` : ""}
+        </div>
+        <div class="megaTiles inicioGrid dos">
+          ${tile("💼", "Activos", G.fmtEur(t.patrimonioBruto || 0, 0), `${C.activos || 0} componente${C.activos === 1 ? "" : "s"}`, "distribucion")}
+          ${tile("🏦", "Deudas", G.fmtEur(t.deudas || 0, 0), subDeuda, "deudas", t.deudas ? "warn" : "")}
+          ${tile("💧", "Dinero libre", G.fmtEur(t.dineroLibre || 0, 0), "listo para invertir", "patrimonio")}
+          ${tile("🛟", "Colchón", t.colchon ? G.fmtEur(t.colchon, 0) : "—", subColchon, "patrimonio")}
+        </div>
+      </div>
+    </section>`;
+
+    // --- Mega-card «Ingresos y gastos»: tiles (izq) + diagrama (der) ---
+    const fl = D.flujos;
+    const hayBarras = fl && fl.meses && fl.meses.length;
+    if (em || hayBarras) {
+      const mediaAhorro = fl && fl.media12 && fl.media12.ahorro;
+      const subAhorro = em && em.tasaAhorro != null ? "el " + G.fmtPct(em.tasaAhorro, 0) + " de tus ingresos" : "este mes";
+      html += `<section class="tarjeta inicioMega megaIng">
+        <header><h2>Ingresos y gastos</h2><span class="subt">tu mes y la tendencia reciente</span></header>
+        <div class="megaBody rev">
+          <div class="megaTiles inicioGrid dos">
+            ${tile("➕", "Ingresos", em ? G.fmtEur(em.ingresos || 0, 0) : "—", "cobrado este mes", "ingresos", "ok")}
+            ${tile("➖", "Gastos", em ? G.fmtEur(em.gastos || 0, 0) : "—", "gastado este mes", "ingresos", "warn")}
+            ${tile("🐷", "Ahorro", em ? G.fmtEur(em.ahorro || 0, 0) : "—", subAhorro, "ingresos", (em && (em.ahorro || 0) >= 0) ? "ok" : "warn")}
+            ${tile("📊", "Ahorro medio", mediaAhorro != null ? G.fmtEurSigno(mediaAhorro, 0) : "—", "al mes (últimos 12)", "ingresos")}
+          </div>
+          <div class="megaGraf">
+            <span class="irEtq">Ingresos y gastos (últimos meses)</span>
+            <div class="inicioBarras" id="inicioBarras"></div>
+            <div class="irLeyenda"><span><i style="background:${G.css("--s6")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div>
+          </div>
+        </div>
+      </section>`;
+    }
 
     // --- Tu archivo y tus avisos ---
     const subAviso = nAlertas
@@ -1834,24 +1891,29 @@
     </div>`;
 
     cont.innerHTML = html;
+
     const sp = $("#inicioSpark");
-    if (sp && serieNeto.length > 1) { try { G.mini(sp, serieNeto, G.css("--s1")); } catch (e) { /* sin sparkline */ } }
+    if (sp) { try { G.sparkPro(sp, { valores: serieNeto, fechas: D.fechas || [], color: G.css("--s1") }); } catch (e) { /* sin línea */ } }
+    const spr = $("#hudSparkRitmo");
+    if (spr) { try { const serie = (apm.total || []).slice(-12); if (serie.filter(x => x != null).length > 1) G.mini(spr, serie, G.css("--s4")); } catch (e) { /* sin spark */ } }
+    const ar = $("#hudAro");
+    if (ar) { try { G.aro(ar, { pct: pctAp, color: G.css("--s3"), tam: 96, centro: String(mesesApunte.size), sub: transcurridos ? "de " + transcurridos : "" }); } catch (e) { /* sin aro */ } }
     const dn = $("#inicioDonut");
-    if (dn && porTipo.length) {
+    if (dn && grupos.length) {
       try {
         G.donut(dn, {
-          datos: porTipo.slice(0, 8).map(x => ({ nombre: x.nombre, valor: x.valor, color: x.color })),
-          alto: 200, tituloCentro: "Total", valorCentro: G.fmtEurCorto(t.patrimonioBruto || 0),
+          datos: grupos.slice(0, 8), alto: 210,
+          tituloCentro: "Activos", valorCentro: G.fmtEurCorto(totalGrupos),
           onClick: () => irVista("distribucion"),
         });
       } catch (e) { /* sin donut */ }
-    }
+    } else if (dn) { dn.innerHTML = '<p class="vacio">Añade activos para ver el reparto.</p>'; }
     const bar = $("#inicioBarras");
     if (bar && fl && fl.meses && fl.meses.length) {
       try {
         const n = Math.min(6, fl.meses.length), i0 = fl.meses.length - n;
         G.barrasAgrupadas(bar, {
-          categorias: fl.meses.slice(i0).map(m => G.fmtMes(m)), alto: 200,
+          categorias: fl.meses.slice(i0).map(mm => G.fmtMes(mm)), alto: 210,
           series: [
             { nombre: "Ingresos", color: G.css("--s6"), valores: fl.ingresos.slice(i0) },
             { nombre: "Gastos", color: G.css("--s8"), valores: fl.gastos.slice(i0) },
@@ -1860,6 +1922,7 @@
         });
       } catch (e) { /* sin barras */ }
     }
+
     const acciones = {
       inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
       rentabilidad: ir("rentabilidad"), evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
@@ -1867,14 +1930,28 @@
     };
     cont.querySelectorAll("[data-go]").forEach(b => {
       const fn = acciones[b.dataset.go];
-      if (fn) b.onclick = fn;
+      if (!fn) return;
+      b.onclick = fn;
+      if (b.getAttribute("role") === "button") b.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fn(); } };
     });
+    const chips = cont.querySelector("#inicioEjeChips");
+    if (chips) chips.querySelectorAll("[data-eje]").forEach(b => { b.onclick = () => { estado.inicioEje = b.dataset.eje; pintaInicio(m); }; });
+    const sel = cont.querySelector("#inicioEjeSel");
+    if (sel) sel.onchange = () => { estado.inicioEje = sel.value; pintaInicio(m); };
   }
 
   function pintaPatrimonio() {
     const mTodo = metricas(TODOS());
     const mVis = filtrando() ? metricas(visibles()) : mTodo;
     const pv = estado.pv || "patrimonio";
+    // En «Inicio» (foto fija del conjunto) no se puede filtrar: ocultamos los filtros de
+    // titular/dimensión, el indicador de periodo y el resultado del periodo para ganar
+    // espacio. No se borran: siguen activos en el resto de pestañas del panel.
+    const enInicio = pv === "inicio";
+    ["filtroTitular", "mesReferencia", "resultadoPeriodo"].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle("ocultoInicio", enInicio);
+    });
     // Cifras y tablas (baratas): se rellenan siempre, aunque su vista esté oculta.
     pintaFiltros();
     pintaResumenMes();
@@ -2236,6 +2313,21 @@
     const sec = $("#fondoTabla");
     const filas = (p.aportaciones || []).filter(a => a.importe).slice().reverse();
     if (!filas.length) {
+      // Productos que se valoran a mano (cuentas, efectivo, deudas…): no tienen
+      // «aportaciones» sino anotaciones de saldo. Se listan y, pulsando una, se salta
+      // a esa anotación en «Saldos y movimientos».
+      const valores = (p.valores || []).slice().reverse();
+      const puedeIr = D.modo === "propio" && window.Editor && window.Editor.irAValor;
+      if (valores.length) {
+        sec.innerHTML = `<header><h2>Saldos anotados</h2>
+            <span class="subt">${valores.length} anotación${valores.length === 1 ? "" : "es"} de su valor${puedeIr ? " · pulsa una para verla en «Saldos y movimientos»" : ""}</span></header>
+          <div class="tablaEnv alto"><table class="dt">
+            <thead><tr><th>Fecha</th><th>Valor</th></tr></thead>
+            <tbody>${valores.map(v => `<tr${puedeIr && v.id ? ` class="filaClic" data-val="${esc(v.id)}" title="Ver esta anotación en «Saldos y movimientos»"` : ""}>
+              <td>${G.fmtFecha(v.fecha)}</td><td>${v.valor != null ? G.fmtEur(v.valor) : "—"}</td></tr>`).join("")}</tbody></table></div>`;
+        if (puedeIr) sec.querySelectorAll("[data-val]").forEach(tr => tr.onclick = () => window.Editor.irAValor(p.id, tr.dataset.val));
+        return;
+      }
       sec.innerHTML = `<header><h2>Aportaciones</h2></header>
         <p class="vacio">Este componente no tiene aportaciones registradas: solo anotas su valor.</p>`;
       return;
@@ -2438,7 +2530,7 @@
     version: "1.10.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🗂️", "Explorador de archivos", "En «Notas → Archivos» tienes un explorador para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en carpetas anidadas. Puedes incluso subir una carpeta entera. Todo en tu ordenador."],
+      ["🗂️", "Explorador de archivos", "En «Documentos → Archivos» tienes un explorador para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en carpetas anidadas. Puedes incluso subir una carpeta entera. Todo en tu ordenador."],
       ["🏠", "Panel de inicio", "Un nuevo resumen que reúne de un vistazo tu patrimonio, tus ingresos y gastos, tus facturas y tus documentos, con accesos directos a cada sección."],
       ["🧭", "Moverte mejor", "Ayuda y Ajustes ahora están arriba a la derecha. Desde la ficha de un componente puedes «Volver a Distribución» con un botón, y en el buscador (⌘K) Ayuda y Ajustes salen las primeras."],
       ["👆", "Aportaciones enlazadas", "En la ficha de un componente, pulsa una fila de «Aportaciones» para ir directo a ese movimiento en «Saldos y movimientos»."],
@@ -2715,7 +2807,7 @@
     { sel: '[data-acc="imDestino"]', tit: "Importar tus datos", txt: "Tráelos de golpe. Elige qué importar: «Activos e inversiones» (MyInvestor, plantilla Excel/CSV o con ayuda de una IA) o «Datos del banco» (tus ingresos y gastos). Consejo: asigna la ENTIDAD (banco) al importar — así luego el Panel te da métricas y análisis por entidad.", antes: () => irMisDatos("importar") },
     { sel: "#imZona", tit: "Copias de seguridad", txt: "Descarga una copia cuando quieras: el «.zip» incluye tus datos y tus facturas (con nombres descriptivos); el «.json» es más ligero. Para recuperar, arrastra aquí un .json o .zip. Y antes de cada cambio se guarda una copia automática.", antes: () => irMisDatos("copias") },
     // --- Organización y ajustes ---
-    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, una Agenda con calendario y un Explorador de archivos para guardar tus documentos importantes (Hacienda, escrituras, contratos…), todo en tu ordenador.", antes: () => irA("panel") },
+    { sel: '[data-tab="notas"]', tit: "Documentos", txt: "Tu espacio aparte para guardarlo todo: un Explorador de archivos para tus documentos importantes (Hacienda, escrituras, contratos…) en carpetas, y además una Lista de notas (con etiquetas y tareas), un Tablero tipo Trello y una Agenda con calendario. Todo en tu ordenador.", antes: () => irA("panel") },
     { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
   ];
   function iniciaTour() {

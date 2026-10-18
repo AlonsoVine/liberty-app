@@ -1199,32 +1199,99 @@ def _nombre_factura(fl, adj, usados):
     return nombre
 
 
-def _zip_cartera():
-    """Construye en memoria un .zip con la cartera actual y sus facturas renombradas
-    descriptivamente; reescribe las referencias en el cartera.json del zip para que se
-    restaure sin perder ningún enlace. Solo lee (no toca nada en disco)."""
+def _ruta_carpeta_bib(carpetas_por_id, cid):
+    """Ruta (saneada, desde la raíz) de una carpeta de la biblioteca, para recrear la
+    MISMA estructura dentro del zip. Protegido contra ciclos de «padre»."""
+    partes, visto = [], set()
+    while cid and cid in carpetas_por_id and cid not in visto:
+        visto.add(cid)
+        c = carpetas_por_id[cid]
+        partes.append(_san_nombre(c.get("nombre") or "carpeta", 80) or "carpeta")
+        cid = c.get("padre")
+    return "/".join(reversed(partes))
+
+
+def _zip_cartera(base="cartera"):
+    """Construye en memoria un .zip con la cartera actual, perfectamente estructurado para
+    poder recuperar la aplicación (o extraer los documentos a mano):
+      · «<base>.json»      → todos los datos del patrimonio (referencias reescritas),
+      · «facturas/…»       → las facturas de los apuntes, con nombre descriptivo,
+      · «archivos/…»       → la biblioteca de documentos con su MISMA estructura de
+                             carpetas y los nombres visibles (la papelera, en «.papelera/»).
+    Solo lee (no toca nada en disco)."""
     cfg = copy.deepcopy(cartera())
     adj_dir = os.path.join(carpeta(), "adjuntos")
     bib_dir = os.path.join(carpeta(), "biblioteca")
-    buf, usados = io.BytesIO(), set()
+    buf, usados_fact, usados_arch = io.BytesIO(), set(), set()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as z:
         for fl in cfg.get("flujos", []):
             for adj in fl.get("adjuntos", []):
                 origen = os.path.join(adj_dir, os.path.basename(adj.get("archivo") or ""))
                 if os.path.exists(origen):
-                    nombre = _nombre_factura(fl, adj, usados)
-                    z.write(origen, "adjuntos/" + nombre)
+                    nombre = _nombre_factura(fl, adj, usados_fact)
+                    z.write(origen, "facturas/" + nombre)
                     adj["archivo"] = nombre     # referencia -> nombre descriptivo
-        # Biblioteca de documentos (y su papelera): se guardan tal cual (el nombre visible
-        # va en el metadato de la cartera, así la estructura se recupera completa).
+        # Biblioteca: se recrea la estructura de carpetas con los nombres visibles. La
+        # referencia de cada documento pasa a ser su ruta relativa dentro de «archivos/»,
+        # para poder localizarlo al restaurar.
         bib_cfg = cfg.get("biblioteca") or {}
-        for arch in list(bib_cfg.get("archivos", [])) + list(bib_cfg.get("papelera", [])):
-            base = os.path.basename(arch.get("archivo") or "")
-            origen = os.path.join(bib_dir, base)
-            if base and os.path.exists(origen):
-                z.write(origen, "biblioteca/" + base)
-        z.writestr("cartera.json", json.dumps(cfg, ensure_ascii=False, indent=1))
+        carpetas_por_id = {c.get("id"): c for c in bib_cfg.get("carpetas", [])}
+
+        def _mete(arch, prefijo):
+            base_disk = os.path.basename(arch.get("archivo") or "")
+            origen = os.path.join(bib_dir, base_disk)
+            if not base_disk or not os.path.exists(origen):
+                return
+            visible = _san_nombre(arch.get("nombre") or base_disk, 120) or "documento"
+            carpeta_rel = _ruta_carpeta_bib(carpetas_por_id, arch.get("carpeta"))
+            destino = "/".join(p for p in (prefijo, carpeta_rel) if p)
+            rel = (destino + "/" if destino else "") + visible
+            raiz, ext = os.path.splitext(rel)
+            i = 2
+            while rel.lower() in usados_arch:
+                rel = f"{raiz} ({i}){ext}"
+                i += 1
+            usados_arch.add(rel.lower())
+            z.write(origen, "archivos/" + rel)
+            arch["archivo"] = rel     # referencia -> ruta relativa dentro de «archivos/»
+
+        for arch in bib_cfg.get("archivos", []):
+            _mete(arch, "")
+        for arch in bib_cfg.get("papelera", []):
+            _mete(arch, ".papelera")
+        z.writestr(_san_nombre(base, 80) + ".json", json.dumps(cfg, ensure_ascii=False, indent=1))
     return buf.getvalue()
+
+
+def _recupera_biblioteca_zip(cfg, z, nombres):
+    """Lee los documentos de la biblioteca de un .zip —estructura nueva («archivos/<ruta>»,
+    por la ruta relativa que guardamos en la referencia) o antigua («biblioteca/<fichero>»)—
+    y a cada uno le asigna un nombre de almacenamiento único, reescribiendo la referencia de
+    la cartera. Devuelve {nombre_en_disco: bytes} para volcarlos en «biblioteca/»."""
+    bib = cfg.get("biblioteca") or {}
+    hay_nuevo = any(n.startswith("archivos/") for n in nombres)
+    salida = {}
+
+    def _resuelve(arch):
+        ref = arch.get("archivo") or ""
+        clave = ("archivos/" + ref) if hay_nuevo else ("biblioteca/" + os.path.basename(ref))
+        if clave not in nombres:
+            clave = next((n for n in nombres
+                          if (n.startswith("archivos/") or n.startswith("biblioteca/"))
+                          and not n.endswith("/")
+                          and os.path.basename(n) == os.path.basename(ref)), None)
+        if not clave:
+            return
+        ext = os.path.splitext(ref or clave)[1]
+        nuevo = "bib_" + secrets.token_hex(8) + ext
+        salida[nuevo] = z.read(clave)
+        arch["archivo"] = nuevo
+
+    for arch in bib.get("archivos", []):
+        _resuelve(arch)
+    for arch in bib.get("papelera", []):
+        _resuelve(arch)
+    return salida
 
 
 def _escribe_adjuntos(destino, adjuntos):
@@ -1277,7 +1344,7 @@ def api_copia_descargar():
     base = f"copia_patrimonio_{slug}_{dt.date.today().isoformat()}"
     # Con ?formato=zip: la cartera + las facturas (nombre descriptivo). Si no, solo el .json.
     if request.args.get("formato") == "zip":
-        return Response(_zip_cartera(), mimetype="application/zip",
+        return Response(_zip_cartera(base), mimetype="application/zip",
                         headers={"Content-Disposition": f'attachment; filename="{base}.zip"'})
     with open(os.path.join(carpeta(), "cartera.json"), "rb") as f:
         contenido = f.read()
@@ -1298,11 +1365,18 @@ def api_copia_subir():
     try:
         if es_zip:
             with zipfile.ZipFile(io.BytesIO(raw)) as z:
-                cfg = valida_copia(json.loads(z.read("cartera.json").decode("utf-8")))
-                adjuntos = {os.path.basename(n): z.read(n) for n in z.namelist()
-                            if n.startswith("adjuntos/") and not n.endswith("/")}
-                biblioteca = {os.path.basename(n): z.read(n) for n in z.namelist()
-                              if n.startswith("biblioteca/") and not n.endswith("/")}
+                nombres = z.namelist()
+                # El JSON de datos: «cartera.json» (copias antiguas) o el .json de la raíz.
+                jn = "cartera.json" if "cartera.json" in nombres else next(
+                    (n for n in nombres if n.endswith(".json") and "/" not in n), None)
+                if not jn:
+                    raise KeyError("cartera.json")
+                cfg = valida_copia(json.loads(z.read(jn).decode("utf-8")))
+                # Facturas: carpeta «facturas/» (nueva) o «adjuntos/» (copias antiguas).
+                adjuntos = {os.path.basename(n): z.read(n) for n in nombres
+                            if (n.startswith("facturas/") or n.startswith("adjuntos/")) and not n.endswith("/")}
+                # Biblioteca: estructura «archivos/…» (nueva) o «biblioteca/…» (antigua).
+                biblioteca = _recupera_biblioteca_zip(cfg, z, nombres)
         else:
             cfg = valida_copia(json.loads(importar.decodifica(raw)))
     except (ValueError, KeyError, zipfile.BadZipFile):

@@ -87,15 +87,16 @@ def test_zip_export_import_no_pierde_facturas(tmp_path, monkeypatch):
     client.post("/api/flujo-adjunto", data=data, content_type="multipart/form-data")
     desc = "2026-01-10 - 50€ - Alimentación - ticket compra.pdf"
 
-    # Exporta el .zip: cartera.json + adjuntos/ con nombre descriptivo y ref reescrita.
+    # Exporta el .zip: <base>.json + carpeta facturas/ con nombre descriptivo y ref reescrita.
     r = client.get("/api/copia/descargar?formato=zip")
     assert r.status_code == 200 and r.mimetype == "application/zip"
     zip_bytes = r.data
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        assert "cartera.json" in z.namelist()
-        assert "adjuntos/" + desc in z.namelist()
-        assert z.read("adjuntos/" + desc) == b"%PDF datos factura"
-        cfg_zip = json.loads(z.read("cartera.json"))
+        nombres = z.namelist()
+        jn = next(n for n in nombres if n.endswith(".json") and "/" not in n)
+        assert "facturas/" + desc in nombres
+        assert z.read("facturas/" + desc) == b"%PDF datos factura"
+        cfg_zip = json.loads(z.read(jn))
         assert cfg_zip["flujos"][0]["adjuntos"][0]["archivo"] == desc
 
     # Simula una pérdida: quita la factura del apunte (borra su archivo).

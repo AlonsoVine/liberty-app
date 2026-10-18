@@ -1010,8 +1010,17 @@ dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
 .irEtq b{color:var(--tinta)}
 .irSub{font-size:12.5px;color:var(--tinta2)}
 .irSub b{color:var(--tinta)}
-.inicioSpark{height:46px}
-.inicioSpark .spark{width:100%;height:100%;display:block}
+.inicioSpark{height:96px}
+.inicioSpark .spark,.inicioSpark .sparkPro{width:100%;height:100%;display:block}
+.sparkPro .spEtq{font-size:11.5px;font-weight:700;fill:var(--tinta2)}
+.sparkPro .spEtq.fuerte{fill:var(--tinta);font-size:12.5px}
+.sparkPro .spFch{font-size:10px;fill:var(--tinta3)}
+.sparkPro .spPt{filter:drop-shadow(0 0 4px color-mix(in srgb,var(--s1) 70%,transparent))}
+.sparkPro .spCross{stroke:var(--tinta3);stroke-width:1;stroke-dasharray:3 3;pointer-events:none;transition:opacity .1s}
+.sparkPro .spHot{fill:var(--tinta);stroke:var(--s1);stroke-width:2;pointer-events:none;transition:opacity .1s}
+.spDelta{font-weight:700;font-size:12px;margin-left:4px}
+.spDelta.pos{color:var(--bien)} .spDelta.neg{color:var(--mal)}
+.inicioProg{margin-top:4px;max-width:none}
 .metaBar{height:10px;border-radius:999px;background:var(--sup2);overflow:hidden;border:1px solid var(--borde)}
 .metaFill{height:100%;background:linear-gradient(90deg,var(--s1),color-mix(in srgb,var(--s1) 55%,var(--s7,#2a9d6f)));border-radius:999px;transition:width .5s ease}
 .inicioVisual{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px}
@@ -1020,6 +1029,59 @@ dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
 .inicioDonut .grafico,.inicioBarras .grafico{width:100%;height:auto}
 .irLeyenda{display:flex;gap:16px;justify-content:center;margin-top:6px;font-size:12px;color:var(--tinta2)}
 .irLeyenda i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+/* ---- Cuadro de mando «constancia» (estética sobria tipo panel) ---- */
+.hud{margin-top:16px;background:
+  radial-gradient(120% 140% at 15% 0%,color-mix(in srgb,var(--s1) 9%,transparent),transparent 60%),var(--sup);
+  border-color:color-mix(in srgb,var(--s1) 22%,var(--borde))}
+.hudGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-top:4px}
+@media(max-width:820px){.hudGrid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:440px){.hudGrid{grid-template-columns:1fr}}
+.hudCell{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;text-align:center;
+  padding:16px 12px;border:1px solid var(--borde);border-radius:14px;background:var(--sup2);cursor:pointer;
+  transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}
+.hudCell:hover,.hudCell:focus-visible{transform:translateY(-2px);outline:none;
+  border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:0 8px 26px rgba(0,0,0,.14)}
+.hudEtq{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tinta3)}
+.hudNum{font-size:34px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--tinta);
+  text-shadow:0 0 22px color-mix(in srgb,var(--s1) 32%,transparent)}
+.hudCell.c1 .hudNum{text-shadow:0 0 22px color-mix(in srgb,var(--s4) 40%,transparent)}
+.hudCell.c2 .hudNum{text-shadow:0 0 22px color-mix(in srgb,var(--s4) 36%,transparent)}
+.hudUnidad{font-size:12px;color:var(--tinta2)}
+.hudExtra{font-size:12px;font-weight:700;font-variant-numeric:tabular-nums;color:var(--tinta3);
+  background:var(--sup);border:1px solid var(--borde);border-radius:7px;padding:1px 8px;margin-top:2px}
+.hudDots{display:flex;gap:4px;margin-top:4px}
+.hudDots i{width:8px;height:8px;border-radius:50%;background:var(--rejilla)}
+.hudDots i.on{background:var(--s4);box-shadow:0 0 7px color-mix(in srgb,var(--s4) 75%,transparent)}
+.hudSpark{width:100%;height:30px;margin-top:2px}
+.hudSpark .spark{width:100%;height:100%;display:block}
+.hudAro{position:relative;width:96px;height:96px}
+.aro{display:block}
+.aro .aroTrack{stroke:var(--rejilla)}
+.aro .aroArco{filter:drop-shadow(0 0 5px color-mix(in srgb,var(--s3) 55%,transparent))}
+.aroCentro{position:absolute;inset:0;display:grid;place-content:center;text-align:center;line-height:1.05}
+.aroCentro b{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--tinta)}
+.aroCentro small{display:block;font-size:11px;color:var(--tinta3)}
+/* ---- Mega-cards de inicio (gráfico + tiles fusionados) ---- */
+.inicioMega{margin-top:16px}
+/* La columna ancha va siempre a la derecha; el «espejo» entre las dos mega-cards
+   (donut→izq en patrimonio; tiles→izq en ingresos) lo da el orden del DOM. */
+.megaBody{display:grid;grid-template-columns:minmax(210px,1fr) 1.25fr;gap:18px;align-items:center}
+@media(max-width:760px){.megaBody{grid-template-columns:1fr}}
+.megaGraf{min-width:0}
+.megaGrafTop{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;margin-bottom:2px}
+.megaRent{margin-top:8px;text-align:center;font-size:13px;color:var(--tinta2)}
+.megaRent b{font-variant-numeric:tabular-nums}
+.megaRent .pos{color:var(--bien)} .megaRent .neg{color:var(--mal)}
+.inicioGrid.dos{grid-template-columns:repeat(2,1fr)}
+@media(max-width:460px){.inicioGrid.dos{grid-template-columns:1fr}}
+.ejeChips{display:inline-flex;gap:3px;background:var(--sup2);border:1px solid var(--borde);border-radius:10px;padding:3px}
+.ejeChip{border:0;background:none;color:var(--tinta2);font:inherit;font-size:12px;font-weight:600;
+  padding:4px 10px;border-radius:7px;cursor:pointer;transition:.1s}
+.ejeChip:hover{color:var(--tinta)}
+.ejeChip.on{background:var(--sup);color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ejeSel{border:1px solid var(--borde);background:var(--sup2);color:var(--tinta);font:inherit;font-size:12.5px;
+  font-weight:600;border-radius:9px;padding:5px 8px;cursor:pointer}
+.ocultoInicio{display:none!important}
 /* ---- Biblioteca de documentos ---- */
 .bibBarra{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:14px 0 10px}
 .bibDestino{font-size:13px;color:var(--tinta2)}
@@ -1248,7 +1310,7 @@ body.video .tarjetaCanal{display:none}
     <nav class="tabs tabsPrin" id="tabs" role="tablist">
       <button data-tab="panel" role="tab" aria-selected="true">📊 Panel</button>
       <button data-tab="datos" role="tab" aria-selected="false">✏️ Mis datos</button>
-      <button data-tab="notas" role="tab" aria-selected="false">📝 Notas</button>
+      <button data-tab="notas" role="tab" aria-selected="false">🗂️ Documentos</button>
     </nav>
   </div>
 </div>
@@ -1653,7 +1715,7 @@ body.video .tarjetaCanal{display:none}
       <li><b>Periodo a medida</b>: ver el patrimonio a un <b>día concreto</b>, a fin de cualquier mes o lo obtenido en un <b>rango</b>.</li>
       <li><b>Ingresos y gastos con filtros potentes</b> (categoría, entidad, titular, marca, importe o fechas) y <b>marcas</b> para señalar apuntes.</li>
       <li><b>Ayuda para rebalancear</b> hacia tus objetivos y <b>centro de avisos</b> configurable.</li>
-      <li><b>Notas</b> (con etiquetas y tareas), <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos; y un <b>tour guiado</b> la primera vez.</li>
+      <li><b>Documentos</b>: un <b>explorador de archivos</b> para tus documentos (escrituras, contratos…), notas con etiquetas y tareas, <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos; y un <b>tour guiado</b> la primera vez.</li>
       <li><b>Informe fiscal</b> anual para la renta (ganancias y pérdidas por FIFO y dividendos/cupones), <b>listo para imprimir</b>.</li>
       <li><b>Multidivisa</b>, y la base que ya traía Rumbo: precios automáticos, TIR/XIRR, FIFO y comparador con índices.</li>
     </ul>
@@ -1759,7 +1821,7 @@ body.video .tarjetaCanal{display:none}
           mes o un rango).</li>
         <li><b>✏️ Mis datos</b>: lo que escribes tú. Dentro: Activos, Deudas, Reservados, <b>Saldos y movimientos</b>,
           <b>Ingresos y gastos</b>, <b>Facturas</b>, Configuración, Importar y Copias y seguridad.</li>
-        <li><b>🗒️ Notas</b>: tus notas (con etiquetas y listas de tareas), un <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos.</li>
+        <li><b>🗂️ Documentos</b>: un <b>explorador de archivos</b> para guardar tus documentos importantes (Hacienda, escrituras, contratos…) en carpetas, además de tus notas (con etiquetas y listas de tareas), un <b>tablero tipo Trello</b> y una <b>Agenda</b> de recordatorios y vencimientos.</li>
         <li><b>❓ Ayuda</b>: esto.</li>
         <li><b>⚙️ Ajustes</b>: tamaño de texto, tema claro/oscuro, vista amplia, modo vídeo y ocultar importes.</li>
       </ul></div></details>
@@ -1835,7 +1897,7 @@ body.video .tarjetaCanal{display:none}
       <b>Observaciones</b> son tu <b>nota libre</b> sobre ese apunte (por ejemplo «revisar, parece duplicado»). Para no
       ocupar espacio no se muestran como columna: verás un <b>📝</b> en los apuntes que tengan observaciones (pulsa para
       leerlas o editarlas) y puedes <b>filtrar por «con/sin nota»</b>. Estas observaciones son solo del apunte: <b>no</b>
-      tienen que ver con la pestaña <b>Notas</b> ni aparecen en la Agenda.</p></div></details>
+      tienen que ver con la pestaña <b>Documentos</b> ni aparecen en la Agenda.</p></div></details>
 
     <details class="faq"><summary>¿Puedo adjuntar la factura o el ticket de un gasto?</summary><div>
       <p>Sí. En <b>Mis datos → Ingresos y gastos</b>, en la columna <b>📎</b> de cada apunte, pulsa para <b>adjuntar</b>
@@ -1868,8 +1930,8 @@ body.video .tarjetaCanal{display:none}
       por tipo, la app te dice en qué estás sobre o infraponderado; y si le indicas cuánto dinero quieres aportar, reparte
       esa cantidad dando prioridad a lo que llevas por debajo del objetivo.</p></div></details>
 
-    <details class="faq"><summary>¿Para qué sirve la pestaña «Notas»?</summary><div>
-      <p>Es tu espacio para apuntes, pendientes y fechas, separado de los datos del patrimonio. Tiene tres vistas:</p>
+    <details class="faq"><summary>¿Para qué sirve la pestaña «Documentos»?</summary><div>
+      <p>Es tu espacio para guardar documentos, apuntes, pendientes y fechas, separado de los datos del patrimonio. Tiene cuatro vistas:</p>
       <ul>
         <li><b>📝 Lista de notas</b>: crea notas con <b>etiquetas</b>, <b>fíjalas</b> arriba, <b>búscalas</b> y añade
           <b>listas de tareas</b> dentro (escribe <code>- [ ] comprar X</code> y se vuelve una casilla marcable). Puedes
@@ -1883,6 +1945,10 @@ body.video .tarjetaCanal{display:none}
           enlace opcional a un activo/deuda/reservado), los <b>vencimientos que la app detecta</b> (depósitos,
           deudas, reservados) y las <b>tarjetas del tablero con fecha</b> (con un badge «📋 Tablero»; al pulsarlas vas
           al tablero).</li>
+        <li><b>🗂️ Archivos</b>: un <b>explorador de archivos</b> (como el de tu ordenador) para guardar tus
+          documentos importantes —escrituras, contratos, declaraciones, recibos…— en <b>carpetas anidadas</b>.
+          Puedes crear carpetas, mover, copiar, renombrar, subir una <b>carpeta entera</b> conservando su estructura, y
+          tiene <b>papelera</b>. Todo se queda en tu ordenador. Van también en la copia de seguridad <code>.zip</code>.</li>
       </ul></div></details>
 
     <details class="faq"><summary>¿Puedo elegir qué avisos me muestra la app?</summary><div>
@@ -1974,14 +2040,21 @@ body.video .tarjetaCanal{display:none}
 
     <p><b>Las pestañas, de un vistazo:</b></p>
     <ul>
-      <li><b>📊 Panel</b> — la foto de tu patrimonio y los análisis. Dentro tiene vistas: <i>Patrimonio,
-        Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos</i> e <i>Informe fiscal</i>.
-        Arriba puedes incluso ver cómo estaba tu patrimonio <i>a fin de un mes pasado</i>.</li>
-      <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, reservados, ingresos y gastos
-        y saldos; también la configuración, importar y las copias de seguridad.</li>
-      <li><b>❓ Ayuda</b> — dudas frecuentes y explicaciones (y aquí puedes volver a abrir esta presentación).</li>
-      <li><b>⚙️ Ajustes</b> — cómo se ve la app: <b>tamaño del texto</b>, tema claro/oscuro, <b>vista amplia</b>,
-        ocultar importes… pensado para que sea cómoda a cualquier edad.</li>
+      <li><b>📊 Panel</b> — la foto de tu patrimonio y los análisis. Abre en <b>Inicio</b>, un resumen
+        de un vistazo (tu patrimonio en el tiempo, dónde está tu dinero, ingresos y gastos, tu constancia y
+        accesos directos a todo); y dentro tienes las vistas <i>Patrimonio, Distribución, Rentabilidad,
+        Evolución, Ingresos y gastos, Deudas y vencimientos</i> e <i>Informe fiscal</i>. Arriba puedes incluso
+        ver cómo estaba tu patrimonio <i>a fin de un mes pasado</i>.</li>
+      <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, reservados, ingresos y gastos,
+        saldos y movimientos; también la configuración, importar y las <b>copias de seguridad</b> (que guardan
+        también tus facturas y tus archivos, por si necesitas recuperarlo todo).</li>
+      <li><b>🗂️ Documentos</b> — un <b>explorador de archivos</b> para guardar documentos
+        importantes (escrituras, contratos, declaraciones, recibos…) en <b>carpetas anidadas</b>, con papelera.
+        Puedes subir una carpeta entera y conservar su estructura. Aquí tienes también tus <b>notas</b>, un
+        tablero y una agenda. Todo en tu ordenador.</li>
+      <li>Arriba a la derecha, los botones <b>❓ Ayuda</b> (dudas frecuentes y explicaciones; aquí puedes volver
+        a abrir esta presentación) y <b>⚙️ Ajustes</b> (<b>tamaño del texto</b>, tema claro/oscuro,
+        <b>vista amplia</b>, ocultar importes…), pensados para que sea cómoda a cualquier edad.</li>
     </ul>
 
     <p style="color:var(--tinta2)">Consejo: empieza en <b>✏️ Mis datos</b> añadiendo tus cuentas y productos;

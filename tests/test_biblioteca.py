@@ -213,13 +213,16 @@ def test_biblioteca_zip_export_import(tmp_path, monkeypatch):
     data = {"archivo": (io.BytesIO(b"PDF escritura"), "piso.pdf"), "carpeta": cid}
     arch = client.post("/api/biblioteca/subir", data=data, content_type="multipart/form-data").get_json()["item"]
 
-    # Exportar el .zip: debe incluir el archivo bajo biblioteca/.
+    # Exportar el .zip: el documento va en «archivos/» recreando su carpeta, con el nombre
+    # visible, y los datos en un .json reconocible en la raíz.
     r = client.get("/api/copia/descargar?formato=zip")
     assert r.status_code == 200
     zip_bytes = r.data
     with zipfile.ZipFile(io.BytesIO(zip_bytes)) as z:
-        assert "biblioteca/" + arch["archivo"] in z.namelist()
-        assert z.read("biblioteca/" + arch["archivo"]) == b"PDF escritura"
+        nombres = z.namelist()
+        assert "archivos/Escrituras/piso.pdf" in nombres
+        assert z.read("archivos/Escrituras/piso.pdf") == b"PDF escritura"
+        assert any(n.endswith(".json") and "/" not in n for n in nombres)
 
     # Simular pérdida: borrar el archivo.
     client.post("/api/biblioteca/borrar", json={"id": arch["id"]})

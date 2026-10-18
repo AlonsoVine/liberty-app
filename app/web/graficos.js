@@ -555,6 +555,113 @@
     cont.appendChild(svg);
   }
 
+  /* ==================================================
+     Sparkline "pro": área con degradado, puntos inicial/final con su valor
+     y cruceta + tooltip (fecha · valor · Δ desde el inicio) al pasar el ratón.
+     cfg = { valores, fechas, color, alto, formato }
+     ================================================== */
+  function sparkPro(cont, cfg) {
+    cont.innerHTML = "";
+    const vals = (cfg.valores || []).map(x => (x == null ? null : +x));
+    const n = vals.length;
+    const presentes = [];
+    for (let i = 0; i < n; i++) if (vals[i] != null) presentes.push(i);
+    if (presentes.length < 2) { cont.innerHTML = '<p class="vacio">Aún no hay histórico suficiente para dibujar la línea.</p>'; return; }
+    const W = Math.max(cont.clientWidth, 220), H = cfg.alto || 96;
+    const P = { t: 18, r: 12, b: 16, l: 12 };
+    const iw = W - P.l - P.r, ih = H - P.t - P.b;
+    const fechas = cfg.fechas || [];
+    const v = presentes.map(i => vals[i]);
+    let mn = Math.min(...v), mx = Math.max(...v);
+    const rango = (mx - mn) || Math.abs(mx) || 1;
+    mn -= rango * 0.16; mx += rango * 0.22;
+    const x = i => P.l + (n === 1 ? iw / 2 : i * iw / (n - 1));
+    const y = val => P.t + ih - ((val - mn) / (mx - mn)) * ih;
+    const color = cfg.color || css("--s1");
+    const fV = cfg.formato || fmtEur;
+    const i0 = presentes[0], i1 = presentes[presentes.length - 1];
+
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico sparkPro" });
+    const defs = el("defs");
+    const gid = "spg" + Math.random().toString(36).slice(2, 8);
+    const lg = el("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 });
+    lg.appendChild(el("stop", { offset: "0%", "stop-color": color, "stop-opacity": 0.3 }));
+    lg.appendChild(el("stop", { offset: "100%", "stop-color": color, "stop-opacity": 0 }));
+    defs.appendChild(lg); svg.appendChild(defs);
+
+    let linea = "", abierto = false;
+    vals.forEach((val, i) => {
+      if (val == null) { abierto = false; return; }
+      linea += (abierto ? "L" : "M") + x(i).toFixed(1) + " " + y(val).toFixed(1) + " ";
+      abierto = true;
+    });
+    const base = (P.t + ih).toFixed(1);
+    svg.appendChild(el("path", { d: linea + `L${x(i1).toFixed(1)} ${base} L${x(i0).toFixed(1)} ${base} Z`, fill: `url(#${gid})`, stroke: "none" }));
+    svg.appendChild(el("path", { d: linea, fill: "none", stroke: color, "stroke-width": 2, "stroke-linecap": "round", "stroke-linejoin": "round" }));
+
+    [i0, i1].forEach(i => svg.appendChild(el("circle", { cx: x(i), cy: y(vals[i]), r: 3.4, fill: color, class: "spPt" })));
+    svg.appendChild(txt(x(i0) + 2, y(vals[i0]) - 9, fmtEurCorto(vals[i0]), "spEtq", { "text-anchor": "start" }));
+    svg.appendChild(txt(x(i1) - 2, y(vals[i1]) - 9, fmtEurCorto(vals[i1]), "spEtq fuerte", { "text-anchor": "end" }));
+    if (fechas[i0]) svg.appendChild(txt(x(i0) + 2, H - 4, fmtFechaCorta(fechas[i0]), "spFch", { "text-anchor": "start" }));
+    if (fechas[i1]) svg.appendChild(txt(x(i1) - 2, H - 4, fmtFechaCorta(fechas[i1]), "spFch", { "text-anchor": "end" }));
+
+    const cross = el("line", { class: "spCross", x1: P.l, x2: P.l, y1: P.t, y2: P.t + ih });
+    cross.style.opacity = 0; svg.appendChild(cross);
+    const hot = el("circle", { class: "spHot", r: 4.2, cx: P.l, cy: P.t });
+    hot.style.opacity = 0; svg.appendChild(hot);
+    cont.appendChild(svg);
+
+    const tt = creaTooltip(cont);
+    svg.addEventListener("pointermove", e => {
+      const r = svg.getBoundingClientRect();
+      const rel = (e.clientX - r.left) * (W / (r.width || W));
+      let i = n === 1 ? 0 : Math.round(((rel - P.l) / iw) * (n - 1));
+      i = Math.max(0, Math.min(n - 1, i));
+      if (vals[i] == null) {
+        let j = presentes[0], best = Infinity;
+        presentes.forEach(k => { if (Math.abs(k - i) < best) { best = Math.abs(k - i); j = k; } });
+        i = j;
+      }
+      const px = x(i), py = y(vals[i]);
+      cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.style.opacity = 1;
+      hot.setAttribute("cx", px); hot.setAttribute("cy", py); hot.style.opacity = 1;
+      const delta = vals[i] - vals[i0];
+      tt.innerHTML = `<b>${fV(vals[i])}</b>${fechas[i] ? `<div class="ttTotal">${escHtml(fmtFecha(fechas[i]))}</div>` : ""}
+        <table><tr><td>Desde el inicio</td><td class="${delta >= 0 ? "pos" : "neg"}">${fmtEurSigno(delta)}</td></tr></table>`;
+      tt.classList.add("on");
+      const rc = cont.getBoundingClientRect();
+      colocaTooltip(tt, cont, e.clientX - rc.left, e.clientY - rc.top);
+    });
+    svg.addEventListener("pointerleave", () => { cross.style.opacity = 0; hot.style.opacity = 0; tt.classList.remove("on"); });
+  }
+
+  /* ==================================================
+     Aro de progreso (anillo): cfg = { pct, color, tam, grosor, centro, sub }
+     El contenido del centro se pinta como HTML superpuesto.
+     ================================================== */
+  function aro(cont, cfg) {
+    cont.innerHTML = "";
+    cont.style.position = "relative";
+    const S = cfg.tam || 96, sw = cfg.grosor || 9, R = (S - sw) / 2, cx = S / 2, cy = S / 2;
+    const pct = Math.max(0, Math.min(1, cfg.pct || 0));
+    const color = cfg.color || css("--s1");
+    const svg = el("svg", { viewBox: `0 0 ${S} ${S}`, width: S, height: S, class: "grafico aro" });
+    svg.appendChild(el("circle", { cx, cy, r: R, fill: "none", class: "aroTrack", "stroke-width": sw }));
+    const circ = 2 * Math.PI * R;
+    svg.appendChild(el("circle", {
+      cx, cy, r: R, fill: "none", stroke: color, "stroke-width": sw, "stroke-linecap": "round",
+      "stroke-dasharray": `${(pct * circ).toFixed(1)} ${circ.toFixed(1)}`,
+      transform: `rotate(-90 ${cx} ${cy})`, class: "aroArco"
+    }));
+    cont.appendChild(svg);
+    if (cfg.centro != null) {
+      const d = document.createElement("div");
+      d.className = "aroCentro";
+      d.innerHTML = `<b>${cfg.centro}</b>${cfg.sub ? `<small>${cfg.sub}</small>` : ""}`;
+      cont.appendChild(d);
+    }
+  }
+
 
   /* ==================================================
      Barras horizontales ordenadas (paises, sectores)
@@ -1026,7 +1133,7 @@
 
   global.G = {
     fmtEur, fmtEurCorto, fmtPct, fmtPctSigno, fmtEurSigno, fmtFecha, fmtFechaCorta, fmtMes, nfNum: nfUnidades,
-    areaApilada, lineaConEventos, barrasApiladas, donut, mini, escalaBonita, css,
+    areaApilada, lineaConEventos, barrasApiladas, donut, mini, sparkPro, aro, escalaBonita, css,
     barrasHorizontales, barrasSimples, multiLinea, barrasAgrupadas, treemap, cascada, mapaCalor
   };
 })(window);
