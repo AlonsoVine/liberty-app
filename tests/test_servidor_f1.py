@@ -201,3 +201,34 @@ def test_api_version_desactivado_por_defecto(tmp_path, monkeypatch):
     monkeypatch.setattr(servidor.urllib.request, "urlopen", _boom)
     v = client.get("/api/version").get_json()
     assert v["hayNueva"] is False and v.get("desactivado") is True
+
+
+def test_api_version_manual_comprueba_aunque_este_apagado(tmp_path, monkeypatch):
+    """Con ?manual=1 (clic del usuario) comprueba aunque el chequeo diario esté apagado,
+    sin que ello cambie el ajuste."""
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    servidor._VERSION.clear()
+    monkeypatch.setattr(servidor.urllib.request, "urlopen",
+                        lambda *a, **k: _RespFake(b'{"tag_name": "v9.9.9"}'))
+    v = client.get("/api/version?manual=1").get_json()
+    assert v["hayNueva"] is True and v["ultima"] == "9.9.9"
+    assert v.get("desactivado") is not True and v.get("manual") is True
+    # El ajuste sigue apagado: la comprobación automática (sin manual) no sale a internet.
+    servidor._VERSION.clear()
+    def _boom(*a, **k):
+        raise AssertionError("una comprobación automática no debería salir a internet")
+    monkeypatch.setattr(servidor.urllib.request, "urlopen", _boom)
+    assert client.get("/api/version").get_json().get("desactivado") is True
+
+
+def test_api_version_error_de_red_marca_error(tmp_path, monkeypatch):
+    """Si falla la conexión durante una comprobación, lo señala con error=True."""
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    servidor._VERSION.clear()
+    def _falla(*a, **k):
+        raise OSError("sin red")
+    monkeypatch.setattr(servidor.urllib.request, "urlopen", _falla)
+    v = client.get("/api/version?manual=1").get_json()
+    assert v["error"] is True and v["hayNueva"] is False and v["ultima"] is None

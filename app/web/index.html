@@ -22,6 +22,10 @@
   --s17:#a3e635; --s18:#fb7185; --s19:#38bdf8; --s20:#c084fc;
   --s21:#94a3b8; --s22:#34d399; --s23:#f472b6; --s24:#eab308;
   --radio:14px;
+  /* movimiento: duraciones y curvas únicas para toda la app (ver prefers-reduced-motion) */
+  --dur-1:.12s; --dur-2:.22s; --dur-3:.42s;
+  --ease:cubic-bezier(.2,.7,.3,1); --ease-salida:cubic-bezier(.4,0,1,1);
+  --sombra:0 8px 24px rgba(0,0,0,.28); --sombra-sutil:0 2px 8px rgba(0,0,0,.18);
 }
 :root[data-tema="claro"]{
   color-scheme:light;
@@ -35,9 +39,43 @@
   --s13:#0d9488; --s14:#a21caf; --s15:#d97706; --s16:#4f46e5;
   --s17:#65a30d; --s18:#e11d48; --s19:#0284c7; --s20:#7e22ce;
   --s21:#475569; --s22:#047857; --s23:#be185d; --s24:#a16207;
+  --sombra:0 8px 24px rgba(11,11,11,.12); --sombra-sutil:0 2px 8px rgba(11,11,11,.07);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
+/* Accesibilidad: si el sistema pide menos movimiento, se desactiva en toda la app
+   (también lo respeta el JS vía window.SIN_MOV: contadores y dibujado de gráficos). */
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important; animation-iteration-count:1 !important;
+    transition-duration:.001ms !important; scroll-behavior:auto !important;
+  }
+}
+/* Foco de teclado visible y coherente en toda la app (invisible para el ratón).
+   Los controles con foco propio (interruptores, colores, píldoras) lo conservan. */
+:focus-visible{outline:2px solid color-mix(in srgb,var(--s1) 65%,transparent);outline-offset:2px;border-radius:5px}
+.interruptor input:focus-visible,.color input:focus-visible,.pildoras input:focus-visible{outline:none}
+/* Crossfade de color al cambiar de tema (la clase la pone/quita el JS un instante). */
+html.temaAnim *,html.temaAnim *::before,html.temaAnim *::after{
+  transition:background-color var(--dur-2) var(--ease),border-color var(--dur-2) var(--ease),
+    color var(--dur-2) var(--ease),fill var(--dur-2) var(--ease),stroke var(--dur-2) var(--ease) !important;
+}
+/* Barra de carga superior (indeterminada): cubre la espera de datos al abrir y el
+   recálculo tras «Actualizar precios». El JS la oculta en cuanto pinta el panel. */
+#cargaBar{position:fixed;top:0;left:0;right:0;height:3px;z-index:100;overflow:hidden;pointer-events:none;background:transparent}
+#cargaBar::before{content:"";position:absolute;top:0;bottom:0;left:-40%;width:40%;
+  background:linear-gradient(90deg,transparent,var(--s1),transparent);animation:cargaDesliza 1.05s var(--ease) infinite}
+#cargaBar.oculto{display:none}
+@keyframes cargaDesliza{to{left:100%}}
+.girando{display:inline-block;animation:gira .8s linear infinite}
+@keyframes gira{to{transform:rotate(360deg)}}
+/* Detalles finos: color de selección y barras de desplazamiento acordes al tema. */
+::selection{background:color-mix(in srgb,var(--s1) 32%,transparent);color:var(--tinta)}
+*{scrollbar-width:thin;scrollbar-color:var(--sup3) transparent}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--sup3);border-radius:99px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--eje);background-clip:content-box}
 body{
   background:var(--plano); color:var(--tinta);
   font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -52,7 +90,9 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .top{
   position:sticky;top:0;z-index:40;background:color-mix(in srgb,var(--plano) 88%,transparent);
   backdrop-filter:blur(12px);border-bottom:1px solid var(--borde);
+  transition:box-shadow var(--dur-2) var(--ease),border-color var(--dur-2) var(--ease);
 }
+.top.desplazada{box-shadow:0 10px 30px -18px rgba(0,0,0,.55);border-bottom-color:color-mix(in srgb,var(--tinta) 14%,var(--borde))}
 .top .env{padding-top:12px;padding-bottom:0}
 .topFila{display:flex;align-items:center;gap:14px;padding-bottom:10px}
 .marca{font-weight:680;font-size:15px;letter-spacing:-.02em;display:flex;align-items:center;gap:9px}
@@ -62,9 +102,12 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .btn{
   border:1px solid var(--borde);background:var(--sup);color:var(--tinta2);
   border-radius:9px;padding:7px 12px;font:inherit;font-size:13px;cursor:pointer;
-  display:inline-flex;align-items:center;gap:7px;transition:.13s;
+  display:inline-flex;align-items:center;gap:7px;
+  transition:background var(--dur-1) var(--ease),color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease),transform var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease);
 }
-.btn:hover{background:var(--sup2);color:var(--tinta)}
+.btn:hover{background:var(--sup2);color:var(--tinta);transform:translateY(-1px);box-shadow:var(--sombra-sutil)}
+.btn:active{transform:translateY(0) scale(.98);box-shadow:none}
 .btn.act{background:var(--tinta);color:var(--plano);border-color:var(--tinta)}
 
 /* ============================ pestanas ============================ */
@@ -406,15 +449,35 @@ body.vistaAmplia .segm button{padding:10px 16px}
 .prog{margin-top:26px;max-width:760px}
 .progBarra{height:9px;border-radius:99px;background:var(--sup2);overflow:hidden;border:1px solid var(--borde)}
 .progRelleno{height:100%;background:linear-gradient(90deg,var(--s1),var(--s3));border-radius:99px;transition:width .8s cubic-bezier(.2,.7,.3,1)}
+/* Faro: un resplandor que aterriza en la punta de la barra de objetivo cuando acaba
+   de rellenarse. Necesita que el carril no recorte (overflow visible) para que brille. */
+.progBarra.faro{overflow:visible}
+.progBarra.faro .progRelleno{position:relative}
+.progBarra.faro .progRelleno::after{
+  content:"";position:absolute;top:50%;right:0;transform:translate(50%,-50%);
+  width:9px;height:9px;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle at 50% 50%,#fff 8%,color-mix(in srgb,var(--s3) 82%,#fff) 48%,var(--s3) 100%);
+  box-shadow:0 0 5px 1px color-mix(in srgb,var(--s3) 85%,transparent),
+             0 0 13px 3px color-mix(in srgb,var(--s3) 50%,transparent);
+  opacity:0;transition:opacity .4s ease}
+.progBarra.faro .progRelleno.conFaro::after{opacity:.95}
+.progBarra.faro .progRelleno.aterriza::after{animation:faroAterriza .75s var(--ease)}
+@keyframes faroAterriza{
+  0%{opacity:0;transform:translate(50%,-50%) scale(.3)}
+  42%{opacity:1;transform:translate(50%,-50%) scale(1.85);
+      box-shadow:0 0 12px 3px var(--s3),0 0 28px 9px color-mix(in srgb,var(--s3) 68%,transparent)}
+  100%{opacity:.95;transform:translate(50%,-50%) scale(1)}
+}
 .progPie{display:flex;justify-content:space-between;margin-top:7px;font-size:12.5px;color:var(--tinta3)}
 
 /* ============================ tarjetas ============================ */
-.tarjeta{background:var(--sup);border:1px solid var(--borde);border-radius:var(--radio);padding:18px 20px}
+.tarjeta{background:var(--sup);border:1px solid var(--borde);border-radius:var(--radio);padding:18px 20px;box-shadow:var(--sombra-sutil)}
 .tarjeta + .tarjeta{margin-top:16px}
 .tarjeta > header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px}
 .tarjeta > header h2{font-size:15px;font-weight:650}
 .subt{color:var(--tinta3);font-size:12.5px;font-weight:400}
-.vacioGraf{display:flex;align-items:center;justify-content:center;min-height:330px;padding:20px;text-align:center;color:var(--tinta3);font-size:13.5px}
+.vacioGraf{display:flex;align-items:center;justify-content:center;min-height:330px;padding:20px;text-align:center;color:var(--tinta3);font-size:13.5px;
+  border:1px dashed var(--borde);border-radius:12px;background:color-mix(in srgb,var(--sup2) 40%,transparent)}
 #filtroTitular{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
 #filtroTitular:empty{display:none}
 .filtroTitulo{font-size:13px;font-weight:600;color:var(--tinta2)}
@@ -440,7 +503,7 @@ body.vistaAmplia .segm button{padding:10px 16px}
 .ctrlInflacion input[type=number]{width:64px;font:inherit;font-size:13px;padding:3px 6px;border:1px solid var(--borde);border-radius:7px;background:var(--sup2);color:var(--tinta)}
 
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:12px;margin:30px 0 26px}
-.kpi{background:var(--sup);border:1px solid var(--borde);border-radius:12px;padding:14px 16px}
+.kpi{background:var(--sup);border:1px solid var(--borde);border-radius:12px;padding:14px 16px;box-shadow:var(--sombra-sutil)}
 .kpi .e{color:var(--tinta3);font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:600}
 .kpi .v{font-size:23px;font-weight:660;letter-spacing:-.02em;margin-top:6px;font-variant-numeric:tabular-nums}
 .kpi .n{color:var(--tinta3);font-size:12px;margin-top:3px}
@@ -719,10 +782,16 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 @keyframes entra{from{opacity:0;transform:translateY(10px) scale(.985)}to{opacity:1;transform:none}}
 .modal::backdrop{background:rgba(6,6,6,.55);backdrop-filter:blur(4px)}
 /* Aviso breve (toast) */
-.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(8px);
-  background:var(--s1);color:#fff;padding:12px 22px;border-radius:12px;font-weight:600;font-size:14px;
-  box-shadow:0 14px 40px rgba(0,0,0,.35);z-index:9999;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none}
-.toast.ver{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%) translateY(10px) scale(.98);
+  background:color-mix(in srgb,var(--sup) 92%,transparent);backdrop-filter:blur(8px);
+  color:var(--tinta);padding:11px 18px 11px 16px;border-radius:12px;font-weight:600;font-size:14px;
+  border:1px solid var(--borde);border-left:3px solid var(--s1);
+  box-shadow:var(--sombra);z-index:9999;opacity:0;
+  transition:opacity var(--dur-2) var(--ease),transform var(--dur-2) var(--ease);pointer-events:none}
+.toast.ver{opacity:1;transform:translateX(-50%) translateY(0) scale(1)}
+.toast.ok{border-left-color:var(--bien)}
+.toast.aviso{border-left-color:var(--aviso)}
+.toast.error{border-left-color:var(--mal)}
 @media print{.toast{display:none !important}}
 /* Card de bienvenida (primera vez) y diálogos de aviso */
 .bvCuerpo{display:flex;flex-direction:column;max-height:calc(100vh - 34px);max-height:calc(100dvh - 34px);line-height:1.55}
@@ -987,6 +1056,22 @@ dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
 .novLista li span{font-size:13.5px;color:var(--tinta2);line-height:1.4}
 .novPie{margin-top:22px;text-align:center}
 .novPie .btn{padding:10px 22px;font-size:15px}
+/* Ayuda contextual: botón «i» integrado al final de la barra de cada zona. */
+button.btnAyudaNav{flex:0 0 auto;margin-left:auto;width:28px;height:28px;padding:0;border-radius:50%;
+  border:1px solid var(--borde);background:var(--sup);color:var(--tinta3);
+  font:italic 700 15px/1 Georgia,"Times New Roman",serif;cursor:pointer;
+  display:inline-flex;align-items:center;justify-content:center;
+  transition:transform var(--dur-1) var(--ease),color var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease)}
+button.btnAyudaNav:hover{color:var(--s1);border-color:color-mix(in srgb,var(--s1) 50%,var(--borde));transform:scale(1.08)}
+button.btnAyudaNav:active{transform:scale(.95)}
+body.ayudaOff .btnAyudaNav{display:none}
+@media print{.btnAyudaNav{display:none !important}}
+.notasNavRow{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
+.notasNavRow .notasNav{margin:0}
+.ayudaModal .ayudaVer{background:var(--s3)}
+.ayudaModal .novCab h2{font-size:20px}
+.ayudaNota{margin:20px 0 0;padding-top:14px;border-top:1px solid var(--borde);
+  font-size:12.5px;color:var(--tinta3);text-align:center;line-height:1.5}
 /* ---- Panel de inicio (resumen) ---- */
 .inicioHero{margin-top:8px}
 .inicioTit{font-size:14px;color:var(--tinta2);font-weight:600;margin:22px 0 10px;letter-spacing:.01em}
@@ -995,8 +1080,9 @@ dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
 @media(max-width:460px){.inicioGrid{grid-template-columns:1fr}}
 .inicioTile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;
   background:var(--sup);border:1px solid var(--borde);border-radius:14px;padding:15px 16px;cursor:pointer;
-  font:inherit;color:var(--tinta);transition:transform .08s ease,border-color .15s ease,box-shadow .15s ease}
-.inicioTile:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:0 8px 24px rgba(0,0,0,.1)}
+  font:inherit;color:var(--tinta);transition:transform var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease)}
+.inicioTile:hover{transform:translateY(-2px);border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:var(--sombra)}
+.inicioTile:active{transform:translateY(0) scale(.99);box-shadow:var(--sombra-sutil)}
 .inicioTile .itIco{font-size:20px}
 .inicioTile .itVal{font-size:22px;font-weight:700;line-height:1.1}
 .inicioTile .itEtq{font-size:13.5px;font-weight:600}
@@ -1038,9 +1124,10 @@ dialog.novedades::backdrop{background:rgba(0,0,0,.5)}
 @media(max-width:440px){.hudGrid{grid-template-columns:1fr}}
 .hudCell{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;text-align:center;
   padding:16px 12px;border:1px solid var(--borde);border-radius:14px;background:var(--sup2);cursor:pointer;
-  transition:transform .12s ease,border-color .12s ease,box-shadow .12s ease}
+  transition:transform var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease),box-shadow var(--dur-1) var(--ease)}
 .hudCell:hover,.hudCell:focus-visible{transform:translateY(-2px);outline:none;
-  border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:0 8px 26px rgba(0,0,0,.14)}
+  border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));box-shadow:var(--sombra)}
+.hudCell:active{transform:translateY(0) scale(.99);box-shadow:var(--sombra-sutil)}
 .hudEtq{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--tinta3)}
 .hudNum{font-size:34px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums;color:var(--tinta);
   text-shadow:0 0 22px color-mix(in srgb,var(--s1) 32%,transparent)}
@@ -1295,6 +1382,8 @@ body.video .tarjetaCanal{display:none}
 </head>
 <body>
 
+<div id="cargaBar" aria-hidden="true"></div>
+
 <div class="top">
   <div class="env">
     <div class="topFila">
@@ -1336,6 +1425,7 @@ body.video .tarjetaCanal{display:none}
     <button data-pv="ingresos" aria-selected="false">Ingresos y gastos</button>
     <button data-pv="deudas" aria-selected="false">Deudas y vencimientos</button>
     <button data-pv="fiscal" aria-selected="false">Informe fiscal</button>
+    <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button>
   </nav>
 
   <div id="filtroTitular" class="filtroTitular"></div>
@@ -1356,7 +1446,7 @@ body.video .tarjetaCanal{display:none}
       <div class="hCifra" id="heroCifra">—</div>
       <div class="hSub" id="heroSub"></div>
       <div class="prog" id="progEnv" hidden>
-        <div class="progBarra"><div class="progRelleno" id="progRelleno" style="width:0"></div></div>
+        <div class="progBarra faro"><div class="progRelleno" id="progRelleno" style="width:0"></div></div>
         <div class="progPie"><span id="progIzq"></span><span id="progDer"></span></div>
       </div>
     </section>
@@ -2013,6 +2103,7 @@ body.video .tarjetaCanal{display:none}
     <header>
       <h2>Ajustes</h2>
       <span class="subt">Cómo se ve la aplicación. Se guarda en este navegador; no afecta a tus datos.</span>
+      <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button>
     </header>
     <div id="ajustesCont" class="ajustes"></div>
   </section>

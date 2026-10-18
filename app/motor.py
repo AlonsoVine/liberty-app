@@ -991,8 +991,13 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                 p["precioActual"] = r4(p["nav"])
 
         else:  # manual: interpola entre snapshots
-            snaps = [(d(s[0]), float(s[1]), (s[2] if len(s) > 2 else None))
-                     for s in p["snapshots"]]
+            # Se ordenan por fecha y se ignoran los posteriores al día del panel: una
+            # valoración con fecha futura no debe estirar la serie ni descuadrar el valor
+            # de cabecera (el eje llega hasta fecha_extracto). Si TODOS fueran futuros se
+            # deja el primero para no quedarnos sin datos.
+            snaps = sorted([(d(s[0]), float(s[1]), (s[2] if len(s) > 2 else None))
+                            for s in p["snapshots"]], key=lambda s: s[0])
+            snaps = [s for s in snaps if s[0] <= fecha_extracto] or snaps[:1]
             serie, serie_ap = [], []
             for f in eje:
                 if f < snaps[0][0]:
@@ -1089,7 +1094,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             snaps = sorted(it.get("snapshots", []), key=lambda s: s[0])
             if not snaps:
                 continue
-            total += signo * float(snaps[-1][1])
+            # Igual que en los productos manuales: el total usa el último snapshot vigente
+            # (no uno con fecha futura), para cuadrar con la serie que llega hasta hoy.
+            vig = [s for s in snaps if d(s[0]) <= fecha_extracto] or snaps[:1]
+            total += signo * float(vig[-1][1])
             serie = []
             for f in eje:
                 v = None

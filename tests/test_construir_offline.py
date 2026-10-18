@@ -40,6 +40,24 @@ def test_construir_cartera_manual(cartera_manual, tmp_path):
     assert os.path.exists(os.path.join(str(tmp_path), "historico.json"))
 
 
+def test_valoracion_futura_no_descuadra(cartera_manual, tmp_path):
+    """Una valoración con fecha futura (dato raro: p. ej. una copia editada a mano) no
+    debe alterar el valor del producto ni la última foto del patrimonio. Lo posterior
+    al día del panel se ignora, de modo que el titular cuadra con la gráfica."""
+    cfg = dict(cartera_manual)
+    cfg["valoraciones"] = cartera_manual["valoraciones"] + [
+        {"id": "futura", "producto": "piso", "fecha": "2099-12-31",
+         "valor": 999999.0, "aportado": 80000.0},
+    ]
+    datos = motor.construir(cfg, str(tmp_path), descargar=False)
+    piso = next(p for p in datos["productos"] if p["id"] == "piso")
+    assert piso["valor"] == 102000.0   # el último valor REAL, no el disparate de 2099
+    # La serie no se dispara hacia el valor futuro en ningún punto.
+    assert max(v for v in piso["serie"] if v is not None) == 102000.0
+    # Y el patrimonio total sigue siendo el de siempre (cuenta 1500 + piso 102000).
+    assert datos["total"]["patrimonio"] == 103500.0
+
+
 def test_construir_cartera_vacia_devuelve_none(tmp_path):
     vacia = {"version": 1, "productos": [], "movimientos": [], "valoraciones": []}
     assert motor.construir(vacia, str(tmp_path), descargar=False) is None

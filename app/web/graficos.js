@@ -81,6 +81,68 @@
     return getComputedStyle(document.documentElement).getPropertyValue(nombre).trim();
   }
 
+  /* -------------------------------------------------- animación de entrada
+     Los gráficos se dibujan "con vida" SOLO la primera vez que aparecen en esta
+     carga (no en cada re-render por filtro) y solo si el sistema no pide menos
+     movimiento. El estado se lleva por id de contenedor; sin id no se anima. */
+  const EASE = "cubic-bezier(.2,.7,.3,1)";
+  const _animados = new Set();
+  function sinMov() { return global.SIN_MOV === true; }
+  function animaEntrada(cont) {
+    if (sinMov() || global.ESTATICO === true) return false;
+    const id = cont && cont.id;
+    if (!id || _animados.has(id)) return false;
+    _animados.add(id);
+    return true;
+  }
+  // Dibuja un trazo SVG de principio a fin (stroke-dashoffset). Limpia al terminar
+  // para no interferir con líneas discontinuas, hover ni el crosshair.
+  function animaTrazo(path, dur) {
+    if (!path) return;
+    const D = dur || 0.9;
+    requestAnimationFrame(() => {
+      let L = 0;
+      try { L = path.getTotalLength(); } catch (e) { return; }
+      if (!L) return;
+      const prev = path.getAttribute("stroke-dasharray");
+      path.style.transition = "none";
+      path.style.strokeDasharray = L;
+      path.style.strokeDashoffset = L;
+      void path.getBoundingClientRect();   // fija el estado inicial
+      path.style.transition = "stroke-dashoffset " + D + "s " + EASE;
+      path.style.strokeDashoffset = "0";
+      setTimeout(() => {
+        path.style.transition = ""; path.style.strokeDashoffset = "";
+        path.style.strokeDasharray = ""; if (prev) path.setAttribute("stroke-dasharray", prev);
+      }, D * 1000 + 80);
+    });
+  }
+  // Aparición suave (fade + leve subida) de un elemento SVG o contenedor.
+  function animaAparece(nodo, dur, delay) {
+    if (!nodo) return;
+    const D = dur || 0.6;
+    nodo.style.opacity = "0";
+    requestAnimationFrame(() => {
+      nodo.style.transition = "opacity " + D + "s ease " + (delay || 0) + "s";
+      nodo.style.opacity = "";
+      setTimeout(() => { nodo.style.transition = ""; }, D * 1000 + (delay || 0) * 1000 + 80);
+    });
+  }
+  // Entrada genérica de un gráfico entero (fade + leve subida), para los secundarios.
+  // Gestiona el "solo la primera vez" por sí misma: si el contenedor ya se animó, no hace
+  // nada. No usar junto a animaEntrada(cont) en el mismo gráfico (consumiría el id dos veces).
+  function animaEntradaSVG(cont, svg, dur) {
+    if (!svg || !animaEntrada(cont)) return;
+    const D = dur || 0.7;
+    svg.style.opacity = "0";
+    svg.style.transform = "translateY(10px)";
+    requestAnimationFrame(() => {
+      svg.style.transition = "opacity " + D + "s ease, transform " + D + "s " + EASE;
+      svg.style.opacity = ""; svg.style.transform = "";
+      setTimeout(() => { svg.style.transition = ""; }, D * 1000 + 80);
+    });
+  }
+
   /** Escala "bonita": devuelve {max, paso} para ~5 lineas de rejilla. */
   function escalaBonita(max, min) {
     min = min || 0;
@@ -234,6 +296,7 @@
     const captura = el("rect", { x: P.l, y: P.t, width: iw, height: ih, fill: "transparent", style: "cursor:crosshair" });
     svg.appendChild(captura);
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
 
     const tt = creaTooltip(cont);
     function mover(ev) {
@@ -316,7 +379,7 @@
       svg.appendChild(txt(P.l - 8, y(v) + 4, cfg.formatoY ? cfg.formatoY(v) : fmtEurCorto(v), "ejeY"));
     }
 
-    let dArea = "", dLin = "", abierto = false, primerX = null, ultimoX = null;
+    let dArea = "", dLin = "", abierto = false, primerX = null, ultimoX = null, areaPath = null, lineaMain = null;
     vals.forEach((v, i) => {
       if (v == null) { abierto = false; return; }
       if (primerX === null) primerX = i;
@@ -327,7 +390,8 @@
     if (primerX !== null) {
       dArea = `M${x(primerX).toFixed(1)} ${(P.t + ih).toFixed(1)} ` +
         dLin.replace(/^M/, "L") + `L${x(ultimoX).toFixed(1)} ${(P.t + ih).toFixed(1)} Z`;
-      svg.appendChild(el("path", { d: dArea, fill: cfg.color, "fill-opacity": 0.14 }));
+      areaPath = el("path", { d: dArea, fill: cfg.color, "fill-opacity": 0.14 });
+      svg.appendChild(areaPath);
     }
     const dibujaLinea = (ov, attrs) => {
       let dd = "", ab = false;
@@ -342,7 +406,8 @@
     if (cfg.overlay2) dibujaLinea(cfg.overlay2, {
       stroke: cfg.overlay2.color || css("--s4"), "stroke-width": 2, "stroke-dasharray": "6 4", "stroke-linecap": "round"
     });
-    svg.appendChild(el("path", { d: dLin, fill: "none", stroke: cfg.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" }));
+    lineaMain = el("path", { d: dLin, fill: "none", stroke: cfg.color, "stroke-width": 2, "stroke-linejoin": "round", "stroke-linecap": "round" });
+    svg.appendChild(lineaMain);
 
     // linea de referencia (por ejemplo, tu precio medio de compra)
     if (cfg.referencia && cfg.referencia.valor >= esc.min && cfg.referencia.valor <= esc.max) {
@@ -377,6 +442,11 @@
     const captura = el("rect", { x: P.l, y: P.t, width: iw, height: ih, fill: "transparent", style: "cursor:crosshair" });
     svg.appendChild(captura);
     cont.appendChild(svg);
+
+    if (animaEntrada(cont)) {        // dibujado "con vida" solo la 1.ª vez
+      animaTrazo(lineaMain, 1.05);
+      if (areaPath) animaAparece(areaPath, 0.9, 0.2);
+    }
 
     const porFecha = {}; (cfg.eventos || []).forEach(e => { (porFecha[e.fecha] = porFecha[e.fecha] || []).push(e); });
     const tt = creaTooltip(cont);
@@ -460,6 +530,21 @@
     svg.appendChild(captura);
     cont.appendChild(svg);
 
+    if (animaEntrada(cont)) {        // las barras suben desde la base, escalonadas
+      grupos.forEach(({ g }) => {
+        g.style.transformBox = "fill-box"; g.style.transformOrigin = "bottom"; g.style.transform = "scaleY(0)";
+      });
+      requestAnimationFrame(() => {
+        grupos.forEach(({ g }, i) => {
+          g.style.transition = "transform .75s " + EASE + " " + Math.min(i * 0.05, 0.7) + "s";
+          g.style.transform = "none";
+        });
+        setTimeout(() => grupos.forEach(({ g }) => {
+          g.style.transition = ""; g.style.transform = ""; g.style.transformBox = ""; g.style.transformOrigin = "";
+        }), 1700);
+      });
+    }
+
     const tt = creaTooltip(cont);
     function mover(ev) {
       const r = svg.getBoundingClientRect();
@@ -513,6 +598,11 @@
     centro.appendChild(txt(cx, cy + 20, cfg.valorCentro || fmtEurCorto(total), "donutValor", { "text-anchor": "middle" }));
     svg.appendChild(centro);
     cont.appendChild(svg);
+
+    if (animaEntrada(cont)) {        // se "construye" sector a sector y luego el centro
+      arcos.forEach(({ arco }, i) => animaAparece(arco, 0.55, i * 0.09));
+      animaAparece(centro, 0.6, Math.min(arcos.length, 8) * 0.09 + 0.12);
+    }
 
     const tt = creaTooltip(cont);
     arcos.forEach(({ arco, d }) => {
@@ -657,7 +747,14 @@
     if (cfg.centro != null) {
       const d = document.createElement("div");
       d.className = "aroCentro";
-      d.innerHTML = `<b>${cfg.centro}</b>${cfg.sub ? `<small>${cfg.sub}</small>` : ""}`;
+      const b = document.createElement("b");
+      b.textContent = cfg.centro;           // textContent: nunca interpreta HTML
+      d.appendChild(b);
+      if (cfg.sub) {
+        const s = document.createElement("small");
+        s.textContent = cfg.sub;
+        d.appendChild(s);
+      }
       cont.appendChild(d);
     }
   }
@@ -691,6 +788,7 @@
         dd[1].toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " %", "barVal", { "text-anchor": "end" }));
     });
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
   }
 
   /* ==================================================
@@ -741,6 +839,7 @@
       svg.appendChild(txt(cx, H - 10, cats[i], "ejeX", { "text-anchor": "middle" }));
     });
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
   }
 
   /* ==================================================
@@ -807,6 +906,7 @@
     const captura = el("rect", { x: P.l, y: P.t, width: iw, height: ih, fill: "transparent", style: "cursor:crosshair" });
     svg.appendChild(captura);
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
 
     const tt = creaTooltip(cont);
     function mover(ev) {
@@ -896,6 +996,7 @@
     const captura = el("rect", { x: P.l, y: P.t, width: iw, height: ih, fill: "transparent" });
     svg.appendChild(captura);
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
 
     const tt = creaTooltip(cont);
     function mover(ev) {
@@ -1010,6 +1111,7 @@
       });
     });
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
   }
 
   /* ==================================================
@@ -1079,6 +1181,7 @@
       r.addEventListener("pointerleave", () => tt.classList.remove("on"));
     });
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
   }
 
   /* ==================================================
@@ -1129,6 +1232,7 @@
       });
     });
     cont.appendChild(svg);
+    animaEntradaSVG(cont, svg);
   }
 
   global.G = {

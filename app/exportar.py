@@ -69,6 +69,15 @@ def sin_importes(datos):
     for c in ("total", "porProducto"):
         if c in am:
             am[c] = _escala(am[c], k)
+    # El bloque «flujos» se escala entero (es dinero), pero la tasa de ahorro es una
+    # proporción: escalarla la dejaría sin sentido. Se restaura desde el original (un
+    # ratio no revela euros). Ingresos/gastos/ahorro sí siguen escalados.
+    fl0 = datos.get("flujos")
+    if out.get("flujos") and fl0:
+        out["flujos"]["tasaAhorro"] = fl0.get("tasaAhorro")
+        for b in ("esteMes", "anio", "media12"):
+            if isinstance(out["flujos"].get(b), dict) and isinstance(fl0.get(b), dict):
+                out["flujos"][b]["tasaAhorro"] = fl0[b].get("tasaAhorro")
     out["total"]["hitos"] = []
     out["objetivo"] = None
     if out.get("vivo"):

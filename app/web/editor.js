@@ -393,6 +393,14 @@
       });
       seg.appendChild(g);
     });
+    // «i» de ayuda al final de la barra (explica la sub-sección activa de «Mis datos»).
+    const ayB = document.createElement("button");
+    ayB.className = "btnAyudaNav"; ayB.type = "button"; ayB.textContent = "i";
+    ayB.setAttribute("aria-label", "Cómo funciona esta pantalla");
+    ayB.setAttribute("title", "Cómo funciona esta pantalla");
+    ayB.onclick = () => window.abreAyuda && window.abreAyuda();
+    // Al final de la BARRA (tras el separador flexible), no pegada al último grupo.
+    (seg.closest(".edBarra") || seg).appendChild(ayB);
     $("#edCuerpo").innerHTML = ({ activos: vistaActivos, deudas: vistaDeudas, apartados: vistaApartados,
       flujos: vistaFlujos, saldos: vistaSaldosMov, facturas: vistaFacturas, config: vistaConfig,
       importar: vistaImportar, copias: vistaCopias }[E.vista] || vistaActivos)();
@@ -402,6 +410,7 @@
     const filtro = $("#edFiltro");
     if (filtro) filtro.onchange = e => { E.filtro = e.target.value; pinta(); };
     aplicaTablas();   // restaura búsqueda y orden de cada tabla tras el re-render
+    if (window.actualizaFabAyuda) window.actualizaFabAyuda();   // refresca la «i» de ayuda
   }
 
   /* ---------------------------------------------- productos */
@@ -832,7 +841,7 @@
         ${seccion("Privacidad")}
         <div class="rejilla">
           <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
-            <span><b>Buscar actualizaciones</b><small>Si lo activas, la app comprueba en GitHub (una vez al día) si hay una versión nueva. Apagado, la app no sale a internet salvo para descargar los precios. Viene apagado.</small></span></label>
+            <span><b>Buscar actualizaciones</b><small>Si lo activas, la app comprueba sola en GitHub (una vez al día) si hay una versión nueva. Apagado, no lo hace por su cuenta, pero puedes comprobarlo cuando quieras con el enlace «comprobar ahora» del pie de página. Viene apagado.</small></span></label>
         </div>
       </div>
 
@@ -3130,19 +3139,22 @@
       return;
     }
     const v = E.notasVista || "lista";
-    cont.innerHTML = `<div class="segm notasNav">
+    cont.innerHTML = `<div class="notasNavRow"><div class="segm notasNav">
         <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
         <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button>
         <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button>
         <button data-nv="biblioteca" aria-pressed="${v === "biblioteca"}">🗂️ Archivos</button></div>
+        <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button></div>
       <div id="notasCuerpo"></div>`;
     cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
       E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
     });
+    { const ay = cont.querySelector(".btnAyudaNav"); if (ay) ay.onclick = () => window.abreAyuda && window.abreAyuda(); }
     if (v === "tablero") montaTablero();
     else if (v === "agenda") montaAgenda();
     else if (v === "biblioteca") montaBiblioteca();
     else montaNotasLista();
+    if (window.actualizaFabAyuda) window.actualizaFabAyuda();   // refresca la «i» de ayuda
   }
   E.notasVista = recuerda.lee("patrimonio.notasVista") || "lista";
   E.notaOrden = recuerda.lee("patrimonio.notaOrden") || "fecha";

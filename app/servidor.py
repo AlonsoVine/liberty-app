@@ -727,16 +727,19 @@ def api_bib_subir_carpeta():
             rel = rutas[i] if i < len(rutas) else f.filename
             partes = [p for p in str(rel).replace("\\", "/").split("/") if p and p not in (".", "..")]
             nombre = partes[-1] if partes else f.filename
-            destino_id = _bib_asegura_ruta(cfg, base, partes[:-1])
             ext = os.path.splitext(nombre)[1].lower()[:12]
             arch_id = "arc_" + secrets.token_hex(6)
             archivo = arch_id + ext
-            f.save(os.path.join(bib_dir, archivo))
-            tam = os.path.getsize(os.path.join(bib_dir, archivo))
-            if tam > BIB_MAX_BYTES:
-                _borra_fichero_biblioteca(archivo)
-                continue   # se salta el archivo demasiado grande, no corta toda la subida
             try:
+                # Crear las subcarpetas o anotar el archivo puede fallar (p. ej. una ruta
+                # más profunda que el máximo): si pasa, se salta SOLO este archivo —no se
+                # aborta toda la subida ni se dejan huérfanos los que ya se guardaron—.
+                destino_id = _bib_asegura_ruta(cfg, base, partes[:-1])
+                f.save(os.path.join(bib_dir, archivo))
+                tam = os.path.getsize(os.path.join(bib_dir, archivo))
+                if tam > BIB_MAX_BYTES:
+                    _borra_fichero_biblioteca(archivo)
+                    continue   # se salta el archivo demasiado grande, no corta toda la subida
                 arch = almacen.biblioteca_anota_archivo(cfg, arch_id, archivo, nombre,
                                                         f.mimetype or "", tam, destino_id,
                                                         dt.datetime.now().replace(microsecond=0).isoformat())
@@ -981,36 +984,38 @@ def api_importar_previsualizar():
     destino = request.form.get("destino") or "activos"   # "activos" o "banco"
     archivos = [(f.filename, f.read()) for f in request.files.getlist("archivos") if f.filename]
     texto = (request.form.get("texto") or "").strip()
-    # Solo la lectura de la cartera necesita el cerrojo. La preparación del plan baja
-    # precios de internet (lenta): se hace FUERA del cerrojo para no congelar la app.
+    # La preparación del plan baja precios (lenta) y usa el motor, que guarda su estado
+    # en variables de módulo (cache, flags de descarga): si corriera a la vez que un
+    # recálculo se pisarían esas variables. Por eso todo el acceso al motor va bajo el
+    # cerrojo —aunque bloquee brevemente—, igual que el resto de cálculos de la app.
     with cerrojo:
         cfg = almacen.carga(os.path.join(carpeta(), "cartera.json"))
-    dir_datos = carpeta()
-    if destino == "banco":
-        if not archivos and not texto:
-            return jsonify(ok=False, errores=["Sube el CSV del banco (o tu plantilla) o pega el texto."]), 400
-        filas, error = [], None
-        for nombre, contenido in archivos or [("pegado.csv", texto)]:
-            leidas, error = importar.leer_tabla_banco(nombre, contenido)
-            if error:
-                return jsonify(ok=False, errores=[f"{nombre}: {error}" if archivos else error]), 400
-            filas += leidas
-        plan = importar.preparar_banco(cfg, filas)
-    elif origen == "myinvestor":
-        if not archivos:
-            return jsonify(ok=False, errores=["Elige los archivos CSV que has descargado de MyInvestor."]), 400
-        plan = importar.preparar_myinvestor(cfg, archivos, dir_datos)
-    else:
-        if not archivos and not texto:
-            return jsonify(ok=False, errores=["Elige un archivo o pega el texto que te ha dado la IA."]), 400
-        filas, error = [], None
-        for nombre, contenido in archivos or [("pegado.csv", texto)]:
-            leidas, error = importar.leer_tabla(nombre, contenido)
-            if error:
-                return jsonify(ok=False, errores=[f"{nombre}: {error}" if archivos else error]), 400
-            filas += leidas
-        plan = importar.preparar_tabla(cfg, filas, dir_datos)
-    informe = importar.vista_previa(cfg, plan)
+        dir_datos = carpeta()
+        if destino == "banco":
+            if not archivos and not texto:
+                return jsonify(ok=False, errores=["Sube el CSV del banco (o tu plantilla) o pega el texto."]), 400
+            filas, error = [], None
+            for nombre, contenido in archivos or [("pegado.csv", texto)]:
+                leidas, error = importar.leer_tabla_banco(nombre, contenido)
+                if error:
+                    return jsonify(ok=False, errores=[f"{nombre}: {error}" if archivos else error]), 400
+                filas += leidas
+            plan = importar.preparar_banco(cfg, filas)
+        elif origen == "myinvestor":
+            if not archivos:
+                return jsonify(ok=False, errores=["Elige los archivos CSV que has descargado de MyInvestor."]), 400
+            plan = importar.preparar_myinvestor(cfg, archivos, dir_datos)
+        else:
+            if not archivos and not texto:
+                return jsonify(ok=False, errores=["Elige un archivo o pega el texto que te ha dado la IA."]), 400
+            filas, error = [], None
+            for nombre, contenido in archivos or [("pegado.csv", texto)]:
+                leidas, error = importar.leer_tabla(nombre, contenido)
+                if error:
+                    return jsonify(ok=False, errores=[f"{nombre}: {error}" if archivos else error]), 400
+                filas += leidas
+            plan = importar.preparar_tabla(cfg, filas, dir_datos)
+        informe = importar.vista_previa(cfg, plan)
     token = secrets.token_hex(8)
     PLANES.clear()   # solo una importación pendiente a la vez
     PLANES[token] = plan
@@ -1130,9 +1135,11 @@ def valida_copia(cfg):
             raise almacen.ErrorValidacion([f"La copia está dañada (campo «{k}» con formato incorrecto)."])
     if "config" in cfg and not isinstance(cfg.get("config"), dict):
         raise almacen.ErrorValidacion(["La copia está dañada (la configuración tiene un formato incorrecto)."])
-    # Prueba de fuego: que el motor la calcule en un directorio desechable.
+    # Prueba de fuego: que el motor la calcule en un directorio desechable. Bajo el
+    # cerrojo porque el motor guarda su estado en variables de módulo y no puede correr
+    # a la vez que otro cálculo (el RLock lo hace reentrante si ya lo tuviéramos).
     try:
-        with tempfile.TemporaryDirectory(prefix="liberty_chk_") as tmp:
+        with cerrojo, tempfile.TemporaryDirectory(prefix="liberty_chk_") as tmp:
             motor.construir(cfg, tmp, descargar=False)
     except almacen.ErrorValidacion:
         raise
@@ -1452,12 +1459,17 @@ def api_version():
     descarga de precios."""
     actual = version_actual()
     activado = bool((cartera().get("config") or {}).get("buscarActualizaciones"))
-    if not activado:
+    # ?manual=1 = comprobación que pide el usuario con un clic («comprobar ahora»). Como es
+    # una acción explícita suya, se hace aunque la comprobación automática esté apagada (igual
+    # que el botón «descargar e instalar»): no cambia el ajuste ni activa el chequeo diario.
+    manual = request.args.get("manual") == "1"
+    if not activado and not manual:
         return jsonify(actual=actual, ultima=None, repo=REPO, descarga=DESCARGA,
                        hayNueva=False, desactivado=True)
     # Normalmente se consulta como mucho una vez al día; con ?forzar=1 (p. ej. al pulsar
-    # «Actualizar precios») se salta esa caché y se comprueba al momento.
-    forzar = request.args.get("forzar") == "1"
+    # «Actualizar precios») o ?manual=1 se salta esa caché y se comprueba al momento.
+    forzar = manual or request.args.get("forzar") == "1"
+    error = False
     if forzar or not _VERSION or dt.datetime.now() - _VERSION["cuando"] > dt.timedelta(hours=24):
         try:
             req = urllib.request.Request(_API_RELEASE, headers=motor.UA)
@@ -1466,10 +1478,12 @@ def api_version():
                 _VERSION.update(ultima=tag or None, cuando=dt.datetime.now())
         except Exception:
             _VERSION.update(ultima=None, cuando=dt.datetime.now())
+            error = True
     ultima = _VERSION.get("ultima")
     def como_tupla(v):
         return tuple(int(x) for x in re.findall(r"\d+", v or "0"))
-    return jsonify(actual=actual, ultima=ultima, repo=REPO, descarga=DESCARGA,
+    return jsonify(actual=actual, ultima=ultima, repo=REPO, descarga=DESCARGA, manual=manual,
+                   error=error,
                    hayNueva=bool(ultima) and como_tupla(ultima) > como_tupla(actual))
 
 

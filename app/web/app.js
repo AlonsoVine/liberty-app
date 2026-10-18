@@ -8,17 +8,75 @@
   const $ = s => document.querySelector(s);
   const raiz = document.documentElement;
 
+  // Accesibilidad: si el sistema pide menos movimiento, el JS se salta las animaciones
+  // (contadores, dibujado de gráficos). El CSS lo respeta aparte vía @media. Se evalúa
+  // en vivo para que cambiarlo en el sistema surta efecto sin recargar.
+  const _mm = window.matchMedia ? window.matchMedia("(prefers-reduced-motion: reduce)") : null;
+  window.SIN_MOV = !!(_mm && _mm.matches);
+  if (_mm && _mm.addEventListener) _mm.addEventListener("change", e => { window.SIN_MOV = e.matches; });
+
+  // Cuenta ascendente para las cifras grandes, SOLO la primera vez que aparecen en esta
+  // carga (no en cada re-render por filtro) y respetando «menos movimiento». `fmt` da el
+  // texto final (p. ej. G.fmtEur), así que oculta-importes y nulos se comportan igual.
+  const _contado = new Set();
+  function contarUnaVez(node, clave, objetivo, fmt, dur) {
+    if (!node) return;
+    if (window.SIN_MOV || _contado.has(clave) || objetivo == null || isNaN(objetivo)) {
+      node.textContent = fmt(objetivo); return;
+    }
+    _contado.add(clave);
+    const t0 = performance.now(), D0 = dur || 650;
+    (function paso(t) {
+      const p = Math.min(1, (t - t0) / D0);
+      node.textContent = fmt(objetivo * (1 - Math.pow(1 - p, 3)));   // easeOutCubic desde 0
+      if (p < 1) requestAnimationFrame(paso); else node.textContent = fmt(objetivo);
+    })(t0);
+  }
+
+  // Faro de la barra de objetivo: cuando la barra termina de rellenarse, un resplandor
+  // «aterriza» en la punta (y queda un brillo suave). La llegada solo ocurre la primera
+  // vez por carga; en re-render el brillo es estático. Respeta «menos movimiento».
+  const _faros = new Set();
+  function faroBarra(fill, pct, clave) {
+    if (!fill) return;
+    if (!(pct > 0.015)) { fill.classList.remove("conFaro", "aterriza"); return; }
+    if (window.SIN_MOV || _faros.has(clave)) { fill.classList.add("conFaro"); return; }
+    _faros.add(clave);
+    fill._aterrizado = false;
+    const aterriza = () => {
+      if (fill._aterrizado) return;
+      fill._aterrizado = true;
+      fill.classList.add("conFaro", "aterriza");
+      fill.addEventListener("animationend", () => fill.classList.remove("aterriza"), { once: true });
+    };
+    fill.addEventListener("transitionend", e => { if (e.propertyName === "width") aterriza(); }, { once: true });
+    setTimeout(aterriza, 950);   // red de seguridad si no llega el transitionend
+  }
+
+  // Fundido breve al mostrar una pestaña o sub-vista (reutiliza la animación «entra»),
+  // para que la navegación no «salte». Se salta con «menos movimiento».
+  function fundeEntrada(el) {
+    if (!el || window.SIN_MOV) return;
+    el.style.animation = "none";
+    void el.offsetWidth;                 // reinicia la animación aunque se repita rápido
+    el.style.animation = "entra .28s var(--ease)";
+    el.addEventListener("animationend", () => { el.style.animation = ""; }, { once: true });
+  }
+
   // Escapa texto del usuario (nombres de productos, titulares, categorías…) antes
   // de meterlo en innerHTML, para que nunca se interprete como HTML. Igual que en
   // editor.js. Úsalo SIEMPRE que interpoles un dato de texto de DATOS.
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
-  // Aviso breve (toast) que aparece y se va solo, para confirmar acciones.
-  window.toast = (msg) => {
+  // Aviso breve (toast) que aparece y se va solo, para confirmar acciones. El 2.º
+  // argumento (opcional) tiñe el acento lateral: "ok" | "aviso" | "error".
+  window.toast = (msg, tipo) => {
     const t = document.getElementById("toast");
     if (!t) return;
     t.textContent = msg;
+    t.classList.remove("ok", "aviso", "error");
+    if (tipo) t.classList.add(tipo);
     t.hidden = false;
     requestAnimationFrame(() => t.classList.add("ver"));
     clearTimeout(t._t);
@@ -41,16 +99,36 @@
   // ---- Preferencias de pantalla (zona «Ajustes»). Se guardan en el navegador. ----
   const pref = (k, def) => recuerda.lee("patrimonio." + k) || def;
   const sistemaOscuro = () => { try { return matchMedia("(prefers-color-scheme: dark)").matches; } catch (e) { return true; } };
+  let _temaPrev = null;
   function aplicaPrefs() {
     const t = pref("tema", "oscuro");
-    raiz.dataset.tema = t === "auto" ? (sistemaOscuro() ? "oscuro" : "claro") : t;
+    const nuevoTema = t === "auto" ? (sistemaOscuro() ? "oscuro" : "claro") : t;
+    // Crossfade breve SOLO al cambiar de tema (no en la primera carga ni con menos
+    // movimiento): una clase temporal activa la transición de color y se quita sola.
+    if (_temaPrev !== null && nuevoTema !== _temaPrev && !window.SIN_MOV) {
+      raiz.classList.add("temaAnim");
+      clearTimeout(aplicaPrefs._t);
+      aplicaPrefs._t = setTimeout(() => raiz.classList.remove("temaAnim"), 450);
+    }
+    _temaPrev = nuevoTema;
+    raiz.dataset.tema = nuevoTema;
     const tx = pref("texto", "normal");
     document.body.classList.toggle("textoGrande", tx === "grande");
     document.body.classList.toggle("textoMuyGrande", tx === "muyGrande");
     document.body.classList.toggle("vistaAmplia", pref("amplia", "0") === "1");
+    document.body.classList.toggle("ayudaOff", pref("ayudaBotones", "1") === "0");
     window.OCULTAR_IMPORTES = pref("ocultar", "0") === "1";
   }
   aplicaPrefs();
+
+  // Sombra sutil en la barra superior solo cuando se ha desplazado la página.
+  (function () {
+    const top = document.querySelector(".top");
+    if (!top) return;
+    const act = () => top.classList.toggle("desplazada", window.scrollY > 6);
+    addEventListener("scroll", act, { passive: true });
+    act();
+  })();
 
   // Modo vídeo = pantalla completa (la vista no cambia, solo ocupa toda la pantalla,
   // ideal para presentar o grabar). Se activa/sale con la tecla «V» o desde Ajustes.
@@ -94,6 +172,8 @@
            [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
       `<div class="ajusteFila"><div class="ajusteTxt"><b>Modo vídeo</b><small>Pantalla completa para presentar o grabar: la vista no cambia, solo ocupa toda la pantalla. También con la tecla V.</small></div>
         <button class="btn" id="btnVideo">${enPantallaCompleta() ? "Salir de pantalla completa" : "Pantalla completa"}</button></div>` +
+      fila("Botones de ayuda", "La «i» de la esquina que explica cada pantalla. Si ya te manejas, ocúltalos para una pantalla más limpia.", "ayudaBotones",
+           [{ v: "1", t: "Mostrar" }, { v: "0", t: "Ocultar" }]) +
       fila("Pantalla de inicio", "Qué se abre al abrir la app.", "inicio",
            [{ v: "ultima", t: "La última que usaste" }, { v: "panel", t: "Siempre el Panel" }]);
     const bv = $("#btnVideo"); if (bv) bv.onclick = alternaVideo;
@@ -559,7 +639,7 @@
     cont.innerHTML = `<section class="tarjeta rmCard">
       <header><h2>Tu mes de un vistazo</h2><span class="subt">${mesNombre ? esc(mesNombre) + " · " : ""}qué ha cambiado y qué conviene hacer</span></header>
       <div class="rmCifras">
-        ${cif("Patrimonio este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes >= 0 ? "pos" : "neg", varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
+        ${cif("Patrimonio este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes == null ? "" : (varMes >= 0 ? "pos" : "neg"), varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
         ${em ? cif("Ahorro del mes", G.fmtEurSigno(em.ahorro), em.ahorro >= 0 ? "pos" : "neg", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
         ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
       </div>
@@ -571,7 +651,7 @@
     const filtro = filtrando();
     const m = filtro ? mVis : mTodo;
     $("#heroEtq").textContent = filtro ? "Vista filtrada" : "Patrimonio neto";
-    $("#heroCifra").textContent = G.fmtEur(m.valor);
+    contarUnaVez($("#heroCifra"), "hero", m.valor, v => G.fmtEur(v), 680);
 
     const partes = [];
     if (m.plusvalia !== null) {
@@ -610,6 +690,7 @@
     const pct = Math.max(0, Math.min(1, m.valor / sig));
     $("#progEnv").hidden = false;
     $("#progRelleno").style.width = (pct * 100).toFixed(1) + "%";
+    faroBarra($("#progRelleno"), pct, "heroMeta");
     $("#progIzq").innerHTML =
       `<b style="color:var(--tinta)">${G.fmtPct(pct, 1)}</b> del camino hacia ${G.fmtEurCorto(sig)}`;
     $("#progDer").textContent = "Faltan " + G.fmtEur(sig - m.valor, 0);
@@ -1709,6 +1790,7 @@
   /* ================================================================
      PANEL · INICIO (resumen de un vistazo de TODA la app)
      ================================================================ */
+  let _inicioAnimado = false;
   function pintaInicio(m) {
     const cont = $("#inicioCuerpo"); if (!cont) return;
     const t = D.total || {};
@@ -1745,7 +1827,7 @@
         ${metaImporte ? `<div class="irCaja">
           <div class="irEtq">${sigHito ? "🎯 Próximo hito" : "🎯 Tu objetivo"}: <b>${G.fmtEur(metaImporte, 0)}</b></div>
           <div class="prog inicioProg">
-            <div class="progBarra"><div class="progRelleno" style="width:${(progreso * 100).toFixed(1)}%"></div></div>
+            <div class="progBarra faro"><div class="progRelleno" data-pct="${(progreso * 100).toFixed(1)}" style="width:0"></div></div>
             <div class="progPie"><span><b style="color:var(--tinta)">${G.fmtPct(progreso, 0)}</b> del camino</span><span>${progreso >= 1 ? "¡Conseguido! 🎉" : "Faltan " + G.fmtEur(faltan, 0)}</span></div>
           </div>
         </div>` : ""}
@@ -1859,7 +1941,7 @@
       const subAhorro = em && em.tasaAhorro != null ? "el " + G.fmtPct(em.tasaAhorro, 0) + " de tus ingresos" : "este mes";
       html += `<section class="tarjeta inicioMega megaIng">
         <header><h2>Ingresos y gastos</h2><span class="subt">tu mes y la tendencia reciente</span></header>
-        <div class="megaBody rev">
+        <div class="megaBody">
           <div class="megaTiles inicioGrid dos">
             ${tile("➕", "Ingresos", em ? G.fmtEur(em.ingresos || 0, 0) : "—", "cobrado este mes", "ingresos", "ok")}
             ${tile("➖", "Gastos", em ? G.fmtEur(em.gastos || 0, 0) : "—", "gastado este mes", "ingresos", "warn")}
@@ -1880,7 +1962,7 @@
       ? (alertas[0].texto ? alertas[0].texto.slice(0, 48) + (alertas[0].texto.length > 48 ? "…" : "") : "cosas que revisar")
       : "todo en orden";
     const subVenc = prox
-      ? (prox.diasRestantes <= 0 ? "vencido: " + esc(prox.nombre || "") : `${esc(prox.nombre || "")} en ${prox.diasRestantes} días`)
+      ? (prox.diasRestantes <= 0 ? "vencido: " + (prox.nombre || "") : `${prox.nombre || ""} en ${prox.diasRestantes} días`)
       : "nada a la vista";
     html += `<h3 class="inicioTit">Tu archivo y tus avisos</h3><div class="inicioGrid">
       ${tile("🗂️", "Documentos", String(C.documentos || 0), "en tu biblioteca", "biblioteca")}
@@ -1891,6 +1973,32 @@
     </div>`;
 
     cont.innerHTML = html;
+
+    // Ensamblado: las tarjetas de Inicio aparecen escalonadas, solo la primera vez por
+    // carga (al cambiar de pestaña ya hay crossfade, así que no se solapan). La opacidad
+    // no afecta al layout, por lo que los gráficos de dentro siguen midiéndose bien.
+    if (!window.SIN_MOV && !window.ESTATICO && !_inicioAnimado) {
+      _inicioAnimado = true;
+      const hijos = [...cont.children];
+      hijos.forEach((el, i) => {
+        const dl = Math.min(i * 0.07, 0.5);
+        el.style.opacity = "0";
+        el.style.transform = "translateY(10px)";
+        el.style.transition = `opacity .45s var(--ease) ${dl}s, transform .45s var(--ease) ${dl}s`;
+      });
+      requestAnimationFrame(() => hijos.forEach(el => { el.style.opacity = ""; el.style.transform = ""; }));
+      setTimeout(() => hijos.forEach(el => { el.style.transition = ""; }), 1200);
+    }
+
+    // Barra de objetivo de Inicio: se rellena desde 0 la primera vez (luego directa) y
+    // el faro aterriza en la punta al acabar.
+    const pf = cont.querySelector(".inicioProg .progRelleno");
+    if (pf) {
+      const pct = (parseFloat(pf.dataset.pct) || 0) / 100;
+      if (!window.SIN_MOV && !_faros.has("inicioMeta")) requestAnimationFrame(() => { pf.style.width = pf.dataset.pct + "%"; });
+      else pf.style.width = pf.dataset.pct + "%";
+      faroBarra(pf, pct, "inicioMeta");
+    }
 
     const sp = $("#inicioSpark");
     if (sp) { try { G.sparkPro(sp, { valores: serieNeto, fechas: D.fechas || [], color: G.css("--s1") }); } catch (e) { /* sin línea */ } }
@@ -2500,13 +2608,30 @@
     let estado = "";
     if (VERINFO.hayNueva) {
       estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="#" id="pieActualizar">descargar e instalar</a></span>`;
+    } else if (VERINFO.error) {
+      estado = ` · <span class="subt">no he podido comprobar · <a href="#" id="pieComprobar">reintentar</a></span>`;
     } else if (VERINFO.desactivado) {
-      estado = ` · <span class="subt">comprobación de versiones desactivada</span>`;
+      // Comprobación automática apagada: deja que el usuario compruebe a mano cuando quiera.
+      estado = ` · <span class="subt">comprobación automática apagada · <a href="#" id="pieComprobar">comprobar ahora</a></span>`;
     } else if (VERINFO.ultima) {
       estado = ` · <span class="pieAlDia">✓ al día</span>`;
     }
     el.innerHTML = `<b>Liberty v${esc(VERINFO.actual || "?")}</b>${estado}`;
     const a = $("#pieActualizar"); if (a) a.onclick = actualizaDesdePie;
+    const c = $("#pieComprobar"); if (c) c.onclick = compruebaVersion;
+  }
+  // Comprobación a petición del usuario: funciona aunque el chequeo diario esté apagado
+  // (el clic es consentimiento explícito). Actualiza el pie y el aviso al momento, sin recargar.
+  function compruebaVersion(ev) {
+    if (ev) ev.preventDefault();
+    const el = $("#pieVersion");
+    if (el) el.innerHTML = `<b>Liberty v${esc((VERINFO && VERINFO.actual) || "?")}</b> · <span class="subt">comprobando…</span>`;
+    fetch("api/version?forzar=1&manual=1").then(r => r.json()).then(v => {
+      VERINFO = v; pintaPieVersion(); pintaAvisoVersion();
+    }).catch(() => {
+      if (VERINFO) VERINFO.error = true;
+      pintaPieVersion();
+    });
   }
   // Píldora naranja «hay versión nueva» junto al selector de patrimonio (arriba).
   function pintaAvisoVersion() {
@@ -2527,14 +2652,15 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.10.0",
+    version: "1.11.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🗂️", "Explorador de archivos", "En «Documentos → Archivos» tienes un explorador para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en carpetas anidadas. Puedes incluso subir una carpeta entera. Todo en tu ordenador."],
-      ["🏠", "Panel de inicio", "Un nuevo resumen que reúne de un vistazo tu patrimonio, tus ingresos y gastos, tus facturas y tus documentos, con accesos directos a cada sección."],
-      ["🧭", "Moverte mejor", "Ayuda y Ajustes ahora están arriba a la derecha. Desde la ficha de un componente puedes «Volver a Distribución» con un botón, y en el buscador (⌘K) Ayuda y Ajustes salen las primeras."],
-      ["👆", "Aportaciones enlazadas", "En la ficha de un componente, pulsa una fila de «Aportaciones» para ir directo a ese movimiento en «Saldos y movimientos»."],
-      ["📉", "Gráfico de deudas", "Arreglada la curva de los préstamos y deudas en su ficha (el eje ya se adapta a los valores negativos)."],
+      ["ⓘ", "Ayuda en cada pantalla", "Ahora cada zona tiene una «i» al final de su barra que te explica, en una tarjeta, cómo funciona esa pantalla concreta. Si ya te manejas, puedes ocultarlas desde «Ajustes → Botones de ayuda»."],
+      ["✨", "Nuevo acabado visual", "Los gráficos cobran vida al aparecer (la línea se dibuja, el anillo se construye, las barras suben), las cifras cuentan hacia arriba y la navegación entra con un fundido suave. Todo discreto y respetando «menos movimiento» del sistema."],
+      ["🔆", "Faro en tu objetivo", "La barra de progreso hacia tu objetivo se rellena desde cero y un resplandor aterriza en la punta al llegar."],
+      ["🎚️", "Detalles cuidados", "Microinteracciones al pasar y pulsar, foco de teclado visible, cambio de tema suave, barras de desplazamiento y selección acordes al tema, y una barra de carga mientras se calcula."],
+      ["🔄", "Comprobar actualizaciones a mano", "Aunque tengas apagada la comprobación automática, puedes mirar si hay una versión nueva cuando quieras con el enlace «comprobar ahora» del pie de página."],
+      ["🛠️", "Estabilidad", "Correcciones internas: cálculo más robusto, valoraciones con fecha futura bien tratadas y varios arreglos finos. Tus datos siguen intactos."],
     ],
   };
   function quizaNovedades() {
@@ -2569,6 +2695,202 @@
     dlg.addEventListener("click", e => { if (e.target === dlg) cierra(); });
     try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
   }
+
+  /* ---------------------------------------------- ayuda contextual por pantalla
+     Cada zona de la app tiene una «i» en la esquina que abre una tarjeta explicando
+     SOLO esa pantalla. Se pueden ocultar desde Ajustes. El contenido es fijo (texto),
+     para que el ejecutable siga siendo pequeño y la ayuda no se quede desactualizada
+     con capturas. La clave de la pantalla actual se deduce del estado (sin acoplarse
+     al editor): las sub-vistas de «Mis datos» y «Documentos» se leen de localStorage. */
+  const AYUDA = {
+    "panel.inicio": { t: "Inicio", sub: "Tu patrimonio de un vistazo y los accesos rápidos.", p: [
+      ["📊", "Tu mes de un vistazo", "Lo que ha cambiado tu patrimonio este mes, tu ahorro del mes y el dinero que te queda libre, con una pista de «qué conviene hacer»."],
+      ["🎯", "Objetivo o próximo hito", "Una barra que se rellena hacia tu objetivo (o el siguiente hito), para ver cuánto te falta."],
+      ["📈", "Patrimonio, reparto e ingresos", "Tu evolución reciente, en qué está repartido tu dinero (anillo) y tus ingresos y gastos de los últimos meses."],
+      ["🏅", "Tu constancia", "Racha de meses aportando sin fallar, ritmo mensual, meses apuntando y cuánto tiempo llevas siguiéndote."],
+      ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos. Pulsa cualquier tarjeta para ir directo a su sección."],
+    ] },
+    "panel.patrimonio": { t: "Patrimonio", sub: "La foto completa de lo que tienes y lo que debes.", p: [
+      ["💰", "Patrimonio neto", "La cifra grande: todo lo que tienes menos lo que debes (bruto − deudas)."],
+      ["📅", "Periodo", "Arriba puedes ver tu patrimonio a un día concreto, a fin de un mes o en un rango exacto (y cuánto ganaste en ese tramo)."],
+      ["📈", "Evolución y objetivo", "La serie de tu patrimonio en el tiempo y una barra de progreso hacia tu objetivo."],
+      ["🧮", "Indicadores clave", "Aportado, plusvalía, rentabilidad, TIR anualizada, ritmo mensual, racha y peor caída."],
+      ["🏠", "Patrimonio del hogar", "El desglose de hoy: bruto, deudas, neto, disponible, no disponible, reservados, colchón y el dinero libre para invertir."],
+      ["📊", "Cómo ha cambiado", "Comparativa de cada cifra con hace 1 mes y hace 12 meses."],
+    ] },
+    "panel.distribucion": { t: "Distribución", sub: "En qué está repartido tu dinero.", p: [
+      ["🍩", "Anillo y mapa", "Cambia entre el anillo (reparto en círculo) y el mapa (bloques anidados, tipo treemap)."],
+      ["🏷️", "Agrupar por", "Mira el reparto por Activo, Producto, Entidad, Tipo, Clase de activo, Geografía o las dimensiones que tú crees."],
+      ["🧩", "Componentes de la cartera", "Una tarjeta por cada activo con su peso y un mini-gráfico. Pulsa una para abrir su ficha completa."],
+      ["⚖️", "Cómo rebalancear", "Si has fijado objetivos de asignación en Configuración, te dice qué conviene mover para volver a tu plan."],
+      ["🔍", "Filtros", "Acota la vista por titular o por cualquier dimensión, arriba del panel."],
+    ] },
+    "panel.rentabilidad": { t: "Rentabilidad", sub: "Cuánto ha crecido tu dinero.", p: [
+      ["📈", "Rentabilidad y TIR", "Lo que ha ganado tu cartera en total (sobre lo aportado) y la TIR anualizada, que tiene en cuenta cuándo metiste cada euro."],
+      ["📊", "Por periodo", "El rendimiento en distintas ventanas de tiempo y, si aplica, por año."],
+      ["🧾", "Por producto", "La rentabilidad de cada componente, para ver cuáles tiran y cuáles no."],
+      ["💡", "Lo aportado importa", "Para que el cálculo sea bueno, anota lo que has aportado en «Saldos y movimientos»."],
+    ] },
+    "panel.evolucion": { t: "Evolución", sub: "Tu patrimonio día a día.", p: [
+      ["📈", "La curva en el tiempo", "La serie completa de tu patrimonio, con los eventos importantes (aportaciones) marcados."],
+      ["🧱", "Reparto apilado", "Ve la evolución como áreas apiladas por componente o por dimensión, para ver quién aporta a cada momento."],
+      ["💶", "Aportado vs valor", "Distingue lo que has metido de lo que ha crecido por el mercado."],
+      ["📉", "Inflación", "Si la configuras, aparece una línea de referencia para ver si tu patrimonio le gana a la inflación."],
+      ["🎚️", "Ver todo / Quitar todo", "Muestra u oculta componentes de la gráfica con los chips o los botones; útil para comparar solo lo que te interesa."],
+      ["📅", "Periodo", "Ajusta el rango con los presets (1M, 3M, 1 año, YTD…) o un rango exacto."],
+    ] },
+    "panel.ingresos": { t: "Ingresos y gastos", sub: "A dónde va tu dinero cada mes.", p: [
+      ["➕", "Ingresos y gastos", "Tus entradas y salidas del mes y la tendencia de los últimos 12 meses."],
+      ["🐷", "Tasa de ahorro", "Qué parte de tus ingresos estás ahorrando."],
+      ["🗂️", "Por categoría", "En qué se te va el dinero, con el presupuesto por categoría si lo defines en Configuración."],
+      ["👥", "Por titular", "Quién ingresa y quién gasta, si hay varios titulares."],
+      ["✍️", "Para anotar o importar", "Los apuntes se crean en «Mis datos → Ingresos y gastos» (a mano, recurrentes o importando del banco)."],
+    ] },
+    "panel.deudas": { t: "Deudas y vencimientos", sub: "Lo que debes y lo que vence pronto.", p: [
+      ["💳", "Tus deudas", "Préstamos, hipoteca, tarjetas… con su capital pendiente, cuota e interés."],
+      ["📉", "Curva de cada deuda", "Cómo baja el capital pendiente de cada préstamo con el tiempo."],
+      ["🧮", "Cuota sobre ingresos", "Cuánto de tus ingresos se va en pagar deudas, para ver si vas holgado."],
+      ["📅", "Vencimientos", "Avisos de renovaciones, impuestos, seguros o revisiones, con la antelación que elijas en Configuración."],
+    ] },
+    "panel.fiscal": { t: "Informe fiscal", sub: "Lo que has realizado cada año.", p: [
+      ["🧾", "Resumen del año", "Ventas, transmisiones y plusvalías o minusvalías que has realizado en el ejercicio."],
+      ["📅", "Elige el año", "Cambia de ejercicio para ver cada uno por separado."],
+      ["⚠️", "Solo informativo", "Es una ayuda para hacerte una idea, no asesoramiento fiscal. Contrástalo siempre con tu asesor o con los datos oficiales."],
+    ] },
+    "panel.producto": { t: "Ficha de un componente", sub: "Todo sobre un activo concreto.", p: [
+      ["🔎", "Sus números", "Valor actual, lo aportado, plusvalía, rentabilidad y TIR de ese activo."],
+      ["📈", "Su evolución", "El precio y el valor del activo en el tiempo, con tus aportaciones marcadas."],
+      ["🧾", "Aportaciones", "La lista de compras/aportaciones; pulsa una fila para ir al movimiento que la originó en «Saldos y movimientos»."],
+      ["🧩", "Exposición y detalle", "Dónde encaja dentro de tu cartera y el desglose de su coste."],
+    ] },
+
+    "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que suma a tu patrimonio.", p: [
+      ["➕", "Añade cualquier cosa que suma", "Fondos, acciones, cripto, cuentas, planes de pensiones, inmuebles…"],
+      ["🔗", "Con cotización", "Para fondos, acciones o cripto pones su código (Yahoo, Morningstar, CoinGecko) y el panel baja el precio solo."],
+      ["✍️", "A mano", "Para efectivo, un inmueble o cualquier cosa sin cotización, anotas tú su saldo o su valoración cada tanto."],
+      ["📇", "Desde su ficha", "Al entrar en cada activo anotas sus compras o su saldo en «Saldos y movimientos»."],
+    ] },
+    "datos.deudas": { t: "Mis datos · Deudas", sub: "Préstamos, hipoteca, tarjetas…", p: [
+      ["💳", "Añade tus deudas", "Con su tipo, titular, cuota, interés y vencimiento (estos dos últimos alimentan los avisos)."],
+      ["🧮", "El capital pendiente", "Lo que debes de verdad lo anotas cada mes en «Saldos y movimientos» (es el saldo de la deuda)."],
+      ["📉", "En el panel", "Aparecen en «Deudas y vencimientos» y restan de tu patrimonio neto."],
+    ] },
+    "datos.apartados": { t: "Mis datos · Reservados", sub: "Dinero que reservas para un fin.", p: [
+      ["🗂️", "Qué es un reservado", "Dinero que separas para algo concreto (impuestos, un viaje, imprevistos). No desaparece de tu patrimonio."],
+      ["🧮", "Efecto en el panel", "Se descuenta del «dinero libre para invertir», para que no cuentes dos veces lo que ya tiene dueño."],
+      ["👤", "Por titular", "Puedes asignar cada reservado a un titular del hogar."],
+    ] },
+    "datos.flujos": { t: "Mis datos · Ingresos y gastos", sub: "Anota lo que entra y lo que sale.", p: [
+      ["✍️", "Apunta tus movimientos", "Nómina, alquiler, la compra, recibos… con fecha, importe, categoría y titular."],
+      ["⚡", "Anotar rápido", "Un apunte en segundos desde el formulario de arriba."],
+      ["🏷️", "Categorías", "Clasifica para ver en qué se te va el dinero (y ponles presupuesto en Configuración)."],
+      ["🔁", "Recurrentes", "Apuntes que se repiten (nómina, suscripciones) para no teclearlos cada mes."],
+      ["🏦", "Importar del banco", "Trae tus gastos de golpe desde «Importar»."],
+      ["📎", "Facturas", "Adjunta el ticket o la factura a cualquier apunte."],
+    ] },
+    "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus datos.", p: [
+      ["📘", "Dónde se anota todo", "Aquí registras los movimientos (compras, ventas, aportaciones) y los saldos o valoraciones de cada producto."],
+      ["🧾", "Compra y venta", "Para productos con cotización: unidades y precio. El panel calcula coste medio, plusvalía y TIR."],
+      ["💶", "Saldo o valoración", "Para efectivo, inmuebles o deudas: anotas su valor (o el capital pendiente) en una fecha."],
+      ["🎯", "Resaltado", "Si llegas aquí pulsando algo del panel, se resalta el flujo, movimiento o saldo concreto."],
+    ] },
+    "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas.", p: [
+      ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto."],
+      ["📎", "Imágenes o PDF", "Se guardan en tu carpeta «facturas» con nombres descriptivos (fecha, importe, concepto)."],
+      ["💻", "En tu ordenador", "Como todo en Liberty, no sale de tu equipo."],
+    ] },
+    "datos.config": { t: "Mis datos · Configuración", sub: "Ajusta cómo calcula y clasifica el panel.", p: [
+      ["🏠", "Hogar", "Titulares, colchón de seguridad y tu objetivo de patrimonio."],
+      ["🎯", "Asignación y concentración", "Objetivos de reparto (para el rebalanceo) y umbrales para avisarte si te concentras demasiado."],
+      ["🏷️", "Categorías y dimensiones", "Categorías de gasto con presupuesto y tus propias dimensiones para clasificar los activos."],
+      ["📈", "Inflación, monedas y avisos", "La inflación de referencia, tus monedas y con cuántos días de antelación avisar de los vencimientos."],
+      ["🗂️", "Papelera de archivos", "Cuántos archivos borrados conservar por si te arrepientes."],
+    ] },
+    "datos.importar": { t: "Mis datos · Importar", sub: "Trae tus datos de golpe.", p: [
+      ["🏦", "Varias fuentes", "El CSV de tu banco, el export de MyInvestor o una tabla que pegues (p. ej. de una IA)."],
+      ["👀", "Vista previa", "Antes de guardar nada ves qué se va a importar y puedes corregir las categorías."],
+      ["🧠", "Aprende reglas", "Recuerda cómo categorizas para acertar más la próxima vez."],
+    ] },
+    "datos.copias": { t: "Mis datos · Copias de seguridad", sub: "Guarda y recupera todo.", p: [
+      ["💾", "Descarga una copia", "El .zip lo lleva todo (datos + facturas + archivos); el .json es más ligero, solo los datos."],
+      ["♻️", "Recupera", "Restaura una copia al cambiar de ordenador o si algo va mal."],
+      ["🔒", "Tuya y local", "La copia la guardas tú donde quieras; Liberty no la sube a ningún sitio."],
+    ] },
+
+    "doc.lista": { t: "Documentos · Lista de notas", sub: "Tus apuntes sueltos.", p: [
+      ["📝", "Notas con etiquetas", "Escribe lo que quieras recordar y clasifícalo con etiquetas."],
+      ["✅", "Tareas", "Una nota puede llevar tareas con casillas."],
+      ["🔗", "Vincula", "Enlaza una nota a un producto o a un apunte para tenerlo a mano."],
+      ["🔎", "Ordena y filtra", "Por fecha o por etiqueta."],
+    ] },
+    "doc.tablero": { t: "Documentos · Tablero", sub: "Organiza pendientes tipo Trello.", p: [
+      ["📋", "Columnas y tarjetas", "Crea columnas y arrastra tarjetas entre ellas."],
+      ["🧹", "Para el papeleo", "Ideal para gestiones, decisiones o cosas que revisar."],
+    ] },
+    "doc.agenda": { t: "Documentos · Agenda", sub: "Tu calendario de recordatorios.", p: [
+      ["🗓️", "Calendario", "Tus vencimientos y recordatorios sobre un mes."],
+      ["🔔", "Lo que vence pronto", "Resalta para que no se te pase."],
+    ] },
+    "doc.biblioteca": { t: "Documentos · Archivos", sub: "Un explorador para tus documentos.", p: [
+      ["🗂️", "Guarda lo importante", "Declaraciones, escrituras, contratos, pólizas… en carpetas anidadas."],
+      ["📁", "Sube carpetas enteras", "Puedes arrastrar una carpeta completa y recrea su estructura."],
+      ["🗑️", "Papelera", "Lo que borras pasa a una papelera por si quieres recuperarlo."],
+      ["💻", "En tu ordenador", "Todo se guarda en tu equipo, nunca en la nube."],
+    ] },
+
+    "ajustes": { t: "Ajustes", sub: "Personaliza la app a tu gusto.", p: [
+      ["🎨", "Aspecto", "Tema claro, oscuro o automático, y tamaño del texto para leer mejor."],
+      ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades, para enseñar la pantalla sin revelar tu dinero."],
+      ["🖥️", "Vista amplia y Modo vídeo", "Filas y botones más grandes, y pantalla completa para presentar o grabar (tecla V)."],
+      ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (la que estás usando ahora)."],
+      ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios."],
+    ] },
+  };
+
+  // Deduce la pantalla actual para la ayuda contextual, sin acoplarse al editor.
+  function claveAyudaActual() {
+    const tab = estado.tab;
+    if (tab === "panel") return "panel." + (estado.pv || "inicio");
+    if (tab === "datos") return "datos." + (recuerda.lee("patrimonio.editor") || "activos");
+    if (tab === "notas") return "doc." + (recuerda.lee("patrimonio.notasVista") || "lista");
+    if (tab === "ajustes") return "ajustes";
+    return null;   // en «Ayuda» no hace falta (esa pestaña ya es la ayuda general)
+  }
+
+  function muestraAyuda(clave) {
+    const info = AYUDA[clave];
+    if (!info) return;
+    let dlg = $("#dlgAyuda");
+    if (!dlg) {
+      dlg = document.createElement("dialog");
+      dlg.id = "dlgAyuda"; dlg.className = "modal novedades ayudaModal";
+      document.body.appendChild(dlg);
+    }
+    dlg.innerHTML = `<div class="novCuerpo">
+        <div class="novCab"><span class="novVer ayudaVer">ⓘ Cómo funciona esta pantalla</span>
+          <h2>${esc(info.t)}</h2>
+          ${info.sub ? `<p class="subt">${esc(info.sub)}</p>` : ""}</div>
+        <ul class="novLista">${info.p.map(p => `<li>
+          <span class="novIco">${p[0]}</span>
+          <div><b>${esc(p[1])}</b><span>${esc(p[2])}</span></div></li>`).join("")}</ul>
+        <p class="ayudaNota">💡 Puedes ocultar estos botones de ayuda en <b>Ajustes → Botones de ayuda</b>.</p>
+        <div class="novPie"><button class="btn prim" id="ayOk">Entendido</button></div></div>`;
+    const cierra = () => { try { dlg.close(); } catch (_) { dlg.removeAttribute("open"); } };
+    dlg.querySelector("#ayOk").onclick = cierra;
+    dlg.addEventListener("click", e => { if (e.target === dlg) cierra(); });
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+  }
+
+  // Abre la ayuda de la pantalla actual. Lo llaman los botones «i» del final de cada
+  // barra de navegación (subpestañas del Panel, «Mis datos», «Documentos» y Ajustes).
+  window.abreAyuda = () => { const k = claveAyudaActual(); if (k) muestraAyuda(k); };
+  // Botones «i» que ya están en el HTML (Panel y Ajustes); los del editor se cablean allí.
+  document.querySelectorAll(".btnAyudaNav").forEach(b => { b.onclick = window.abreAyuda; });
+  // En la web exportada no hay ayuda de la app: se ocultan con la misma clase.
+  if (window.ESTATICO) document.body.classList.add("ayudaOff");
+  // Compat: antes la ayuda era un botón flotante que se refrescaba; ahora es fijo por barra.
+  function actualizaFabAyuda() {}
+  window.actualizaFabAyuda = actualizaFabAyuda;
 
   function pintaComun() {
     $("#avisos").innerHTML = (D.avisos || [])
@@ -2648,6 +2970,8 @@
     if ($("#btnImprimir")) $("#btnImprimir").hidden = tab !== "panel";
     recuerda.guarda("patrimonio.tab", tab);
     pintarTab();
+    fundeEntrada(document.getElementById("tab-" + tab));
+    actualizaFabAyuda();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2655,11 +2979,13 @@
   function irVista(pv) {
     if (pv === "producto" && !estado.fondo) pv = "distribucion";
     estado.pv = pv;
-    document.querySelectorAll("#subtabs button").forEach(b =>
+    document.querySelectorAll("#subtabs button[data-pv]").forEach(b =>
       b.setAttribute("aria-selected", String(b.dataset.pv === pv)));
     document.querySelectorAll(".pv").forEach(el => { el.hidden = el.id !== "pv-" + pv; });
     if (pv !== "producto") recuerda.guarda("patrimonio.pv", pv);
     pintaPatrimonio();
+    fundeEntrada(document.getElementById("pv-" + pv));
+    actualizaFabAyuda();
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -2668,7 +2994,7 @@
     // no tiene ancho, y saldria del tamano equivocado.
     if (estado.tab === "panel") {
       const pv = estado.pv || "patrimonio";
-      document.querySelectorAll("#subtabs button").forEach(b =>
+      document.querySelectorAll("#subtabs button[data-pv]").forEach(b =>
         b.setAttribute("aria-selected", String(b.dataset.pv === pv)));
       document.querySelectorAll(".pv").forEach(el => { el.hidden = el.id !== "pv-" + pv; });
       pintaPatrimonio();
@@ -3032,15 +3358,19 @@
   if ($("#btnPrecios")) $("#btnPrecios").onclick = async () => {
     const b = $("#btnPrecios");
     b.disabled = true;
-    b.textContent = "↻ Actualizando…";
+    b.innerHTML = '<span class="girando">↻</span> Actualizando…';
     try {
       const r = await fetch("api/actualizar", { method: "POST" });
       const j = await r.json();
       if (!j.ok) throw new Error(j.error);
-      // De paso, comprueba si hay versión nueva (sin esperar al chequeo diario). Es
-      // invisible: solo refresca el aviso de versión. Respeta «Buscar actualizaciones»
-      // (si está apagado, no sale a internet) y no bloquea si falla.
-      try { await fetch("api/version?forzar=1"); } catch (e) { /* da igual */ }
+      // De paso, comprueba si hay versión nueva (sin esperar al chequeo diario) y, si la
+      // hay, muestra el aviso AL INSTANTE —no solo tras recargar—. Respeta «Buscar
+      // actualizaciones» (si está apagado, no sale a internet) y no bloquea si falla.
+      try {
+        const rv = await fetch("api/version?forzar=1");
+        VERINFO = await rv.json();
+        pintaAvisoVersion(); pintaPieVersion();
+      } catch (e) { /* da igual */ }
       recargaHoy();
     } catch (e) {
       alert(e.message || "No he podido actualizar los precios. ¿Tienes conexión a internet?");
@@ -3050,7 +3380,7 @@
   };
   if (location.protocol === "file:" && $("#btnPrecios")) $("#btnPrecios").hidden = true;
   document.querySelectorAll("[data-tab]").forEach(b => { b.onclick = () => irA(b.dataset.tab); });
-  document.querySelectorAll("#subtabs button").forEach(b => { b.onclick = () => irVista(b.dataset.pv); });
+  document.querySelectorAll("#subtabs button[data-pv]").forEach(b => { b.onclick = () => irVista(b.dataset.pv); });
   if ($("#btnVolverDist")) $("#btnVolverDist").onclick = () => irVista("distribucion");
   document.querySelectorAll("#igNav button").forEach(b => {
     b.onclick = () => { estado.ig = b.dataset.ig; recuerda.guarda("patrimonio.ig", b.dataset.ig); pintaIngresos(); };
@@ -3122,6 +3452,9 @@
       '<div class="av" style="margin:20px 0"><span>⚠</span><span><b>Algo ha fallado al pintar el panel.</b> ' +
       String(e && e.message || e) + '<br>Cierra la app y vuelve a abrirla con «Iniciar»; si sigue igual, pulsa F12 y mira la consola del navegador.</span></div>');
   }
+  // Ya hay panel pintado (o un aviso de error): se retira la barra de carga superior.
+  const _cb = document.getElementById("cargaBar"); if (_cb) _cb.classList.add("oculto");
+  actualizaFabAyuda();   // muestra la «i» de ayuda de la pantalla con la que se abre
   // ?ir=seccionComparar pone esa sección la primera de su pestaña (para capturas y enlaces).
   const irA_ = qs.get("ir") && document.getElementById(qs.get("ir"));
   if (irA_) {
