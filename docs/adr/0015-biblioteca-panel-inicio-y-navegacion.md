@@ -12,9 +12,13 @@ y gastos. Van juntas en la versión **1.10.0**.
 
 ## Decisiones
 
-**1. Biblioteca de documentos (Notas → Biblioteca).** Un gestor de archivos sencillo e
-integrado, 100 % local, para guardar documentos importantes (Hacienda, escrituras,
-contratos…) en carpetas anidadas que crea el usuario.
+**1. Explorador de archivos (Notas → Archivos).** Un gestor de archivos integrado, 100 %
+local, para guardar documentos importantes (Hacienda, escrituras, contratos…) en carpetas
+anidadas. Se presenta como un **árbol** tipo explorador: las carpetas se despliegan y
+contraen (icono 📂/📁, flecha ▸/▾), la carpeta seleccionada se resalta y es el destino de
+«Nueva carpeta» y de las subidas. Además de subir archivos sueltos, permite **subir una
+carpeta entera** (`<input webkitdirectory>` + endpoint `/api/biblioteca/subir-carpeta`, que
+recrea la estructura server-side a partir de las rutas relativas).
 - **Modelo:** `cfg["biblioteca"] = {carpetas:[{id,nombre,padre}], archivos:[{id,nombre,
   carpeta,archivo,tipo,tam,fecha}]}`. Los ficheros viven en `biblioteca/` dentro de la
   cartera (como las facturas en `adjuntos/`); la cartera solo guarda la referencia.
@@ -36,8 +40,16 @@ precios». La selección de pestaña se generaliza a cualquier `[data-tab]` (no 
 
 **4. Gráfico de deudas en su ficha (regresión).** La serie de una deuda es negativa; con el
 eje anclado en 0 (`desdeCero`) la escala colapsaba (`escalaBonita(maxNeg, 0)` → `{0,1}`) y la
-curva se salía. Ahora, si la serie tiene valores negativos, el eje se adapta
-(`desdeCero:false`).
+curva se salía; con un único apunte, todas las etiquetas del eje salían iguales. Se reescribió
+el cálculo de la escala en `lineaConEventos`: para una serie **toda negativa** el 0 se ancla
+**arriba** y el saldo (negativo) abajo con margen; para un **rango degenerado** (un punto o
+serie plana) se fuerza un margen real. Así una deuda de −5.000 muestra eje 0…−6.000, no un
+rango colapsado.
+
+**4b. Patrimonio neto de «Inicio» = el del hero de «Patrimonio».** `pintaInicio(m)` usa
+`m.valor` (la misma métrica en vivo que el hero), no `total.patrimonioNeto` (precios de
+cierre), para que coincidan al céntimo. Las tarjetas se enriquecieron con contexto útil (TIR,
+cuota mensual de deudas, colchón, media de ahorro 12m, próximo vencimiento, primer aviso).
 
 **5. Buscador (⌘K): Ayuda y Ajustes primero.** Se anclan como las dos primeras entradas de
 la paleta de acciones.

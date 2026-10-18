@@ -289,7 +289,24 @@
       const o = ov.valores.filter(v => v != null);
       if (o.length) { maxV = Math.max(maxV, ...o); minV = Math.min(minV, ...o); }
     });
-    const esc = escalaBonita(maxV, cfg.desdeCero === false ? minV - (maxV - minV) * 0.12 : 0);
+    // Escala del eje Y:
+    //  - desdeCero (por defecto): ancla el 0. Todo positivo → 0 abajo; todo negativo
+    //    (una deuda) → 0 arriba y el saldo (negativo) abajo.
+    //  - desdeCero:false: eje libre con un margen arriba y abajo.
+    //  Si el rango es degenerado (un solo punto o serie plana) se fuerza un margen real
+    //  para que la línea no quede pegada ni todas las etiquetas del eje salgan iguales.
+    let ejeMin, ejeMax;
+    const rangoV = maxV - minV;
+    if (cfg.desdeCero === false) {
+      const margen = rangoV > 0 ? rangoV * 0.12 : (Math.abs(maxV) || 1) * 0.1 + 1;
+      ejeMin = minV - margen; ejeMax = maxV + margen;
+    } else if (maxV <= 0) {                        // todo negativo: una deuda
+      const margen = (-minV) > 0 ? (-minV) * 0.08 : 1;
+      ejeMin = minV - margen; ejeMax = 0;
+    } else {                                       // positivo (o mixto): 0 abajo
+      ejeMin = 0; ejeMax = maxV;
+    }
+    const esc = escalaBonita(ejeMax, ejeMin);
     const x = i => P.l + (n === 1 ? iw / 2 : i * iw / (n - 1));
     const y = v => P.t + ih - ((v - esc.min) / (esc.max - esc.min)) * ih;
 

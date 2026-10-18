@@ -1307,8 +1307,9 @@
   // Lo usan las listas de aportaciones del Panel (ficha de un componente). Filtra por su
   // producto para que la fila esté a la vista.
   function irAMovimiento(movId, prodId) {
-    E.vista = "movimientos";
-    recuerda.guarda("patrimonio.editor", "movimientos");
+    // La lista de movimientos vive dentro de la vista «Saldos y movimientos».
+    E.vista = "saldos";
+    recuerda.guarda("patrimonio.editor", "saldos");
     if (prodId) E.filtro = prodId;
     E.resaltaMov = movId;
     const tab = document.querySelector('[data-tab="datos"]');
@@ -2820,7 +2821,9 @@
       async f => {
         const d = campos(f);
         if (!d.nombre.trim()) throw new Error("Ponle un nombre a la carpeta.");
-        await bibPost("api/biblioteca/carpeta", { nombre: d.nombre.trim(), padre: E.bibCarpeta || null });
+        const creada = await bibPost("api/biblioteca/carpeta", { nombre: d.nombre.trim(), padre: E.bibSel || null });
+        if (E.bibSel) E.bibAbiertas.add(E.bibSel);   // deja ver la nueva dentro de su padre
+        if (creada && creada.item && creada.item.id) E.bibSel = creada.item.id;
         return () => pintarNotas();
       }, "Crear carpeta");
     setTimeout(() => { const i = f.elements.nombre; if (i) i.focus(); }, 30);
@@ -2857,7 +2860,8 @@
     if (!confirm(msg)) return;
     try {
       await bibPost("api/biblioteca/carpeta-borra", { id });
-      if (E.bibCarpeta && desc.has(E.bibCarpeta)) E.bibCarpeta = null;
+      if (E.bibSel && desc.has(E.bibSel)) E.bibSel = null;
+      if (E.bibAbiertas) desc.forEach(x => E.bibAbiertas.delete(x));
       if (window.toast) window.toast("Borrado ✓");
       pintarNotas();
     } catch (x) { alert(x.message); }
@@ -2874,7 +2878,7 @@
     for (const file of archivos) {
       const fd = new FormData();
       fd.append("archivo", file);
-      if (E.bibCarpeta) fd.append("carpeta", E.bibCarpeta);
+      if (E.bibSel) fd.append("carpeta", E.bibSel);
       try {
         const r = await fetch("api/biblioteca/subir", { method: "POST", body: fd });
         const j = await r.json().catch(() => ({}));
@@ -2885,38 +2889,49 @@
     if (window.toast) window.toast("Subido ✓");
     pintarNotas();
   }
+  // Subir una CARPETA entera (con subcarpetas) recreando su estructura en un solo envío.
+  async function bibSubeCarpeta(fileList) {
+    const files = [...fileList];
+    if (!files.length) return;
+    const fd = new FormData();
+    const rutas = [];
+    files.forEach(f => {
+      fd.append("archivos", f);
+      rutas.push(f.webkitRelativePath || f.name);   // p. ej. "MisDocs/2025/renta.pdf"
+    });
+    fd.append("rutas", JSON.stringify(rutas));
+    if (E.bibSel) fd.append("base", E.bibSel);
+    try {
+      const r = await fetch("api/biblioteca/subir-carpeta", { method: "POST", body: fd });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok || j.ok === false) throw new Error((j.errores || ["No se pudo subir la carpeta."]).join("\n"));
+      E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+      if (window.toast) window.toast(`Carpeta subida ✓ (${j.subidos} archivos)`);
+    } catch (x) { alert("No se pudo subir la carpeta: " + x.message); }
+    pintarNotas();
+  }
+  function bibRutaTexto(id) {
+    const { carpetas } = bibData();
+    const idx = {}; carpetas.forEach(x => idx[x.id] = x);
+    const partes = []; let c = id;
+    while (c) { const x = idx[c]; if (!x) break; partes.unshift(x.nombre); c = x.padre || null; }
+    return "🗂️ Biblioteca" + partes.map(p => " / " + p).join("");
+  }
+  // Explorador de archivos en árbol: carpetas que se despliegan y contraen, con icono
+  // abierto/cerrado, selección resaltada y acciones por fila.
   function montaBiblioteca() {
     const cont = $("#notasCuerpo"); if (!cont) return;
+    if (!(E.bibAbiertas instanceof Set)) E.bibAbiertas = new Set();
     const { carpetas, archivos } = bibData();
-    if (E.bibCarpeta && !carpetas.some(c => c.id === E.bibCarpeta)) E.bibCarpeta = null;
-    const aqui = E.bibCarpeta || null;
-    const subcar = carpetas.filter(c => (c.padre || null) === aqui).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
-    const misArch = archivos.filter(a => (a.carpeta || null) === aqui).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+    if (E.bibSel && !carpetas.some(c => c.id === E.bibSel)) E.bibSel = null;
 
-    // migas de pan (ruta desde la raíz)
-    const idx = {}; carpetas.forEach(x => idx[x.id] = x);
-    const ruta = []; let c = aqui;
-    while (c) { const x = idx[c]; if (!x) break; ruta.unshift(x); c = x.padre || null; }
-    const migas = `<nav class="bibMigas"><button type="button" class="bibMiga" data-ir="">🗂️ Biblioteca</button>`
-      + ruta.map(x => `<span class="bibSep">›</span><button type="button" class="bibMiga" data-ir="${esc(x.id)}">${esc(x.nombre)}</button>`).join("") + `</nav>`;
-
+    const porCarpeta = {}; carpetas.forEach(c => (porCarpeta[c.padre || ""] = porCarpeta[c.padre || ""] || []).push(c));
+    const archPorCarpeta = {}; archivos.forEach(a => (archPorCarpeta[a.carpeta || ""] = archPorCarpeta[a.carpeta || ""] || []).push(a));
+    const orden = arr => (arr || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
     const nSub = id => { const d = bibDescendientes(id); return { carp: d.size - 1, arch: archivos.filter(a => d.has(a.carpeta)).length }; };
-    const filaCarpeta = c => {
-      const n = nSub(c.id);
-      const resumen = (n.carp || n.arch)
-        ? `${n.arch} archivo${n.arch === 1 ? "" : "s"}${n.carp ? `, ${n.carp} carpeta${n.carp === 1 ? "" : "s"}` : ""}`
-        : "vacía";
-      return `<div class="bibItem">
-        <span class="bibIco">📁</span>
-        <button type="button" class="bibNom" data-abrir="${esc(c.id)}" title="Abrir carpeta">${esc(c.nombre)}</button>
-        <span class="bibMeta">${resumen}</span>
-        <span class="bibAcc">
-          <button type="button" class="btn mini" data-ren="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Renombrar">✎</button>
-          <button type="button" class="btn mini" data-mov="carpeta" data-id="${esc(c.id)}" title="Mover a otra carpeta">↪</button>
-          <button type="button" class="btn mini" data-delc="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Borrar carpeta">🗑</button>
-        </span></div>`;
-    };
-    const filaArchivo = a => `<div class="bibItem">
+
+    const filaArchivo = (a, niv) => `<div class="bibItem bibArc" style="--niv:${niv}">
+        <span class="bibTog bibTogVacio"></span>
         <span class="bibIco">${bibIcono(a)}</span>
         <a class="bibNom" href="api/biblioteca/archivo/${esc(a.id)}" target="_blank" rel="noopener" title="Abrir / ver">${esc(a.nombre)}</a>
         <span class="bibMeta">${bibFmtTam(a.tam)}${a.fecha ? " · " + fecha(a.fecha.slice(0, 10)) : ""}</span>
@@ -2926,29 +2941,79 @@
           <button type="button" class="btn mini" data-mov="archivo" data-id="${esc(a.id)}" title="Mover a otra carpeta">↪</button>
           <button type="button" class="btn mini" data-dela="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Borrar archivo">🗑</button>
         </span></div>`;
+    const nodoCarpeta = (c, niv) => {
+      const abierta = E.bibAbiertas.has(c.id);
+      const subc = orden(porCarpeta[c.id]);
+      const suba = orden(archPorCarpeta[c.id]);
+      const tiene = subc.length || suba.length;
+      const n = nSub(c.id);
+      const resumen = (n.carp || n.arch)
+        ? `${n.arch} archivo${n.arch === 1 ? "" : "s"}${n.carp ? `, ${n.carp} carpeta${n.carp === 1 ? "" : "s"}` : ""}`
+        : "vacía";
+      let h = `<div class="bibItem bibCar${E.bibSel === c.id ? " sel" : ""}" style="--niv:${niv}">
+        <button type="button" class="bibTog" data-ftog="${esc(c.id)}" title="${abierta ? "Contraer" : "Desplegar"}" aria-label="${abierta ? "Contraer" : "Desplegar"}">${tiene ? (abierta ? "▾" : "▸") : ""}</button>
+        <span class="bibIco">${abierta ? "📂" : "📁"}</span>
+        <button type="button" class="bibNom" data-fsel="${esc(c.id)}" title="Seleccionar / desplegar">${esc(c.nombre)}</button>
+        <span class="bibMeta">${resumen}</span>
+        <span class="bibAcc">
+          <button type="button" class="btn mini" data-ren="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Renombrar">✎</button>
+          <button type="button" class="btn mini" data-mov="carpeta" data-id="${esc(c.id)}" title="Mover a otra carpeta">↪</button>
+          <button type="button" class="btn mini" data-delc="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Borrar carpeta">🗑</button>
+        </span></div>`;
+      if (abierta && tiene) {
+        h += subc.map(cc => nodoCarpeta(cc, niv + 1)).join("");
+        h += suba.map(a => filaArchivo(a, niv + 1)).join("");
+      }
+      return h;
+    };
 
-    const vacio = !subcar.length && !misArch.length;
+    const raizCar = orden(porCarpeta[""]);
+    const raizArch = orden(archPorCarpeta[""]);
+    const vacio = !raizCar.length && !raizArch.length;
+    const arbol = `<div class="bibItem bibRaiz${E.bibSel ? "" : " sel"}" style="--niv:0">
+        <span class="bibTog bibTogVacio"></span><span class="bibIco">🗂️</span>
+        <button type="button" class="bibNom" data-fsel="" title="Raíz de la biblioteca">Biblioteca</button>
+        <span class="bibMeta">${archivos.length} archivo${archivos.length === 1 ? "" : "s"} · ${carpetas.length} carpeta${carpetas.length === 1 ? "" : "s"}</span>
+      </div>`
+      + raizCar.map(c => nodoCarpeta(c, 1)).join("")
+      + raizArch.map(a => filaArchivo(a, 1)).join("");
+
     cont.innerHTML = `<section class="tarjeta bibWrap">
-        <header><h2>Biblioteca de documentos</h2>
-          <span class="subt">Guarda aquí tus documentos importantes (Hacienda, escrituras, contratos…). Todo se queda en tu ordenador, en «mis_datos».</span>
+        <header><h2>Explorador de archivos</h2>
+          <span class="subt">Tus documentos importantes (Hacienda, escrituras, contratos…), en carpetas. Todo se queda en tu ordenador, dentro de «mis_datos».</span></header>
+        <div class="bibBarra">
+          <span class="bibDestino">Destino: <b id="bibRuta">${esc(bibRutaTexto(E.bibSel))}</b></span>
           <span class="sp"></span>
           <button class="btn" data-acc="bibNueva">+ Nueva carpeta</button>
+          <button class="btn" data-acc="bibSubirCar">📁 Subir carpeta</button>
           <button class="btn prim" data-acc="bibSubir">⬆ Subir archivos</button>
-          <input type="file" id="bibFile" multiple hidden></header>
-        ${migas}
+          <input type="file" id="bibFile" multiple hidden>
+          <input type="file" id="bibDir" webkitdirectory directory multiple hidden></div>
         <div class="bibZona" id="bibZona">
           ${vacio
-        ? `<p class="bibVacio">Esta carpeta está vacía.<br>Arrastra aquí tus archivos o pulsa <b>«⬆ Subir archivos»</b>.
-             <br><span class="subt">Admite cualquier tipo de archivo (PDF, imágenes, hojas de cálculo, Word…), hasta 50 MB cada uno.</span></p>`
-        : `<div class="bibLista">${subcar.map(filaCarpeta).join("")}${misArch.map(filaArchivo).join("")}</div>`}
+        ? `<div class="bibItem bibRaiz sel" style="--niv:0"><span class="bibTog bibTogVacio"></span><span class="bibIco">🗂️</span><span class="bibNom">Biblioteca</span></div>
+           <p class="bibVacio">Está vacía.<br>Pulsa <b>«+ Nueva carpeta»</b>, arrastra archivos aquí, o sube una carpeta entera con <b>«📁 Subir carpeta»</b>.
+             <br><span class="subt">Admite cualquier tipo de archivo, hasta 50 MB cada uno.</span></p>`
+        : `<div class="bibArbol">${arbol}</div>`}
         </div></section>`;
 
-    cont.querySelectorAll("[data-ir]").forEach(b => b.onclick = () => { E.bibCarpeta = b.dataset.ir || null; pintarNotas(); });
-    cont.querySelectorAll("[data-abrir]").forEach(b => b.onclick = () => { E.bibCarpeta = b.dataset.abrir; pintarNotas(); });
     cont.querySelector('[data-acc="bibNueva"]').onclick = bibNuevaCarpeta;
-    const file = $("#bibFile");
+    const file = $("#bibFile"), dir = $("#bibDir");
     cont.querySelector('[data-acc="bibSubir"]').onclick = () => file.click();
+    cont.querySelector('[data-acc="bibSubirCar"]').onclick = () => dir.click();
     file.onchange = () => { if (file.files && file.files.length) bibSube([...file.files]); };
+    dir.onchange = () => { if (dir.files && dir.files.length) bibSubeCarpeta(dir.files); };
+    cont.querySelectorAll("[data-ftog]").forEach(b => b.onclick = () => {
+      const id = b.dataset.ftog;
+      if (E.bibAbiertas.has(id)) E.bibAbiertas.delete(id); else E.bibAbiertas.add(id);
+      montaBiblioteca();
+    });
+    cont.querySelectorAll("[data-fsel]").forEach(b => b.onclick = () => {
+      const id = b.dataset.fsel || null;
+      E.bibSel = id;
+      if (id) E.bibAbiertas.add(id);   // seleccionar una carpeta la despliega
+      montaBiblioteca();
+    });
     cont.querySelectorAll("[data-ren]").forEach(b => b.onclick = () => bibRenombra(b.dataset.ren, b.dataset.id, b.dataset.nom));
     cont.querySelectorAll("[data-mov]").forEach(b => b.onclick = () => bibMover(b.dataset.mov, b.dataset.id));
     cont.querySelectorAll("[data-delc]").forEach(b => b.onclick = () => bibBorraCarpeta(b.dataset.delc, b.dataset.nom));
@@ -2977,7 +3042,7 @@
         <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
         <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button>
         <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button>
-        <button data-nv="biblioteca" aria-pressed="${v === "biblioteca"}">🗂️ Biblioteca</button></div>
+        <button data-nv="biblioteca" aria-pressed="${v === "biblioteca"}">🗂️ Archivos</button></div>
       <div id="notasCuerpo"></div>`;
     cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
       E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();

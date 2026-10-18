@@ -116,6 +116,33 @@ def test_biblioteca_ciclo_completo(tmp_path, monkeypatch):
     assert _bib(servidor)["archivos"] == []
 
 
+def test_subir_carpeta_recrea_estructura(tmp_path, monkeypatch):
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    # Dos archivos dentro de una estructura de carpetas (como webkitdirectory).
+    data = {
+        "archivos": [
+            (io.BytesIO(b"doc A"), "renta.pdf"),
+            (io.BytesIO(b"doc B"), "nomina.pdf"),
+        ],
+        "rutas": json.dumps(["Documentos/Hacienda/renta.pdf", "Documentos/Nominas/nomina.pdf"]),
+    }
+    r = client.post("/api/biblioteca/subir-carpeta", data=data, content_type="multipart/form-data")
+    j = r.get_json()
+    assert j["ok"] is True and j["subidos"] == 2
+    bib = _bib(servidor)
+    nombres = {c["nombre"] for c in bib["carpetas"]}
+    assert {"Documentos", "Hacienda", "Nominas"} <= nombres
+    # Estructura: Documentos padre de Hacienda y Nominas.
+    docs = next(c for c in bib["carpetas"] if c["nombre"] == "Documentos")
+    hac = next(c for c in bib["carpetas"] if c["nombre"] == "Hacienda")
+    assert docs["padre"] is None and hac["padre"] == docs["id"]
+    # El archivo renta.pdf cuelga de Hacienda y existe en disco.
+    renta = next(a for a in bib["archivos"] if a["nombre"] == "renta.pdf")
+    assert renta["carpeta"] == hac["id"]
+    assert os.path.exists(os.path.join(str(tmp_path), "biblioteca", renta["archivo"]))
+
+
 def test_biblioteca_zip_export_import(tmp_path, monkeypatch):
     servidor = _prepara(tmp_path, monkeypatch)
     client = servidor.app.test_client()

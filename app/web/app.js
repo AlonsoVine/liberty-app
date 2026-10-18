@@ -1717,22 +1717,24 @@
     const ir = pv => () => irVista(pv);
     const irDatos = v => () => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
     const irBib = () => { if (window.Editor && window.Editor.biblioteca) window.Editor.biblioteca(); else irA("notas"); };
-    const nAlertas = (D.alertas || []).length;
-    const nVenc = (D.vencimientos || []).length;
+    const alertas = D.alertas || [], nAlertas = alertas.length;
+    const vencs = (D.vencimientos || []).slice().sort((a, b) => (a.diasRestantes ?? 1e9) - (b.diasRestantes ?? 1e9));
+    const nVenc = vencs.length, prox = vencs[0];
+    // Patrimonio neto: EXACTAMENTE la misma cifra que el hero de «Patrimonio» (m.valor,
+    // con precios en vivo), para que coincidan al céntimo.
+    const neto = m && m.valor != null ? m.valor : (t.patrimonioNeto != null ? t.patrimonioNeto : t.patrimonio || 0);
     const vn = t.variacion && t.variacion.neto;
     const varEur = vn && vn.varMes != null ? vn.varMes : null;
     const varPct = vn && vn.varMes != null && vn.hace1Mes ? vn.varMes / vn.hace1Mes : null;
 
-    // Tarjeta grande: patrimonio neto.
     let html = `<section class="hero inicioHero">
         <div class="hEtq">Tu patrimonio neto</div>
-        <div class="hCifra">${G.fmtEur(t.patrimonioNeto != null ? t.patrimonioNeto : t.patrimonio || 0, 0)}</div>
+        <div class="hCifra">${G.fmtEur(neto)}</div>
         <div class="hSub">${varEur != null
-          ? `<span class="${varEur >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(varEur, 0)}${varPct != null ? " · " + G.fmtPctSigno(varPct, 1) : ""}</span> desde el mes pasado`
+          ? `<span class="${varEur >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(varEur)}${varPct != null ? " · " + G.fmtPctSigno(varPct, 1) : ""}</span> desde el mes pasado`
           : "Lo que tienes menos lo que debes"}</div>
       </section>`;
 
-    // Tres bloques: patrimonio, día a día (ingresos/gastos) y tu archivo (facturas/documentos).
     const tile = (ico, etq, valor, sub, onclick, cls) =>
       `<button class="inicioTile${cls ? " " + cls : ""}" type="button" data-go="${onclick}">
         <span class="itIco">${ico}</span>
@@ -1740,33 +1742,53 @@
         <span class="itEtq">${esc(etq)}</span>
         ${sub ? `<span class="itSub">${esc(sub)}</span>` : ""}</button>`;
 
+    // --- Tu patrimonio ---
+    const subDeuda = t.deudas
+      ? (t.cuotaMensualDeudas ? G.fmtEur(t.cuotaMensualDeudas, 0) + "/mes en cuotas" : "lo que debes")
+      : "sin deudas";
+    const subLibre = t.colchon ? "colchón aparte: " + G.fmtEur(t.colchon, 0) : "listo para invertir";
+    const plus = m && m.plusvalia != null ? m.plusvalia : t.plusvalia;
+    const tir = m && m.tir != null ? m.tir : t.tir;
+    const subRent = tir != null ? "TIR anual " + G.fmtPctSigno(tir) : "sobre lo aportado";
     html += `<h3 class="inicioTit">Tu patrimonio</h3><div class="inicioGrid">
       ${tile("💼", "Activos", G.fmtEur(t.patrimonioBruto || 0, 0), `${C.activos || 0} componente${C.activos === 1 ? "" : "s"}`, "distribucion")}
-      ${tile("🏦", "Deudas", G.fmtEur(t.deudas || 0, 0), t.deudas ? "lo que debes" : "sin deudas", "deudas")}
-      ${tile("💧", "Dinero libre", G.fmtEur(t.dineroLibre || 0, 0), "listo para invertir", "patrimonio")}
-      ${tile("📈", "Evolución", "Ver", "cómo crece en el tiempo", "evolucion")}
+      ${tile("🏦", "Deudas", G.fmtEur(t.deudas || 0, 0), subDeuda, "deudas", t.deudas ? "warn" : "")}
+      ${tile("💧", "Dinero libre", G.fmtEur(t.dineroLibre || 0, 0), subLibre, "patrimonio")}
+      ${tile("📈", "Rentabilidad", plus != null ? G.fmtEurSigno(plus, 0) : "—", subRent, "rentabilidad", plus != null ? (plus >= 0 ? "ok" : "warn") : "")}
     </div>`;
 
+    // --- Este mes (ingresos y gastos) ---
     if (em) {
+      const mediaAhorro = D.flujos && D.flujos.media12 && D.flujos.media12.ahorro;
+      const subAhorro = em.tasaAhorro != null
+        ? "ahorras el " + G.fmtPct(em.tasaAhorro, 0) + " de lo que ingresas"
+        : (mediaAhorro != null ? "media 12m: " + G.fmtEur(mediaAhorro, 0) : "este mes");
       html += `<h3 class="inicioTit">Este mes</h3><div class="inicioGrid">
-        ${tile("➕", "Ingresos", G.fmtEur(em.ingresos || 0, 0), "este mes", "ingresos", "ok")}
-        ${tile("➖", "Gastos", G.fmtEur(em.gastos || 0, 0), "este mes", "ingresos", "warn")}
-        ${tile("🐷", "Ahorro", G.fmtEur(em.ahorro || 0, 0), em.tasaAhorro != null ? G.fmtPct(em.tasaAhorro, 0) + " de tus ingresos" : "este mes", "ingresos")}
-        ${tile("🧾", "Facturas", String(C.facturas || 0), "tickets y facturas guardados", "facturas")}
+        ${tile("➕", "Ingresos", G.fmtEur(em.ingresos || 0, 0), "cobrado este mes", "ingresos", "ok")}
+        ${tile("➖", "Gastos", G.fmtEur(em.gastos || 0, 0), "gastado este mes", "ingresos", "warn")}
+        ${tile("🐷", "Ahorro", G.fmtEur(em.ahorro || 0, 0), subAhorro, "ingresos", (em.ahorro || 0) >= 0 ? "ok" : "warn")}
       </div>`;
     }
 
+    // --- Tu archivo y tus avisos ---
+    const subAviso = nAlertas
+      ? (alertas[0].texto ? alertas[0].texto.slice(0, 48) + (alertas[0].texto.length > 48 ? "…" : "") : "cosas que revisar")
+      : "todo en orden";
+    const subVenc = prox
+      ? (prox.diasRestantes <= 0 ? "vencido: " + esc(prox.nombre || "") : `${esc(prox.nombre || "")} en ${prox.diasRestantes} días`)
+      : "nada a la vista";
     html += `<h3 class="inicioTit">Tu archivo y tus avisos</h3><div class="inicioGrid">
       ${tile("🗂️", "Documentos", String(C.documentos || 0), "en tu biblioteca", "biblioteca")}
-      ${tile("🧾", "Apuntes", String(C.apuntes || 0), "ingresos y gastos anotados", "ingresos")}
-      ${tile("⚠️", "Avisos", String(nAlertas), nAlertas ? "cosas que revisar" : "todo en orden", "patrimonio", nAlertas ? "warn" : "")}
-      ${tile("📅", "Vencimientos", String(nVenc), "próximos", "deudas")}
+      ${tile("🧾", "Facturas", String(C.facturas || 0), "tickets y facturas", "facturas")}
+      ${tile("📒", "Apuntes", String(C.apuntes || 0), "ingresos y gastos anotados", "ingresos")}
+      ${tile("⚠️", "Avisos", String(nAlertas), subAviso, "patrimonio", nAlertas ? "warn" : "ok")}
+      ${tile("📅", "Vencimientos", String(nVenc), subVenc, "deudas", (prox && prox.diasRestantes <= 7) ? "warn" : "")}
     </div>`;
 
     cont.innerHTML = html;
     const acciones = {
       inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
-      evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
+      rentabilidad: ir("rentabilidad"), evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
       facturas: irDatos("facturas"), biblioteca: irBib,
     };
     cont.querySelectorAll("[data-go]").forEach(b => {
@@ -2069,10 +2091,7 @@
     }
 
     const verVL = hayVL && estado.serieDetalle === "vl";
-    // Las deudas tienen serie negativa: si anclamos el eje en 0 la escala colapsa y la
-    // curva se dibuja fuera del gráfico. En ese caso dejamos que el eje se adapte.
     const serieVista = corta(verVL ? p.navSerie : p.serie);
-    const hayNegativos = serieVista.some(v => v != null && v < 0);
     const paleta = tonos(color(p));
     const fechas = corta(D.fechas);
     const eventos = (p.aportaciones || []).filter(a => a.importe).map(a => {
@@ -2085,7 +2104,7 @@
     G.lineaConEventos($("#grafFondo"), {
       fechas,
       valores: serieVista,
-      color: color(p), alto: 280, eventos, desdeCero: !verVL && !hayNegativos,
+      color: color(p), alto: 280, eventos, desdeCero: !verVL,
       overlay: verVL ? null : ((p.serieAportado || []).some(v => v)
         ? { nombre: "Aportado", valores: corta(p.serieAportado) } : null),
       formatoY: verVL ? (v => G.fmtEur(v, v > 500 ? 0 : 2)) : null,
@@ -2345,7 +2364,7 @@
     version: "1.10.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🗂️", "Biblioteca de documentos", "En «Notas» tienes una biblioteca para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en las carpetas que quieras. Todo en tu ordenador."],
+      ["🗂️", "Explorador de archivos", "En «Notas → Archivos» tienes un explorador para guardar tus documentos importantes (declaraciones, escrituras, contratos…) en carpetas anidadas. Puedes incluso subir una carpeta entera. Todo en tu ordenador."],
       ["🏠", "Panel de inicio", "Un nuevo resumen que reúne de un vistazo tu patrimonio, tus ingresos y gastos, tus facturas y tus documentos, con accesos directos a cada sección."],
       ["🧭", "Moverte mejor", "Ayuda y Ajustes ahora están arriba a la derecha. Desde la ficha de un componente puedes «Volver a Distribución» con un botón, y en el buscador (⌘K) Ayuda y Ajustes salen las primeras."],
       ["👆", "Aportaciones enlazadas", "En la ficha de un componente, pulsa una fila de «Aportaciones» para ir directo a ese movimiento en «Saldos y movimientos»."],
@@ -2622,7 +2641,7 @@
     { sel: '[data-acc="imDestino"]', tit: "Importar tus datos", txt: "Tráelos de golpe. Elige qué importar: «Activos e inversiones» (MyInvestor, plantilla Excel/CSV o con ayuda de una IA) o «Datos del banco» (tus ingresos y gastos). Consejo: asigna la ENTIDAD (banco) al importar — así luego el Panel te da métricas y análisis por entidad.", antes: () => irMisDatos("importar") },
     { sel: "#imZona", tit: "Copias de seguridad", txt: "Descarga una copia cuando quieras: el «.zip» incluye tus datos y tus facturas (con nombres descriptivos); el «.json» es más ligero. Para recuperar, arrastra aquí un .json o .zip. Y antes de cada cambio se guarda una copia automática.", antes: () => irMisDatos("copias") },
     // --- Organización y ajustes ---
-    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, una Agenda con calendario y una Biblioteca para guardar tus documentos importantes (Hacienda, escrituras, contratos…), todo en tu ordenador.", antes: () => irA("panel") },
+    { sel: '[data-tab="notas"]', tit: "Notas", txt: "Tu espacio aparte para organizarte: una Lista de notas (con etiquetas y listas de tareas), un Tablero tipo Trello, una Agenda con calendario y un Explorador de archivos para guardar tus documentos importantes (Hacienda, escrituras, contratos…), todo en tu ordenador.", antes: () => irA("panel") },
     { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
   ];
   function iniciaTour() {

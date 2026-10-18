@@ -650,6 +650,78 @@ def api_bib_subir():
     return jsonify(ok=True, cartera=cfg, item=arch)
 
 
+BIB_MAX_ARCHIVOS_LOTE = 800   # tope de archivos por subida de carpeta
+
+
+def _bib_asegura_ruta(cfg, base, partes):
+    """Devuelve el id de la carpeta hoja para una ruta relativa (p. ej.
+    ['Documentos','2025']), creando bajo `base` las carpetas que falten."""
+    bib = cfg.setdefault("biblioteca", {})
+    bib.setdefault("carpetas", [])
+    bib.setdefault("archivos", [])
+    actual = base or None
+    for nombre in partes:
+        nombre = (nombre or "").strip()
+        if not nombre:
+            continue
+        hijo = next((c for c in bib["carpetas"]
+                     if (c.get("padre") or None) == (actual or None) and c.get("nombre") == nombre), None)
+        if not hijo:
+            hijo = almacen.biblioteca_crea_carpeta(cfg, "car_" + secrets.token_hex(6), nombre, actual)
+        actual = hijo["id"]
+    return actual
+
+
+@app.post("/api/biblioteca/subir-carpeta")
+def api_bib_subir_carpeta():
+    """Sube una carpeta entera recreando su estructura. El front manda los archivos en
+    «archivos» y sus rutas relativas (con subcarpetas) en «rutas» (JSON, mismo orden)."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    archivos = request.files.getlist("archivos")
+    if not archivos:
+        return jsonify(ok=False, errores=["No he recibido ningún archivo."]), 400
+    if len(archivos) > BIB_MAX_ARCHIVOS_LOTE:
+        return jsonify(ok=False, errores=[f"Demasiados archivos de golpe (máximo {BIB_MAX_ARCHIVOS_LOTE}). Súbela por partes."]), 400
+    try:
+        rutas = json.loads(request.form.get("rutas") or "[]")
+    except ValueError:
+        rutas = []
+    base = request.form.get("base") or None
+    guardados = []
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        if base and not almacen._existe_carpeta(cfg, base):
+            return jsonify(ok=False, errores=["La carpeta de destino ya no existe."]), 400
+        bib_dir = os.path.join(carpeta(), "biblioteca")
+        os.makedirs(bib_dir, exist_ok=True)
+        for i, f in enumerate(archivos):
+            if not f or not f.filename:
+                continue
+            rel = rutas[i] if i < len(rutas) else f.filename
+            partes = [p for p in str(rel).replace("\\", "/").split("/") if p and p not in (".", "..")]
+            nombre = partes[-1] if partes else f.filename
+            destino_id = _bib_asegura_ruta(cfg, base, partes[:-1])
+            ext = os.path.splitext(nombre)[1].lower()[:12]
+            arch_id = "arc_" + secrets.token_hex(6)
+            archivo = arch_id + ext
+            f.save(os.path.join(bib_dir, archivo))
+            tam = os.path.getsize(os.path.join(bib_dir, archivo))
+            if tam > BIB_MAX_BYTES:
+                _borra_fichero_biblioteca(archivo)
+                continue   # se salta el archivo demasiado grande, no corta toda la subida
+            try:
+                arch = almacen.biblioteca_anota_archivo(cfg, arch_id, archivo, nombre,
+                                                        f.mimetype or "", tam, destino_id,
+                                                        dt.datetime.now().replace(microsecond=0).isoformat())
+                guardados.append(arch)
+            except almacen.ErrorValidacion:
+                _borra_fichero_biblioteca(archivo)
+        almacen.guarda(ruta, cfg)
+    return jsonify(ok=True, cartera=cfg, subidos=len(guardados))
+
+
 @app.get("/api/biblioteca/archivo/<arch_id>")
 def api_bib_archivo(arch_id):
     """Sirve un archivo de la biblioteca (inline para verlo, o descarga con ?descargar=1)."""
