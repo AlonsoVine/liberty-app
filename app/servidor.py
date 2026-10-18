@@ -722,6 +722,77 @@ def api_bib_subir_carpeta():
     return jsonify(ok=True, cartera=cfg, subidos=len(guardados))
 
 
+@app.post("/api/biblioteca/copiar")
+def api_bib_copiar():
+    """Copia (duplica) un archivo o una carpeta entera dentro de otra carpeta."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    d = request.get_json(silent=True) or {}
+    tipo, ident, destino = d.get("tipo"), d.get("id"), d.get("destino") or None
+    with cerrojo:
+        ruta = os.path.join(carpeta(), "cartera.json")
+        cfg = almacen.carga(ruta)
+        bib = cfg.setdefault("biblioteca", {})
+        bib.setdefault("carpetas", [])
+        bib.setdefault("archivos", [])
+        if destino and not almacen._existe_carpeta(cfg, destino):
+            return jsonify(ok=False, errores=["La carpeta de destino ya no existe."]), 400
+        bib_dir = os.path.join(carpeta(), "biblioteca")
+        os.makedirs(bib_dir, exist_ok=True)
+        # Instantáneas para iterar sin que afecten las copias que vamos añadiendo.
+        carpetas0 = list(bib["carpetas"])
+        archivos0 = list(bib["archivos"])
+
+        def copia_archivo(arch, carpeta_dst):
+            base = os.path.basename(arch.get("archivo") or "")
+            ext = os.path.splitext(base)[1].lower()[:12]
+            new_id = "arc_" + secrets.token_hex(6)
+            new_name = new_id + ext
+            src = os.path.join(bib_dir, base)
+            if base and os.path.exists(src):
+                shutil.copyfile(src, os.path.join(bib_dir, new_name))
+            almacen.biblioteca_anota_archivo(cfg, new_id, new_name, arch.get("nombre") or "documento",
+                                             arch.get("tipo") or "", arch.get("tam") or 0, carpeta_dst,
+                                             dt.datetime.now().replace(microsecond=0).isoformat())
+
+        try:
+            if tipo == "archivo":
+                arch = next((a for a in archivos0 if a.get("id") == ident), None)
+                if not arch:
+                    return jsonify(ok=False, errores=["Ese archivo ya no está."]), 400
+                copia_archivo(arch, destino)
+            else:
+                # No se puede copiar una carpeta dentro de sí misma o de un descendiente.
+                hijos = {}
+                for c in carpetas0:
+                    hijos.setdefault(c.get("padre"), []).append(c["id"])
+                desc, pila = set(), [ident]
+                while pila:
+                    x = pila.pop()
+                    if x in desc:
+                        continue
+                    desc.add(x)
+                    pila.extend(hijos.get(x, []))
+                if destino in desc:
+                    return jsonify(ok=False, errores=["No puedes copiar una carpeta dentro de sí misma."]), 400
+
+                def copia_carpeta(cid, padre_dst):
+                    orig = next((c for c in carpetas0 if c["id"] == cid), None)
+                    if not orig:
+                        return
+                    nueva = almacen.biblioteca_crea_carpeta(cfg, "car_" + secrets.token_hex(6), orig["nombre"], padre_dst)
+                    for sub in [c for c in carpetas0 if c.get("padre") == cid]:
+                        copia_carpeta(sub["id"], nueva["id"])
+                    for a in [x for x in archivos0 if x.get("carpeta") == cid]:
+                        copia_archivo(a, nueva["id"])
+
+                copia_carpeta(ident, destino)
+        except almacen.ErrorValidacion as e:
+            return jsonify(ok=False, errores=e.errores), 400
+        almacen.guarda(ruta, cfg)
+    return jsonify(ok=True, cartera=cfg)
+
+
 @app.get("/api/biblioteca/archivo/<arch_id>")
 def api_bib_archivo(arch_id):
     """Sirve un archivo de la biblioteca (inline para verlo, o descarga con ?descargar=1)."""

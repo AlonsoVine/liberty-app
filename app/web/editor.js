@@ -2850,6 +2850,29 @@
         return () => pintarNotas();
       }, "Mover");
   }
+  // Cortar / copiar / pegar, estilo explorador. El portapapeles vive en E.bibClip.
+  function bibCorta(tipo, id, nombre) { E.bibClip = { modo: "cortar", tipo, id, nombre }; montaBiblioteca(); }
+  function bibCopia(tipo, id, nombre) { E.bibClip = { modo: "copiar", tipo, id, nombre }; montaBiblioteca(); }
+  async function bibPega() {
+    const clip = E.bibClip; if (!clip) return;
+    const destino = E.bibSel || null;
+    try {
+      if (clip.tipo === "carpeta" && destino) {
+        const desc = bibDescendientes(clip.id);
+        if (desc.has(destino)) throw new Error("No puedes pegar una carpeta dentro de sí misma.");
+      }
+      if (clip.modo === "cortar") {
+        await bibPost("api/biblioteca/mover", { tipo: clip.tipo, id: clip.id, destino });
+        E.bibClip = null;
+      } else {
+        await bibPost("api/biblioteca/copiar", { tipo: clip.tipo, id: clip.id, destino });
+        // «copiar» se queda en el portapapeles para poder pegar varias veces
+      }
+      if (destino) E.bibAbiertas.add(destino);
+      if (window.toast) window.toast("Pegado ✓");
+      montaBiblioteca();
+    } catch (x) { alert(x.message); }
+  }
   async function bibBorraCarpeta(id, nombre) {
     const { archivos } = bibData();
     const desc = bibDescendientes(id);
@@ -2930,15 +2953,18 @@
     const orden = arr => (arr || []).slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
     const nSub = id => { const d = bibDescendientes(id); return { carp: d.size - 1, arch: archivos.filter(a => d.has(a.carpeta)).length }; };
 
-    const filaArchivo = (a, niv) => `<div class="bibItem bibArc" style="--niv:${niv}">
+    const clip = E.bibClip;
+    const esCortado = (tipo, id) => clip && clip.modo === "cortar" && clip.tipo === tipo && clip.id === id;
+    const filaArchivo = (a, niv) => `<div class="bibItem bibArc${esCortado("archivo", a.id) ? " bibCortado" : ""}" style="--niv:${niv}">
         <span class="bibTog bibTogVacio"></span>
         <span class="bibIco">${bibIcono(a)}</span>
         <a class="bibNom" href="api/biblioteca/archivo/${esc(a.id)}" target="_blank" rel="noopener" title="Abrir / ver">${esc(a.nombre)}</a>
-        <span class="bibMeta">${bibFmtTam(a.tam)}${a.fecha ? " · " + fecha(a.fecha.slice(0, 10)) : ""}</span>
+        <span class="bibMeta" title="Tamaño y fecha">${bibFmtTam(a.tam)}${a.fecha ? " · " + fecha(a.fecha.slice(0, 10)) : ""}</span>
         <span class="bibAcc">
           <a class="btn mini" href="api/biblioteca/archivo/${esc(a.id)}?descargar=1" title="Descargar">⬇</a>
           <button type="button" class="btn mini" data-ren="archivo" data-id="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Renombrar">✎</button>
-          <button type="button" class="btn mini" data-mov="archivo" data-id="${esc(a.id)}" title="Mover a otra carpeta">↪</button>
+          <button type="button" class="btn mini" data-cut="archivo" data-id="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Cortar">✂️</button>
+          <button type="button" class="btn mini" data-copy="archivo" data-id="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Copiar">⧉</button>
           <button type="button" class="btn mini" data-dela="${esc(a.id)}" data-nom="${esc(a.nombre)}" title="Borrar archivo">🗑</button>
         </span></div>`;
     const nodoCarpeta = (c, niv) => {
@@ -2950,14 +2976,15 @@
       const resumen = (n.carp || n.arch)
         ? `${n.arch} archivo${n.arch === 1 ? "" : "s"}${n.carp ? `, ${n.carp} carpeta${n.carp === 1 ? "" : "s"}` : ""}`
         : "vacía";
-      let h = `<div class="bibItem bibCar${E.bibSel === c.id ? " sel" : ""}" style="--niv:${niv}">
+      let h = `<div class="bibItem bibCar${E.bibSel === c.id ? " sel" : ""}${esCortado("carpeta", c.id) ? " bibCortado" : ""}" style="--niv:${niv}">
         <button type="button" class="bibTog" data-ftog="${esc(c.id)}" title="${abierta ? "Contraer" : "Desplegar"}" aria-label="${abierta ? "Contraer" : "Desplegar"}">${tiene ? (abierta ? "▾" : "▸") : ""}</button>
         <span class="bibIco">${abierta ? "📂" : "📁"}</span>
         <button type="button" class="bibNom" data-fsel="${esc(c.id)}" title="Seleccionar / desplegar">${esc(c.nombre)}</button>
         <span class="bibMeta">${resumen}</span>
         <span class="bibAcc">
           <button type="button" class="btn mini" data-ren="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Renombrar">✎</button>
-          <button type="button" class="btn mini" data-mov="carpeta" data-id="${esc(c.id)}" title="Mover a otra carpeta">↪</button>
+          <button type="button" class="btn mini" data-cut="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Cortar">✂️</button>
+          <button type="button" class="btn mini" data-copy="carpeta" data-id="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Copiar">⧉</button>
           <button type="button" class="btn mini" data-delc="${esc(c.id)}" data-nom="${esc(c.nombre)}" title="Borrar carpeta">🗑</button>
         </span></div>`;
       if (abierta && tiene) {
@@ -2984,6 +3011,7 @@
         <div class="bibBarra">
           <span class="bibDestino">Destino: <b id="bibRuta">${esc(bibRutaTexto(E.bibSel))}</b></span>
           <span class="sp"></span>
+          ${clip ? `<button class="btn" data-acc="bibPegar" title="Pegar «${esc(clip.nombre || "")}» aquí">📋 Pegar${clip.modo === "cortar" ? " (movido)" : ""}</button>` : ""}
           <button class="btn" data-acc="bibNueva">+ Nueva carpeta</button>
           <button class="btn" data-acc="bibSubirCar">📁 Subir carpeta</button>
           <button class="btn prim" data-acc="bibSubir">⬆ Subir archivos</button>
@@ -3014,8 +3042,10 @@
       if (id) E.bibAbiertas.add(id);   // seleccionar una carpeta la despliega
       montaBiblioteca();
     });
+    const pegar = cont.querySelector('[data-acc="bibPegar"]'); if (pegar) pegar.onclick = bibPega;
     cont.querySelectorAll("[data-ren]").forEach(b => b.onclick = () => bibRenombra(b.dataset.ren, b.dataset.id, b.dataset.nom));
-    cont.querySelectorAll("[data-mov]").forEach(b => b.onclick = () => bibMover(b.dataset.mov, b.dataset.id));
+    cont.querySelectorAll("[data-cut]").forEach(b => b.onclick = () => bibCorta(b.dataset.cut, b.dataset.id, b.dataset.nom));
+    cont.querySelectorAll("[data-copy]").forEach(b => b.onclick = () => bibCopia(b.dataset.copy, b.dataset.id, b.dataset.nom));
     cont.querySelectorAll("[data-delc]").forEach(b => b.onclick = () => bibBorraCarpeta(b.dataset.delc, b.dataset.nom));
     cont.querySelectorAll("[data-dela]").forEach(b => b.onclick = () => bibBorraArchivo(b.dataset.dela, b.dataset.nom));
     const zona = $("#bibZona");

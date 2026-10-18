@@ -143,6 +143,36 @@ def test_subir_carpeta_recrea_estructura(tmp_path, monkeypatch):
     assert os.path.exists(os.path.join(str(tmp_path), "biblioteca", renta["archivo"]))
 
 
+def test_copiar_archivo_y_carpeta(tmp_path, monkeypatch):
+    servidor = _prepara(tmp_path, monkeypatch)
+    client = servidor.app.test_client()
+    # Estructura: Origen/sub con un archivo.
+    orig = client.post("/api/biblioteca/carpeta", json={"nombre": "Origen"}).get_json()["item"]["id"]
+    sub = client.post("/api/biblioteca/carpeta", json={"nombre": "Sub", "padre": orig}).get_json()["item"]["id"]
+    data = {"archivo": (io.BytesIO(b"contenido"), "doc.txt"), "carpeta": sub}
+    arch = client.post("/api/biblioteca/subir", data=data, content_type="multipart/form-data").get_json()["item"]
+
+    # Copiar el ARCHIVO a la raíz: ahora hay 2 archivos, mismo nombre, en disco ambos.
+    r = client.post("/api/biblioteca/copiar", json={"tipo": "archivo", "id": arch["id"], "destino": None})
+    assert r.get_json()["ok"] is True
+    archivos = _bib(servidor)["archivos"]
+    assert len(archivos) == 2
+    for a in archivos:
+        assert os.path.exists(os.path.join(str(tmp_path), "biblioteca", a["archivo"]))
+
+    # Copiar la CARPETA Origen (con su subcarpeta y archivo) a la raíz: duplica el árbol.
+    carpetas_antes = len(_bib(servidor)["carpetas"])
+    r = client.post("/api/biblioteca/copiar", json={"tipo": "carpeta", "id": orig, "destino": None})
+    assert r.get_json()["ok"] is True
+    bib = _bib(servidor)
+    assert len(bib["carpetas"]) == carpetas_antes + 2        # Origen + Sub duplicadas
+    assert sum(1 for c in bib["carpetas"] if c["nombre"] == "Origen") == 2
+
+    # No se puede copiar una carpeta dentro de sí misma.
+    r = client.post("/api/biblioteca/copiar", json={"tipo": "carpeta", "id": orig, "destino": sub})
+    assert r.status_code == 400 and r.get_json()["ok"] is False
+
+
 def test_biblioteca_zip_export_import(tmp_path, monkeypatch):
     servidor = _prepara(tmp_path, monkeypatch)
     client = servidor.app.test_client()

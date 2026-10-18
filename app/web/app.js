@@ -1727,12 +1727,34 @@
     const varEur = vn && vn.varMes != null ? vn.varMes : null;
     const varPct = vn && vn.varMes != null && vn.hace1Mes ? vn.varMes / vn.hace1Mes : null;
 
+    // Datos para el mini-cuadro de progreso y la sección de constancia (gamificación).
+    const serieNeto = (t.serie || []).filter(v => v != null);
+    const hitos = (t.hitos || []).slice().sort((a, b) => a.importe - b.importe);
+    const sigHito = hitos.find(h => h.fecha == null);
+    const metaImporte = sigHito ? sigHito.importe
+      : (D.objetivo && D.objetivo.activo ? D.objetivo.importe : null);
+    const progreso = metaImporte ? Math.max(0, Math.min(1, neto / metaImporte)) : null;
+    const faltan = metaImporte ? Math.max(0, metaImporte - neto) : null;
+
     let html = `<section class="hero inicioHero">
         <div class="hEtq">Tu patrimonio neto</div>
         <div class="hCifra">${G.fmtEur(neto)}</div>
         <div class="hSub">${varEur != null
           ? `<span class="${varEur >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(varEur)}${varPct != null ? " · " + G.fmtPctSigno(varPct, 1) : ""}</span> desde el mes pasado`
           : "Lo que tienes menos lo que debes"}</div>
+      </section>`;
+
+    // Mini-cuadro: evolución (sparkline) + progreso al próximo hito/objetivo.
+    html += `<section class="inicioResumen">
+        <div class="irCaja">
+          <div class="irEtq">Tu patrimonio en el tiempo</div>
+          <div class="inicioSpark" id="inicioSpark"></div>
+        </div>
+        ${metaImporte ? `<div class="irCaja">
+          <div class="irEtq">${sigHito ? "🎯 Próximo hito" : "🎯 Tu objetivo"}: <b>${G.fmtEur(metaImporte, 0)}</b></div>
+          <div class="metaBar"><div class="metaFill" style="width:${(progreso * 100).toFixed(1)}%"></div></div>
+          <div class="irSub">${progreso >= 1 ? "¡Conseguido! 🎉" : `Te faltan <b>${G.fmtEur(faltan, 0)}</b> · ${G.fmtPct(progreso, 0)} alcanzado`}</div>
+        </div>` : ""}
       </section>`;
 
     const tile = (ico, etq, valor, sub, onclick, cls) =>
@@ -1770,6 +1792,18 @@
       </div>`;
     }
 
+    // --- Tu constancia (gamificación: anima a seguir registrando) ---
+    const racha = t.racha || 0;
+    const ritmo = t.ritmoMensual;
+    const dias = t.diasInvertido;
+    const mesesFlujo = new Set((D.flujosLista || []).map(f => (f.fecha || "").slice(0, 7)).filter(Boolean)).size;
+    html += `<h3 class="inicioTit">Tu constancia 💪</h3><div class="inicioGrid">
+      ${tile("🔥", "Racha", racha ? racha + (racha === 1 ? " mes" : " meses") : "0", racha ? "seguidos aportando — ¡no la rompas!" : "aporta este mes para empezarla", "distribucion", racha ? "ok" : "")}
+      ${tile("💸", "Tu ritmo", ritmo != null ? G.fmtEur(ritmo, 0) : "—", "aportas de media al mes", "evolucion")}
+      ${tile("📝", "Apuntes", String(C.apuntes || 0), mesesFlujo ? `en ${mesesFlujo} mes${mesesFlujo === 1 ? "" : "es"} registrados` : "ingresos y gastos anotados", "ingresos")}
+      ${tile("⏳", "Trayectoria", dias != null ? dias + " días" : "—", "siguiendo tu patrimonio", "evolucion")}
+    </div>`;
+
     // --- Tu archivo y tus avisos ---
     const subAviso = nAlertas
       ? (alertas[0].texto ? alertas[0].texto.slice(0, 48) + (alertas[0].texto.length > 48 ? "…" : "") : "cosas que revisar")
@@ -1786,6 +1820,8 @@
     </div>`;
 
     cont.innerHTML = html;
+    const sp = $("#inicioSpark");
+    if (sp && serieNeto.length > 1) { try { G.mini(sp, serieNeto, G.css("--s1")); } catch (e) { /* sin sparkline */ } }
     const acciones = {
       inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
       rentabilidad: ir("rentabilidad"), evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
