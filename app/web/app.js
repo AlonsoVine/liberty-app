@@ -1107,9 +1107,11 @@
     const campo = { mes: "mes", anio: "anio", total12: "total12" }[per];
     const cats = f.porCategoria.filter(c => c.tipo === tipo && c[campo] > 0).sort((a, b) => b[campo] - a[campo]);
     const total = cats.reduce((a, c) => a + c[campo], 0);
+    const puedeVerCat = D.modo === "propio" && window.Editor && window.Editor.verFlujosCategoria;
     G.donut($("#grafCatDonut"), {
       datos: cats.map(c => ({ nombre: c.categoria, valor: c[campo], color: colorCat(c.categoria) })),
       alto: 236, tituloCentro: tipo === "gasto" ? "Gastos" : "Ingresos", valorCentro: G.fmtEurCorto(total),
+      onClick: puedeVerCat ? (d => window.Editor.verFlujosCategoria(d.nombre, tipo)) : null,
     });
     const max = cats.length ? cats[0][campo] : 1;
     $("#rankCat").innerHTML = cats.map(c => {
@@ -1435,6 +1437,17 @@
     });
   }
 
+  // Clic en un sector del donut de Distribución → «Saldos y movimientos» con el filtro
+  // de ese sector: un producto concreto, o el GRUPO de productos (por ids, para que case
+  // aunque el panel reetiquete tipos/clases). Las fichas siguen a un clic en sus tarjetas.
+  function irMovDesdeDist(d) {
+    const Ed = window.Editor;
+    if (!(Ed && Ed.verMovimientos)) { if (d.id) { estado.fondo = d.id; irVista("producto"); } return; }
+    if (estado.dist === "producto" && d.id) { Ed.verMovimientos({ producto: d.id }); return; }
+    const ids = visibles().filter(p => valorCampo(p, estado.dist) === d.nombre).map(p => p.id);
+    Ed.verMovimientos({ productos: ids, etq: etqCampo(estado.dist) + ": " + d.nombre });
+  }
+
   function pintaDistribucion() {
     const lista = visibles();
     const datos = estado.dist === "producto"
@@ -1446,7 +1459,7 @@
     G.donut($("#grafDonut"), {
       datos, alto: 236, tituloCentro: filtrando() ? "Filtrado" : "Total",
       valorCentro: G.fmtEurCorto(total),
-      onClick: d => { if (d.id) { estado.fondo = d.id; irVista("producto"); } }
+      onClick: irMovDesdeDist,
     });
     $("#leyendaDist").innerHTML = datos.map(d =>
       `<tr><td><i style="background:${d.color}"></i>${esc(d.nombre)}</td>
@@ -2426,18 +2439,23 @@
       // a esa anotación en «Saldos y movimientos».
       const valores = (p.valores || []).slice().reverse();
       const puedeIr = D.modo === "propio" && window.Editor && window.Editor.irAValor;
+      const puedeAnotar = D.modo === "propio" && window.Editor && window.Editor.nuevoValor;
+      const btnAnotar = puedeAnotar ? `<span class="sp"></span><button class="btn mini" id="btnNuevoSaldo" title="Anotar un nuevo saldo o valor de este producto en «Saldos y movimientos»">+ Anotar saldo</button>` : "";
+      const anotar = () => { const b = $("#btnNuevoSaldo"); if (b) b.onclick = () => window.Editor.nuevoValor(p.id); };
       if (valores.length) {
         sec.innerHTML = `<header><h2>Saldos anotados</h2>
-            <span class="subt">${valores.length} anotación${valores.length === 1 ? "" : "es"} de su valor${puedeIr ? " · pulsa una para verla en «Saldos y movimientos»" : ""}</span></header>
+            <span class="subt">${valores.length} anotación${valores.length === 1 ? "" : "es"} de su valor${puedeIr ? " · pulsa una para verla en «Saldos y movimientos»" : ""}</span>${btnAnotar}</header>
           <div class="tablaEnv alto"><table class="dt">
             <thead><tr><th>Fecha</th><th>Valor</th></tr></thead>
             <tbody>${valores.map(v => `<tr${puedeIr && v.id ? ` class="filaClic" data-val="${esc(v.id)}" title="Ver esta anotación en «Saldos y movimientos»"` : ""}>
               <td>${G.fmtFecha(v.fecha)}</td><td>${v.valor != null ? G.fmtEur(v.valor) : "—"}</td></tr>`).join("")}</tbody></table></div>`;
         if (puedeIr) sec.querySelectorAll("[data-val]").forEach(tr => tr.onclick = () => window.Editor.irAValor(p.id, tr.dataset.val));
+        anotar();
         return;
       }
-      sec.innerHTML = `<header><h2>Aportaciones</h2></header>
-        <p class="vacio">Este componente no tiene aportaciones registradas: solo anotas su valor.</p>`;
+      sec.innerHTML = `<header><h2>Saldos anotados</h2>${btnAnotar}</header>
+        <p class="vacio">Este componente no tiene saldos anotados todavía${puedeAnotar ? " · pulsa «Anotar saldo» para añadir el primero" : ""}.</p>`;
+      anotar();
       return;
     }
     const esFondo = p.tipoClave === "fondo" || p.tipoClave === "pension";
@@ -2652,15 +2670,14 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.11.0",
+    version: "1.11.1",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["ⓘ", "Ayuda en cada pantalla", "Ahora cada zona tiene una «i» al final de su barra que te explica, en una tarjeta, cómo funciona esa pantalla concreta. Si ya te manejas, puedes ocultarlas desde «Ajustes → Botones de ayuda»."],
-      ["✨", "Nuevo acabado visual", "Los gráficos cobran vida al aparecer (la línea se dibuja, el anillo se construye, las barras suben), las cifras cuentan hacia arriba y la navegación entra con un fundido suave. Todo discreto y respetando «menos movimiento» del sistema."],
-      ["🔆", "Faro en tu objetivo", "La barra de progreso hacia tu objetivo se rellena desde cero y un resplandor aterriza en la punta al llegar."],
-      ["🎚️", "Detalles cuidados", "Microinteracciones al pasar y pulsar, foco de teclado visible, cambio de tema suave, barras de desplazamiento y selección acordes al tema, y una barra de carga mientras se calcula."],
-      ["🔄", "Comprobar actualizaciones a mano", "Aunque tengas apagada la comprobación automática, puedes mirar si hay una versión nueva cuando quieras con el enlace «comprobar ahora» del pie de página."],
-      ["🛠️", "Estabilidad", "Correcciones internas: cálculo más robusto, valoraciones con fecha futura bien tratadas y varios arreglos finos. Tus datos siguen intactos."],
+      ["🔗", "Salta a tus datos desde los gráficos", "Pulsa un sector del reparto en «Distribución» o una categoría en «Ingresos y gastos» y te lleva a tus datos con el filtro ya aplicado (ese producto, grupo o categoría)."],
+      ["🔎", "Filtros potentes en Saldos y movimientos", "Una barra de filtros nueva: por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas."],
+      ["👉", "Ve los registros de un activo", "En «Activos» y «Deudas», pulsa su cuenta de movimientos o saldos para ir directo a ellos, ya filtrados."],
+      ["➕", "Anotar saldo desde la ficha", "Las fichas de cuentas, efectivo e inmuebles tienen ahora un botón para anotar un nuevo saldo."],
+      ["🛠️", "Arreglos", "El dato del gráfico al pasar el ratón aparece pegado al cursor (antes se iba lejos) y varios pulidos. Tus datos siguen intactos."],
     ],
   };
   function quizaNovedades() {

@@ -173,6 +173,11 @@
 
   /* -------------------------------------------------- tooltip */
   function creaTooltip(cont) {
+    // El tooltip es position:absolute y se coloca en coordenadas DEL CONTENEDOR (via
+    // transform), así que el contenedor debe ser un ancestro posicionado. Si es estático
+    // (p. ej. el sparkline de Inicio), el tooltip se anclaría a un ancestro lejano y
+    // aparecería muy lejos del ratón (encima de los avisos). Lo forzamos a relativo.
+    if (getComputedStyle(cont).position === "static") cont.style.position = "relative";
     let t = cont.querySelector(".gtt");
     if (!t) {
       t = document.createElement("div");

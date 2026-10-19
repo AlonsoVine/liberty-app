@@ -406,6 +406,7 @@
       importar: vistaImportar, copias: vistaCopias }[E.vista] || vistaActivos)();
     if (E.vista === "importar" || E.vista === "copias") conectaImportar();
     if (E.vista === "flujos") { montaAnotarRapido(); montaFiltrosFlujos(); }
+    if (E.vista === "saldos") montaFiltrosMov();
     if (E.vista === "facturas") montaFacturas();
     const filtro = $("#edFiltro");
     if (filtro) filtro.onchange = e => { E.filtro = e.target.value; pinta(); };
@@ -430,7 +431,7 @@
         ${p.identificador ? `<small class="idp">${esc(p.identificador)}</small>` : ""}</td>
       <td>${esc(E.tipos[p.tipo] || p.tipo)}</td><td>${precioDe(p)}</td>
       <td>${esc(E.fuentes[p.fuente] || "")}${p.codigo ? ` <small>${esc(p.codigo)}</small>` : ""}</td>
-      <td>${n}</td>
+      <td><button class="celLink" type="button" data-acc="irRegistros" data-id="${esc(p.id)}" title="Ver sus registros en «Saldos y movimientos»">${n}</button></td>
       ${celdaAcc(p.id, { editar: "editarProducto", duplicar: "duplicarProducto", borrar: "borrarProducto" })}</tr>`;
   }
 
@@ -1355,6 +1356,25 @@
       // El resaltado se queda fijo: no se desmarca hasta que se seleccione otra fila.
     });
   }
+  // Ir a «Saldos y movimientos» con ESE producto ya filtrado (desde la cuenta de registros
+  // de Activos/Deudas). Si cotiza, filtra la tabla de movimientos; si se valora a mano,
+  // baja hasta su tarjeta de saldos.
+  function irARegistros(prodId) {
+    const p = prod(prodId);
+    if (!p) return;
+    E.vista = "saldos";
+    recuerda.guarda("patrimonio.editor", "saldos");
+    E.resaltaMov = null; E.resaltaSaldo = null;
+    const esSaldo = manual(p);
+    E.filtro = esSaldo ? "todos" : prodId;
+    const tab = document.querySelector('[data-tab="datos"]');
+    if (tab) tab.click(); else pinta();
+    requestAnimationFrame(() => {
+      const anchor = esSaldo ? document.getElementById("saldo-prod-" + prodId)
+                             : document.getElementById("edFiltro");
+      if (anchor) { try { anchor.scrollIntoView({ block: esSaldo ? "start" : "center", behavior: "smooth" }); } catch (e) { anchor.scrollIntoView(); } }
+    });
+  }
   function filasFlujosHTML(fs) {
     const varios = (E.cfg.titulares || []).length > 1;   // la columna Titular solo si hay más de uno
     const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
@@ -1550,11 +1570,102 @@
   }
 
   /* ---------------------------------------------- movimientos */
+  /* ---- Filtros potenciados de Movimientos (análogos a los de Ingresos y gastos) ----
+     E.filtro sigue siendo el filtro por PRODUCTO (lo usan los saltos desde el panel);
+     E.movFiltros añade operación (tipo de movimiento), atributos del producto (entidad,
+     clase, tipo de activo, dimensiones), importe y fechas. valorCampoProd replica la
+     lógica de agrupación del panel para que la distribución pueda enlazar aquí filtrado. */
+  function filtrosMov() {
+    try { E.movFiltros = E.movFiltros || JSON.parse(recuerda.lee("patrimonio.movFiltros") || "{}") || {}; } catch (e) { E.movFiltros = {}; }
+    if (!E.movFiltros.prod) E.movFiltros.prod = {};
+    return E.movFiltros;
+  }
+  function guardaMovFiltros() { try { recuerda.guarda("patrimonio.movFiltros", JSON.stringify(filtrosMov())); } catch (e) { /* da igual */ } }
+  function valorCampoProd(p, campo) {
+    if (!p) return "Otros";
+    if (campo.slice(0, 4) === "dim:") return (p.categorias || {})[campo.slice(4)] || "Sin clasificar";
+    return p[campo] || "Otros";
+  }
+  function filtraMov(movs) {
+    const F = filtrosMov();
+    const i1 = F.importe1 ? leeNum(F.importe1) : null, i2 = F.importe2 ? leeNum(F.importe2) : null;
+    const ids = (F.ids && F.ids.length) ? new Set(F.ids) : null;   // grupo desde Distribución
+    return movs.filter(m => {
+      if (ids && !ids.has(m.producto)) return false;
+      if (F.tipo && m.tipo !== F.tipo) return false;
+      const p = prod(m.producto);
+      for (const campo in (F.prod || {})) if (F.prod[campo] && valorCampoProd(p, campo) !== F.prod[campo]) return false;
+      const imp = +m.importe || 0;
+      if (F.impOp === "mayor" && i1 != null && !isNaN(i1) && !(imp > i1)) return false;
+      if (F.impOp === "menor" && i1 != null && !isNaN(i1) && !(imp < i1)) return false;
+      if (F.impOp === "entre" && ((i1 != null && !isNaN(i1) && imp < i1) || (i2 != null && !isNaN(i2) && imp > i2))) return false;
+      if (F.fdesde && m.fecha < F.fdesde) return false;
+      if (F.fhasta && m.fecha > F.fhasta) return false;
+      return true;
+    });
+  }
+  function hayFiltroMov() {
+    const F = filtrosMov();
+    return !!((E.filtro && E.filtro !== "todos") || (F.ids && F.ids.length) || F.tipo || F.impOp || F.fdesde || F.fhasta || Object.values(F.prod || {}).some(Boolean));
+  }
+  function filtrosMovHTML() {
+    const F = filtrosMov(), conf = E.cfg.config || {};
+    const conMov = new Set(E.cfg.movimientos.map(m => m.producto));
+    const prods = E.cfg.productos.filter(p => !soloSaldo(p) || conMov.has(p.id));
+    const cotiz = prods.filter(p => !soloSaldo(p));
+    const ents = [...new Set(prods.map(p => p.entidad).filter(Boolean))].sort();
+    const dims = conf.dimensiones || [];
+    const campo = (attr, key, label, opts, val) => `<span class="filtroCampo${val ? " activo" : ""}"><label>${esc(label)}</label>
+      <select ${attr}="${esc(key)}"><option value="">Todos</option>${opts.map(o => `<option value="${esc(o.v)}"${o.v === val ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`;
+    // Grupo (viene de un sector de la Distribución): se muestra como chip quitable.
+    let h = "";
+    if (F.ids && F.ids.length) h += `<span class="filtroCampo activo"><label>Grupo</label>
+      <b style="font-size:13px;padding:0 2px">${esc(F.idsEtq || (F.ids.length + " productos"))}</b>
+      <button type="button" class="btn mini filtroQuitar" data-fm-grupo title="Quitar el grupo" style="padding:2px 7px">✕</button></span>`;
+    // Producto: mantiene #edFiltro / E.filtro (el valor «todos» = sin filtrar).
+    h += `<span class="filtroCampo${(E.filtro && E.filtro !== "todos") ? " activo" : ""}"><label>Producto</label>
+      <select id="edFiltro" aria-label="Filtrar por producto"><option value="todos">Todos</option>${cotiz.map(p => `<option value="${esc(p.id)}"${p.id === E.filtro ? " selected" : ""}>${esc(nombre(p))}</option>`).join("")}</select></span>`;
+    h += campo("data-fm", "tipo", "Operación", Object.entries(E.tiposMov).map(([v, t]) => ({ v, t })), F.tipo || "");
+    if (ents.length) h += campo("data-fmp", "entidad", "Entidad", ents.map(e => ({ v: e, t: e })), (F.prod || {}).entidad || "");
+    dims.forEach(dm => {
+      const vals = [...new Set([...(dm.valores || []), ...prods.map(p => (p.categorias || {})[dm.id]).filter(Boolean)])];
+      if (vals.length) h += campo("data-fmp", "dim:" + dm.id, dm.nombre, vals.map(v => ({ v, t: v })), (F.prod || {})["dim:" + dm.id] || "");
+    });
+    h += `<span class="filtroCampo${F.impOp ? " activo" : ""}"><label>Importe €</label>
+      <select data-fm="impOp"><option value="">—</option><option value="mayor"${F.impOp === "mayor" ? " selected" : ""}>mayor que</option><option value="menor"${F.impOp === "menor" ? " selected" : ""}>menor que</option><option value="entre"${F.impOp === "entre" ? " selected" : ""}>entre</option></select>
+      ${F.impOp ? `<input class="fImp" data-fm="importe1" inputmode="decimal" value="${esc(F.importe1 || "")}" placeholder="€">` : ""}
+      ${F.impOp === "entre" ? `<input class="fImp" data-fm="importe2" inputmode="decimal" value="${esc(F.importe2 || "")}" placeholder="€">` : ""}</span>`;
+    return h;
+  }
+  function filtroFechasMovHTML() {
+    const F = filtrosMov();
+    let h = `<span class="filtroCampo${(F.fdesde || F.fhasta) ? " activo" : ""}"><label>Fechas</label>
+      <input type="date" class="fFecha" data-fm="fdesde" value="${esc(F.fdesde || "")}"><span class="fSep">–</span><input type="date" class="fFecha" data-fm="fhasta" value="${esc(F.fhasta || "")}"></span>`;
+    if (hayFiltroMov()) h += `<button type="button" class="btn mini filtroQuitar" data-fm-limpiar>✕ Limpiar filtros</button>`;
+    return h;
+  }
+  function montaFiltrosMov() {
+    const F = filtrosMov();
+    document.querySelectorAll('#tab-datos [data-fm], #tab-datos [data-fmp]').forEach(el => {
+      const esProd = el.hasAttribute("data-fmp");
+      const k = esProd ? el.dataset.fmp : el.dataset.fm;
+      el.onchange = () => { if (esProd) F.prod[k] = el.value; else F[k] = el.value; guardaMovFiltros(); pinta(); };
+    });
+    const gb = document.querySelector("#tab-datos [data-fm-grupo]");
+    if (gb) gb.onclick = () => { F.ids = null; F.idsEtq = ""; guardaMovFiltros(); pinta(); };
+    const lb = document.querySelector("#tab-datos [data-fm-limpiar]");
+    if (lb) lb.onclick = () => { E.movFiltros = { prod: {} }; E.filtro = "todos"; guardaMovFiltros(); pinta(); };
+  }
+
   function vistaMovimientos() {
-    const cotizables = E.cfg.productos.filter(p => !soloSaldo(p));
-    const movs = E.cfg.movimientos
-      .filter(m => E.filtro === "todos" || m.producto === E.filtro)
-      .sort((a, b) => a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0);
+    if (!E.cfg.movimientos.length) {
+      return `<section class="tarjeta"><header><h2>Movimientos</h2>
+          <span class="subt">Compras, ventas, dividendos y comisiones</span><span class="sp"></span>
+          <button class="btn prim" data-acc="nuevoMov">+ Añadir movimiento</button></header>
+        <p class="subt">No hay movimientos todavía.</p></section>`;
+    }
+    const base = E.cfg.movimientos.filter(m => !E.filtro || E.filtro === "todos" || m.producto === E.filtro);
+    const movs = filtraMov(base).sort((a, b) => a.fecha < b.fecha ? 1 : a.fecha > b.fecha ? -1 : 0);
     const filas = movs.map(m => {
       const p = prod(m.producto);
       const precio = m.unidades ? (m.importe - (m.comision || 0)) / m.unidades : null;
@@ -1568,14 +1679,11 @@
     }).join("");
     return `<section class="tarjeta"><header><h2>Movimientos</h2>
         <span class="subt">Compras, ventas, dividendos y comisiones</span><span class="sp"></span>
-        <select id="edFiltro" aria-label="Filtrar por producto"><option value="todos">Todos los productos</option>
-          ${cotizables.map(p => `<option value="${esc(p.id)}"${p.id === E.filtro ? " selected" : ""}>${esc(nombre(p))}</option>`).join("")}</select>
         <button class="btn prim" data-acc="nuevoMov">+ Añadir movimiento</button></header>
-      ${filas ? envTabla("movimientos", `<tr><th>Fecha</th><th style="text-align:left">Producto</th>
+      ${envTabla("movimientos", `<tr><th>Fecha</th><th style="text-align:left">Producto</th>
         <th style="text-align:left">Tipo</th><th>Unidades</th><th>Importe</th><th>Precio por unidad</th>
-        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true)
-        + `<p class="subt" style="margin-top:10px">${movs.length} movimientos.</p>`
-        : '<p class="subt">No hay movimientos todavía.</p>'}</section>`;
+        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true, filtrosMovHTML() + filtroFechasMovHTML())}
+      <p class="subt" style="margin-top:10px">${movs.length} movimiento${movs.length === 1 ? "" : "s"}${hayFiltroMov() ? " · filtrados" : ""}.</p></section>`;
   }
 
   const AYUDA_IMPORTE = {
@@ -1655,7 +1763,7 @@
       const filas = vals.map(v => `<tr id="fila-saldo-${esc(v.id)}"${v.id === E.resaltaSaldo ? ' class="resaltado"' : ""}><td>${fecha(v.fecha)}</td><td>${eur(v.valor)}</td>
         ${conAportado ? `<td>${v.aportado != null ? eur(v.aportado) : "—"}</td>` : ""}
         ${celdaAcc(v.id, { editar: "editarValor", borrar: "borrarValor" })}</tr>`).join("");
-      return `<section class="tarjeta saldo"><header><h2><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}</h2>
+      return `<section class="tarjeta saldo" id="saldo-prod-${esc(p.id)}"><header><h2><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}</h2>
           <span class="subt">${esc(E.tipos[p.tipo] || "")}${p.entidad ? " · " + esc(p.entidad) : ""}</span><span class="sp"></span>
           <button class="btn" data-acc="nuevoValor" data-id="${esc(p.id)}">+ Anotar</button></header>
         ${filas ? `<div class="tablaEnv"><table class="dt orden"><thead><tr><th>Fecha</th><th>${etiquetaValor(p)}</th>
@@ -2211,6 +2319,7 @@
     duplicarMov: soloPropio(id => { const m = E.cfg.movimientos.find(x => x.id === id); if (m) formMovimiento({ ...m, id: undefined }); }),
     borrarMov: soloPropio(borrarMov),
     nuevoValor: soloPropio(id => formValor(null, id)),
+    irRegistros: soloPropio(irARegistros),
     editarValor: soloPropio(id => formValor(E.cfg.valoraciones.find(v => v.id === id))),
     borrarValor: soloPropio(borrarValor),
     todosValores: soloPropio(todosValores),
@@ -3178,6 +3287,51 @@
       const tab = document.querySelector('[data-tab="datos"]');
       if (tab) tab.click(); else pinta();
       formMovimiento(null, productId);
+    },
+    // Ir a «Saldos y movimientos» y abrir el formulario de saldo/valor de un producto
+    // (para las fichas de cuentas, efectivo, inmuebles, deudas… que se valoran a mano).
+    nuevoValor(productId) {
+      E.vista = "saldos";
+      recuerda.guarda("patrimonio.editor", "saldos");
+      const tab = document.querySelector('[data-tab="datos"]');
+      if (tab) tab.click(); else pinta();
+      formValor(null, productId);
+    },
+    // Ir a «Saldos y movimientos» con un filtro ya aplicado. Lo usa el clic en un sector
+    // de los diagramas de Distribución del Panel: por producto (f.producto) o por un
+    // atributo del producto (f.campo = clase/entidad/tipo/dim:X, f.valor = su valor).
+    verMovimientos(f) {
+      f = f || {};
+      const MF = filtrosMov();
+      MF.prod = {}; MF.tipo = ""; MF.impOp = ""; MF.importe1 = ""; MF.importe2 = ""; MF.fdesde = ""; MF.fhasta = "";
+      MF.ids = null; MF.idsEtq = "";
+      let anclaManual = null;
+      if (f.productos && f.productos.length) {          // grupo de la Distribución
+        E.filtro = "todos"; MF.ids = f.productos.slice(); MF.idsEtq = f.etq || "";
+      } else if (f.producto) {                          // un producto concreto
+        const p = prod(f.producto);
+        if (p && manual(p)) { E.filtro = "todos"; anclaManual = f.producto; }   // se valora a mano → su tarjeta de saldos
+        else E.filtro = f.producto;
+      } else E.filtro = "todos";
+      guardaMovFiltros();
+      E.vista = "saldos"; recuerda.guarda("patrimonio.editor", "saldos");
+      E.resaltaMov = null; E.resaltaSaldo = null;
+      const tab = document.querySelector('[data-tab="datos"]');
+      if (tab) tab.click(); else pinta();
+      requestAnimationFrame(() => {
+        const a = document.getElementById(anclaManual ? "saldo-prod-" + anclaManual : "edFiltro");
+        if (a) { try { a.scrollIntoView({ block: anclaManual ? "start" : "center", behavior: "smooth" }); } catch (e) { a.scrollIntoView(); } }
+      });
+    },
+    // Ir a «Ingresos y gastos» con una categoría (y su tipo) ya filtrada. Lo usa el clic
+    // en un sector del donut de categorías del Panel.
+    verFlujosCategoria(categoria, tipo) {
+      E.flujoFiltros = { dim: {}, categoria: categoria || "", tipo: tipo || "" };
+      try { recuerda.guarda("patrimonio.flujoFiltros", JSON.stringify(E.flujoFiltros)); } catch (e) { /* da igual */ }
+      E.vista = "flujos";
+      recuerda.guarda("patrimonio.editor", "flujos");
+      const tab = document.querySelector('[data-tab="datos"]');
+      if (tab) tab.click(); else pinta();
     },
     // Ir a un movimiento concreto y resaltarlo (desde las listas de aportaciones del Panel).
     irAMovimiento,
