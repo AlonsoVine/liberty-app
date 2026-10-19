@@ -2643,8 +2643,8 @@
   function actualizaDesdePie(ev) {
     if (ev) ev.preventDefault();
     const ult = (VERINFO && VERINFO.ultima) || "";
-    if (!confirm(`Se descargará la última versión (${ult}) y se guardará junto a la actual, con la versión en el nombre `
-      + `(«Liberty ${ult}.exe»). No se abre ni se borra nada automáticamente. ¿Continuar?`)) return;
+    if (!confirm(`¿Descargar la última versión (${ult})? No se cierra, abre ni borra nada automáticamente: `
+      + `tú decides cuándo cambiar a la nueva.`)) return;
     const a = $("#pieActualizar"); if (a) a.textContent = "descargando…";
     fetch("api/descargar-version", { method: "POST", headers: { "Content-Type": "application/json" } })
       .then(r => r.json()).then(res => {

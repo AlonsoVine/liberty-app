@@ -37,9 +37,17 @@ def _base_recursos():
 
 
 def _base_datos():
-    """Dónde van los datos del usuario (mis_datos): JUNTO al ejecutable cuando está
-    empaquetado (deben ser escribibles), o en la carpeta del proyecto si no."""
+    """Dónde van los datos del usuario (mis_datos). Empaquetado:
+      - Windows: JUNTO al ejecutable (portable, como siempre).
+      - macOS: un .app es de solo lectura (más aún en /Aplicaciones o en cuarentena de
+        Gatekeeper), así que van a la carpeta de datos del usuario, que persiste aunque
+        muevas o reinstales la app: ~/Library/Application Support/Liberty.
+    Sin empaquetar: la carpeta del proyecto."""
     if getattr(sys, "frozen", False):
+        if sys.platform == "darwin":
+            d = os.path.join(os.path.expanduser("~/Library/Application Support"), "Liberty")
+            os.makedirs(d, exist_ok=True)
+            return d
         return os.path.dirname(sys.executable)
     return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -1510,6 +1518,12 @@ def api_descargar_version():
         return jsonify(ok=False, motivo="dev", descarga=DESCARGA,
                        mensaje="En modo desarrollo no hay ejecutable que actualizar. "
                                "Al compilar, este botón descargará el .exe nuevo junto al actual."), 200
+    if sys.platform == "darwin":
+        # En Mac la app es un .app (un paquete): reemplazarlo en marcha es delicado, así
+        # que la actualización se hace desde la web (descargar el nuevo .app y arrastrarlo).
+        return jsonify(ok=False, motivo="mac", descarga=DESCARGA,
+                       mensaje="Descarga la versión nueva de Liberty para Mac desde la web "
+                               "y arrástrala a tu carpeta de Aplicaciones (reemplaza la anterior)."), 200
     try:
         req = urllib.request.Request(_API_RELEASE, headers=motor.UA)
         with urllib.request.urlopen(req, timeout=8) as r:

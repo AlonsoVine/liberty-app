@@ -1,0 +1,91 @@
+name: Build macOS
+
+# Construye «Liberty.app» en un runner de macOS (no se puede compilar desde Windows) y lo
+# publica como asset «Liberty-macOS.zip».
+#
+# OJO: el código vive en este repo (rumboExito) pero las Releases se publican en el repo de
+# distribución (AlonsoVine/liberty). Por eso NO se dispara con «release: published» (sería
+# de otro repo): se lanza A MANO indicando el tag de la release ya creada en liberty.
+#
+# Cómo usarlo:
+#   1. Publica la release en AlonsoVine/liberty con el Liberty.exe (como siempre).
+#   2. Actions -> «Build macOS» -> Run workflow -> escribe el tag (p. ej. v1.12.0).
+#   3. El .app se compila, se comprueba y:
+#        - si existe el secreto LIBERTY_RELEASE_TOKEN (un PAT con permiso de escritura en
+#          AlonsoVine/liberty), se sube solo a esa release como «Liberty-macOS.zip»;
+#        - en cualquier caso, queda como ARTEFACTO del run para subirlo a mano si hiciera falta.
+#
+# CONTADOR DE DESCARGAS: el asset se llama SIEMPRE «Liberty-macOS.zip» y NO se re-sube encima
+# de uno ya publicado (se perdería su contador). Cada versión = release nueva.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Tag de la release en AlonsoVine/liberty (p. ej. v1.12.0)"
+        required: true
+
+jobs:
+  build-mac:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt pyinstaller
+
+      - name: Generar el icono (.icns)
+        run: |
+          SRC=app/web/icono-512.png
+          mkdir -p Liberty.iconset build
+          sips -z 16 16     "$SRC" --out Liberty.iconset/icon_16x16.png
+          sips -z 32 32     "$SRC" --out Liberty.iconset/icon_16x16@2x.png
+          sips -z 32 32     "$SRC" --out Liberty.iconset/icon_32x32.png
+          sips -z 64 64     "$SRC" --out Liberty.iconset/icon_32x32@2x.png
+          sips -z 128 128   "$SRC" --out Liberty.iconset/icon_128x128.png
+          sips -z 256 256   "$SRC" --out Liberty.iconset/icon_128x128@2x.png
+          sips -z 256 256   "$SRC" --out Liberty.iconset/icon_256x256.png
+          sips -z 512 512   "$SRC" --out Liberty.iconset/icon_256x256@2x.png
+          cp "$SRC" Liberty.iconset/icon_512x512.png
+          iconutil -c icns Liberty.iconset -o build/Liberty.icns
+
+      - name: Compilar Liberty.app
+        run: pyinstaller Liberty-mac.spec --noconfirm --clean
+
+      - name: Comprobar que arranca (smoke test)
+        run: |
+          PATRIMONIO_NO_ABRIR=1 PATRIMONIO_PUERTO=8799 ./dist/Liberty.app/Contents/MacOS/Liberty &
+          PID=$!
+          sleep 8
+          curl -fsS -o /dev/null "http://127.0.0.1:8799/" && echo "home OK"
+          curl -fsS "http://127.0.0.1:8799/api/version" | grep -o '"actual":"[^"]*"'
+          kill $PID 2>/dev/null || true
+
+      - name: Empaquetar el .app (preservando el bundle)
+        run: |
+          cd dist
+          ditto -c -k --sequesterRsrc --keepParent Liberty.app Liberty-macOS.zip
+          ls -lh Liberty-macOS.zip
+
+      - name: Artefacto de respaldo (siempre)
+        uses: actions/upload-artifact@v4
+        with:
+          name: Liberty-macOS
+          path: dist/Liberty-macOS.zip
+
+      - name: Subir a la Release de AlonsoVine/liberty (si hay token)
+        env:
+          GH_TOKEN: ${{ secrets.LIBERTY_RELEASE_TOKEN }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::No hay secreto LIBERTY_RELEASE_TOKEN. Descarga el artefacto 'Liberty-macOS' y súbelo a la release a mano."
+            exit 0
+          fi
+          gh release upload "${{ github.event.inputs.tag }}" dist/Liberty-macOS.zip -R AlonsoVine/liberty
