@@ -383,11 +383,22 @@ table.dt tr.filaClic:hover>td{background:color-mix(in srgb,var(--s1) 9%,transpar
 .presFila .estado{font-size:12px;font-variant-numeric:tabular-nums}
 /* Línea-guía en lenguaje llano al inicio de cada vista. */
 .ayudaVista{color:var(--tinta2);font-size:13.5px;margin:4px 0 16px;line-height:1.5}
-/* Iconito de ayuda (ⓘ): muestra su explicación con el tooltip nativo al pasar el ratón. */
-.info{display:inline-flex;align-items:center;justify-content:center;width:17px;height:17px;
-  border-radius:50%;border:1px solid var(--borde);color:var(--tinta3);font-size:11px;font-weight:700;
-  cursor:help;margin-left:6px;vertical-align:middle;user-select:none}
-.info:hover,.info:focus{color:var(--tinta);border-color:var(--tinta3);background:var(--sup2);outline:none}
+/* Iconito de ayuda «i»: mismo estilo que la «i» de las cards. Muestra su explicación en
+   un popover propio al pasar el ratón o el foco, y queda fijado al pulsarlo (ver #infoPop). */
+.info{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;
+  border-radius:50%;border:1px solid var(--borde);color:var(--tinta3);
+  font:italic 700 12px/1 Georgia,"Times New Roman",serif;cursor:pointer;margin-left:6px;
+  vertical-align:middle;user-select:none;flex:0 0 auto;
+  transition:color var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease),background var(--dur-1) var(--ease)}
+.info:hover,.info:focus,.info.on{color:var(--s1);border-color:color-mix(in srgb,var(--s1) 50%,var(--borde));
+  background:color-mix(in srgb,var(--s1) 9%,transparent);outline:none}
+#infoPop{position:fixed;z-index:300;max-width:280px;background:var(--sup2);color:var(--tinta2);
+  border:1px solid var(--borde);border-radius:10px;padding:9px 12px;font-size:12.5px;line-height:1.45;
+  box-shadow:var(--sombra);opacity:0;transform:translateY(4px);pointer-events:none;
+  transition:opacity var(--dur-1) var(--ease),transform var(--dur-1) var(--ease)}
+#infoPop.on{opacity:1;transform:none}
+#infoPop.pinned{pointer-events:auto}
+@media print{#infoPop{display:none !important}}
 .panel[hidden]{display:none}
 
 /* ============================ hero ============================ */

@@ -480,7 +480,7 @@
   const seccion = t => `<div class="secc">${t}</div>`;
   // Iconito ⓘ con explicación al pasar el ratón (tooltip nativo: nunca se recorta,
   // ni dentro del modal con scroll). aria-label para lectores de pantalla.
-  const info = t => ` <span class="info" tabindex="0" role="note" title="${esc(t)}" aria-label="${esc(t)}">i</span>`;
+  const info = t => ` <span class="info" tabindex="0" role="button" aria-label="${esc(t)}" data-info="${esc(t)}">i</span>`;
   const LUPA = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>';
   const COLOR_FUENTE = { morningstar: "var(--s3)", yahoo: "var(--s7)", coingecko: "var(--s4)" };
   const decimal = v => v == null || v === "" ? "" : String(v).replace(".", ",");

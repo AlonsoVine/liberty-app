@@ -362,8 +362,50 @@
   // ni dentro de los cuadros con scroll). aria-label para lectores de pantalla.
   const info = t => {
     const a = String(t).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    return ` <span class="info" tabindex="0" role="note" title="${a}" aria-label="${a}">i</span>`;
+    return ` <span class="info" tabindex="0" role="button" aria-label="${a}" data-info="${a}">i</span>`;
   };
+
+  // Popover de los iconitos «i» (data-info): aparece al pasar el ratón o el foco y queda
+  // FIJADO al pulsarlo (hasta pulsar fuera o Esc). Delegado en window (fase de captura
+  // para el clic, así no dispara la fila/botón donde esté el icono), cubre panel y editor.
+  (function infoPopover() {
+    let pop = null, fijado = null, visible = null;
+    const crea = () => (pop || (pop = document.body.appendChild(Object.assign(document.createElement("div"), { id: "infoPop" }))));
+    function coloca(ico) {
+      const p = crea(), r = ico.getBoundingClientRect();
+      p.style.maxWidth = Math.min(280, innerWidth - 20) + "px";
+      const pw = p.offsetWidth, ph = p.offsetHeight;
+      const left = Math.max(8, Math.min(r.left + r.width / 2 - pw / 2, innerWidth - pw - 8));
+      let top = r.top - ph - 8;
+      if (top < 8) top = r.bottom + 8;   // si no cabe arriba, debajo del icono
+      p.style.left = left + "px"; p.style.top = top + "px";
+    }
+    function muestra(ico, fijar) {
+      const txt = ico.getAttribute("data-info"); if (!txt) return;
+      const p = crea(); p.textContent = txt; p.classList.toggle("pinned", !!fijar);
+      visible = ico; coloca(ico);
+      requestAnimationFrame(() => p.classList.add("on"));
+      if (fijar) { fijado = ico; ico.classList.add("on"); }
+    }
+    function oculta() {
+      if (pop) pop.classList.remove("on", "pinned");
+      if (fijado) fijado.classList.remove("on");
+      fijado = visible = null;
+    }
+    const icoDe = e => (e.target && e.target.closest) ? e.target.closest(".info") : null;
+    addEventListener("pointerover", e => { const i = icoDe(e); if (i && !fijado) muestra(i, false); });
+    addEventListener("pointerout", e => { const i = icoDe(e); if (i && !fijado) oculta(); });
+    addEventListener("focusin", e => { const i = icoDe(e); if (i && !fijado) muestra(i, false); });
+    addEventListener("focusout", e => { const i = icoDe(e); if (i && !fijado) oculta(); });
+    addEventListener("click", e => {
+      const i = icoDe(e);
+      if (i) { e.preventDefault(); e.stopImmediatePropagation(); if (fijado === i) oculta(); else { oculta(); muestra(i, true); } return; }
+      if (fijado && !(pop && pop.contains(e.target))) oculta();
+    }, true);
+    addEventListener("keydown", e => { if (e.key === "Escape") oculta(); });
+    addEventListener("scroll", () => { if (fijado) coloca(fijado); else if (visible) oculta(); }, true);
+  })();
+
   const buscaProd = id => TODOS().find(p => p.id === id);
 
   /* ---------------------------------------------- precio en vivo */
@@ -698,7 +740,7 @@
 
   function pintaKPIs(m) {
     const kpis = [
-      { e: "Aportado", v: G.fmtEur(m.aportado, 0), n: `${m.numAportaciones} aportaciones` },
+      { e: "Aportado" + info("El dinero que llevas metido en total (tu capital invertido). Es la base sobre la que se calcula la plusvalía y la rentabilidad."), v: G.fmtEur(m.aportado, 0), n: `${m.numAportaciones} aportaciones` },
       {
         e: "Plusvalía latente" + info("La ganancia (o pérdida) que llevas pero aún no has realizado: valor actual − lo que te costó. Se hace real al vender."),
         v: G.fmtEurSigno(m.plusvalia),
@@ -2670,14 +2712,12 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.11.1",
+    version: "1.11.2",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🔗", "Salta a tus datos desde los gráficos", "Pulsa un sector del reparto en «Distribución» o una categoría en «Ingresos y gastos» y te lleva a tus datos con el filtro ya aplicado (ese producto, grupo o categoría)."],
-      ["🔎", "Filtros potentes en Saldos y movimientos", "Una barra de filtros nueva: por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas."],
-      ["👉", "Ve los registros de un activo", "En «Activos» y «Deudas», pulsa su cuenta de movimientos o saldos para ir directo a ellos, ya filtrados."],
-      ["➕", "Anotar saldo desde la ficha", "Las fichas de cuentas, efectivo e inmuebles tienen ahora un botón para anotar un nuevo saldo."],
-      ["🛠️", "Arreglos", "El dato del gráfico al pasar el ratón aparece pegado al cursor (antes se iba lejos) y varios pulidos. Tus datos siguen intactos."],
+      ["ⓘ", "Ayuda mucho más completa", "Las tarjetas de ayuda «i» de cada pantalla ahora explican de verdad para qué sirve cada cosa, con ejemplos: dimensiones, reglas del banco, titular por defecto, rebalanceo, colchón, FIFO…"],
+      ["💬", "Iconitos de info mejorados", "Los iconitos «i» repartidos por la app estrenan el mismo estilo que la ayuda y ahora puedes ver su explicación también al pulsarlos (no solo al pasar el ratón), y queda fijada hasta que pulses fuera."],
+      ["🛠️", "Pulidos", "Pequeños ajustes de coherencia visual. Tus datos siguen intactos."],
     ],
   };
   function quizaNovedades() {
@@ -2720,147 +2760,157 @@
      con capturas. La clave de la pantalla actual se deduce del estado (sin acoplarse
      al editor): las sub-vistas de «Mis datos» y «Documentos» se leen de localStorage. */
   const AYUDA = {
-    "panel.inicio": { t: "Inicio", sub: "Tu patrimonio de un vistazo y los accesos rápidos.", p: [
-      ["📊", "Tu mes de un vistazo", "Lo que ha cambiado tu patrimonio este mes, tu ahorro del mes y el dinero que te queda libre, con una pista de «qué conviene hacer»."],
-      ["🎯", "Objetivo o próximo hito", "Una barra que se rellena hacia tu objetivo (o el siguiente hito), para ver cuánto te falta."],
-      ["📈", "Patrimonio, reparto e ingresos", "Tu evolución reciente, en qué está repartido tu dinero (anillo) y tus ingresos y gastos de los últimos meses."],
-      ["🏅", "Tu constancia", "Racha de meses aportando sin fallar, ritmo mensual, meses apuntando y cuánto tiempo llevas siguiéndote."],
-      ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos. Pulsa cualquier tarjeta para ir directo a su sección."],
+    "panel.inicio": { t: "Inicio", sub: "El cuadro de mando: tu patrimonio de un vistazo, con accesos directos a cada sección.", p: [
+      ["📊", "Tu mes de un vistazo", "Cuánto ha cambiado tu patrimonio este mes (en € y %), tu ahorro del mes (ingresos − gastos anotados) y tu «dinero libre para invertir». La línea «qué conviene hacer» te sugiere el siguiente paso."],
+      ["🎯", "Objetivo o próximo hito", "La barra se rellena hacia tu objetivo de patrimonio (o, si no lo has fijado, hacia el siguiente hito redondo: 10.000, 50.000…). El objetivo se define en «Mis datos → Configuración»."],
+      ["📈", "Patrimonio, reparto e ingresos", "Tres mini-gráficos: tu evolución reciente, en qué está repartido tu dinero (el anillo) y tus ingresos/gastos de los últimos meses. Pulsa el anillo para ir a Distribución."],
+      ["🏅", "Tu constancia", "Tu disciplina medida: racha de meses aportando sin fallar, ritmo medio mensual, meses con apuntes y cuánto tiempo llevas siguiéndote. Pensado para motivar el hábito, no para juzgarte."],
+      ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos próximos. Cada tarjeta es un atajo: púlsala para ir directo a esa sección."],
     ] },
-    "panel.patrimonio": { t: "Patrimonio", sub: "La foto completa de lo que tienes y lo que debes.", p: [
-      ["💰", "Patrimonio neto", "La cifra grande: todo lo que tienes menos lo que debes (bruto − deudas)."],
-      ["📅", "Periodo", "Arriba puedes ver tu patrimonio a un día concreto, a fin de un mes o en un rango exacto (y cuánto ganaste en ese tramo)."],
-      ["📈", "Evolución y objetivo", "La serie de tu patrimonio en el tiempo y una barra de progreso hacia tu objetivo."],
-      ["🧮", "Indicadores clave", "Aportado, plusvalía, rentabilidad, TIR anualizada, ritmo mensual, racha y peor caída."],
-      ["🏠", "Patrimonio del hogar", "El desglose de hoy: bruto, deudas, neto, disponible, no disponible, reservados, colchón y el dinero libre para invertir."],
-      ["📊", "Cómo ha cambiado", "Comparativa de cada cifra con hace 1 mes y hace 12 meses."],
+    "panel.patrimonio": { t: "Patrimonio", sub: "La foto completa de lo que tienes, lo que debes y lo que te queda libre.", p: [
+      ["💰", "Patrimonio neto", "La cifra grande: todo lo que tienes menos lo que debes (patrimonio bruto − deudas). Es la referencia principal de toda la app."],
+      ["📅", "Periodo", "Con el selector de arriba puedes mirar tu patrimonio a un día concreto («¿cuánto tenía el 1 de enero?»), a fin de un mes, o en un rango X→Y (y cuánto ganaste solo en ese tramo). El resto del panel se recalcula a esa fecha."],
+      ["📈", "Evolución y objetivo", "La serie de tu patrimonio en el tiempo y, debajo, la barra de progreso hacia tu objetivo con cuánto te falta."],
+      ["🧮", "Indicadores clave", "Aportado (lo que has metido), plusvalía (lo ganado), rentabilidad, TIR anualizada (tiene en cuenta cuándo metiste cada euro), ritmo mensual, racha y peor caída histórica."],
+      ["🏠", "Patrimonio del hogar", "El desglose de hoy: bruto, deudas, neto, disponible (liquidez inmediata), no disponible (inversiones e inmuebles), reservados, colchón y el dinero libre = disponible − reservados − colchón."],
+      ["📊", "Cómo ha cambiado", "Una tabla que compara cada cifra con hace 1 mes y hace 12 meses, para ver la tendencia."],
     ] },
-    "panel.distribucion": { t: "Distribución", sub: "En qué está repartido tu dinero.", p: [
-      ["🍩", "Anillo y mapa", "Cambia entre el anillo (reparto en círculo) y el mapa (bloques anidados, tipo treemap)."],
-      ["🏷️", "Agrupar por", "Mira el reparto por Activo, Producto, Entidad, Tipo, Clase de activo, Geografía o las dimensiones que tú crees."],
-      ["🧩", "Componentes de la cartera", "Una tarjeta por cada activo con su peso y un mini-gráfico. Pulsa una para abrir su ficha completa."],
-      ["⚖️", "Cómo rebalancear", "Si has fijado objetivos de asignación en Configuración, te dice qué conviene mover para volver a tu plan."],
-      ["🔍", "Filtros", "Acota la vista por titular o por cualquier dimensión, arriba del panel."],
+    "panel.distribucion": { t: "Distribución", sub: "En qué está repartido tu dinero, y si cuadra con tu plan.", p: [
+      ["🍩", "Anillo y mapa", "Dos vistas del mismo reparto: el anillo (reparto en círculo) y el mapa (bloques anidados, tipo treemap, para anidar dos ejes)."],
+      ["🏷️", "Agrupar por", "Cambia el eje: por Activo (clase), Producto, Entidad, Tipo o por cualquier dimensión propia que hayas creado (p. ej. Geografía o Gestora). Así ves el mismo dinero desde distintos ángulos."],
+      ["👆", "Pulsa un sector → sus movimientos", "Al pulsar un trozo del anillo vas a «Saldos y movimientos» con ese producto —o ese grupo (todos los de esa entidad, tipo…)— ya filtrado. Para abrir la ficha de un activo, pulsa su tarjeta en «Componentes de la cartera»."],
+      ["⚖️", "Cómo rebalancear", "Si en Configuración fijas objetivos de asignación (p. ej. 60 % renta variable, 30 % renta fija, 10 % liquidez), aquí te dice qué comprar o vender para volver a tu plan, y te avisa si un tipo o entidad se concentra demasiado."],
+      ["🔍", "Filtros", "Arriba puedes acotar por titular o por un valor de cualquier dimensión, para ver el reparto de solo una parte de tu cartera."],
     ] },
-    "panel.rentabilidad": { t: "Rentabilidad", sub: "Cuánto ha crecido tu dinero.", p: [
-      ["📈", "Rentabilidad y TIR", "Lo que ha ganado tu cartera en total (sobre lo aportado) y la TIR anualizada, que tiene en cuenta cuándo metiste cada euro."],
-      ["📊", "Por periodo", "El rendimiento en distintas ventanas de tiempo y, si aplica, por año."],
-      ["🧾", "Por producto", "La rentabilidad de cada componente, para ver cuáles tiran y cuáles no."],
-      ["💡", "Lo aportado importa", "Para que el cálculo sea bueno, anota lo que has aportado en «Saldos y movimientos»."],
+    "panel.rentabilidad": { t: "Rentabilidad", sub: "Cuánto ha crecido tu dinero, bien medido.", p: [
+      ["📈", "Rentabilidad y TIR", "La rentabilidad simple es lo ganado sobre lo aportado. La TIR anualizada es más justa: tiene en cuenta CUÁNDO metiste cada euro (no es lo mismo meter 10.000 hace 5 años que el mes pasado)."],
+      ["📊", "Por año", "Una barra por cada año natural, para ver los buenos y los malos. El primer año cuenta desde tu primera compra; el año en curso va marcado como incompleto."],
+      ["🧾", "Por producto", "La rentabilidad de cada componente y año, desde el precio real al que compraste y con las comisiones. Para ver qué tira y qué no."],
+      ["💡", "Depende de lo que anotes", "El cálculo es tan bueno como tus datos: anota tus compras y, en productos a mano, «lo aportado», en «Saldos y movimientos». Sin eso, no se puede calcular la rentabilidad real."],
     ] },
-    "panel.evolucion": { t: "Evolución", sub: "Tu patrimonio día a día.", p: [
-      ["📈", "La curva en el tiempo", "La serie completa de tu patrimonio, con los eventos importantes (aportaciones) marcados."],
-      ["🧱", "Reparto apilado", "Ve la evolución como áreas apiladas por componente o por dimensión, para ver quién aporta a cada momento."],
-      ["💶", "Aportado vs valor", "Distingue lo que has metido de lo que ha crecido por el mercado."],
-      ["📉", "Inflación", "Si la configuras, aparece una línea de referencia para ver si tu patrimonio le gana a la inflación."],
-      ["🎚️", "Ver todo / Quitar todo", "Muestra u oculta componentes de la gráfica con los chips o los botones; útil para comparar solo lo que te interesa."],
-      ["📅", "Periodo", "Ajusta el rango con los presets (1M, 3M, 1 año, YTD…) o un rango exacto."],
+    "panel.evolucion": { t: "Evolución", sub: "Tu patrimonio día a día, con todo el detalle.", p: [
+      ["📈", "La curva en el tiempo", "La serie completa, con los eventos importantes (aportaciones) marcados. Pasa el ratón para ver el valor de cada día."],
+      ["🧱", "Reparto apilado", "Cambia a áreas apiladas para ver cómo crece cada componente (o cada dimensión) a lo largo del tiempo, no solo el total."],
+      ["💶", "Aportado vs valor", "Separa lo que has metido tú de lo que ha crecido (o caído) por el mercado. Así ves si subes por ahorrar o por rentabilidad."],
+      ["📉", "Inflación", "Si fijas una inflación de referencia en Configuración, aparece una línea con lo que «debería valer» tu dinero solo por la inflación: si tu curva va por encima, le estás ganando."],
+      ["🎚️", "Ver todo / Quitar todo", "Muestra u oculta componentes con los chips o los botones. Útil para comparar solo dos fondos, o para quitar el ruido."],
+      ["📅", "Periodo", "Ajusta el rango con los presets (1M, 3M, 1 año, YTD, Todo) o con un rango exacto de fechas."],
     ] },
-    "panel.ingresos": { t: "Ingresos y gastos", sub: "A dónde va tu dinero cada mes.", p: [
-      ["➕", "Ingresos y gastos", "Tus entradas y salidas del mes y la tendencia de los últimos 12 meses."],
-      ["🐷", "Tasa de ahorro", "Qué parte de tus ingresos estás ahorrando."],
-      ["🗂️", "Por categoría", "En qué se te va el dinero, con el presupuesto por categoría si lo defines en Configuración."],
-      ["👥", "Por titular", "Quién ingresa y quién gasta, si hay varios titulares."],
-      ["✍️", "Para anotar o importar", "Los apuntes se crean en «Mis datos → Ingresos y gastos» (a mano, recurrentes o importando del banco)."],
+    "panel.ingresos": { t: "Ingresos y gastos", sub: "A dónde va tu dinero cada mes (el flujo de caja del hogar).", p: [
+      ["➕", "Resumen", "Ingresos y gastos del mes y su tendencia en los últimos 12 meses, con tu tasa de ahorro (qué parte de lo que ingresas te queda)."],
+      ["🗂️", "Categorías (pulsa para ver los apuntes)", "En qué se te va el dinero, por categoría. Pulsa un trozo del gráfico y vas a «Mis datos → Ingresos y gastos» con esa categoría ya filtrada."],
+      ["📊", "Tendencias y presupuesto", "La evolución de cada categoría y, si les pones presupuesto en Configuración, cuánto te desvías del plan cada mes."],
+      ["👥", "Por titular", "Quién ingresa y quién gasta en el hogar, si hay varios titulares."],
+      ["✍️", "De dónde salen los datos", "Los apuntes se crean en «Mis datos → Ingresos y gastos»: a mano, con plantillas recurrentes o importándolos del banco."],
     ] },
-    "panel.deudas": { t: "Deudas y vencimientos", sub: "Lo que debes y lo que vence pronto.", p: [
-      ["💳", "Tus deudas", "Préstamos, hipoteca, tarjetas… con su capital pendiente, cuota e interés."],
-      ["📉", "Curva de cada deuda", "Cómo baja el capital pendiente de cada préstamo con el tiempo."],
-      ["🧮", "Cuota sobre ingresos", "Cuánto de tus ingresos se va en pagar deudas, para ver si vas holgado."],
-      ["📅", "Vencimientos", "Avisos de renovaciones, impuestos, seguros o revisiones, con la antelación que elijas en Configuración."],
+    "panel.deudas": { t: "Deudas y vencimientos", sub: "Lo que debes, cómo baja y lo que vence pronto.", p: [
+      ["💳", "Tus deudas", "Préstamos, hipoteca, tarjetas… con su capital pendiente, cuota mensual e interés. Restan de tu patrimonio neto."],
+      ["📉", "Curva de cada deuda", "Cómo baja el capital pendiente con el tiempo, según los saldos que vas anotando cada mes."],
+      ["🧮", "Cuota sobre ingresos", "Qué parte de tus ingresos se va en pagar deudas: una señal rápida de si vas holgado o ajustado."],
+      ["📅", "Vencimientos", "Avisos de renovaciones, impuestos, seguros o revisiones. Se calculan con la fecha de vencimiento de cada cosa y los «días de aviso» que fijes en Configuración."],
     ] },
-    "panel.fiscal": { t: "Informe fiscal", sub: "Lo que has realizado cada año.", p: [
-      ["🧾", "Resumen del año", "Ventas, transmisiones y plusvalías o minusvalías que has realizado en el ejercicio."],
-      ["📅", "Elige el año", "Cambia de ejercicio para ver cada uno por separado."],
-      ["⚠️", "Solo informativo", "Es una ayuda para hacerte una idea, no asesoramiento fiscal. Contrástalo siempre con tu asesor o con los datos oficiales."],
+    "panel.fiscal": { t: "Informe fiscal", sub: "Lo que has realizado (vendido) cada año.", p: [
+      ["🧾", "Resumen del año", "Tus ventas y transmisiones del ejercicio y las plusvalías o minusvalías realizadas, calculadas por orden de compra (FIFO: se venden antes las participaciones más antiguas)."],
+      ["📅", "Elige el año", "Cambia de ejercicio para revisar cada uno por separado."],
+      ["⚠️", "Solo informativo", "Es una ayuda para hacerte una idea, no asesoramiento ni un cálculo fiscal oficial. Contrástalo siempre con tu asesor o con los datos de tu banco/bróker."],
     ] },
     "panel.producto": { t: "Ficha de un componente", sub: "Todo sobre un activo concreto.", p: [
-      ["🔎", "Sus números", "Valor actual, lo aportado, plusvalía, rentabilidad y TIR de ese activo."],
-      ["📈", "Su evolución", "El precio y el valor del activo en el tiempo, con tus aportaciones marcadas."],
-      ["🧾", "Aportaciones", "La lista de compras/aportaciones; pulsa una fila para ir al movimiento que la originó en «Saldos y movimientos»."],
-      ["🧩", "Exposición y detalle", "Dónde encaja dentro de tu cartera y el desglose de su coste."],
+      ["🔎", "Sus números", "Valor de hoy, lo aportado, plusvalía, rentabilidad y TIR solo de ese activo."],
+      ["📈", "Su evolución", "El precio y el valor del activo en el tiempo, con tus aportaciones marcadas sobre la curva."],
+      ["🧾", "Aportaciones o saldos", "Si cotiza, la lista de compras (pulsa una fila para ir a ese movimiento). Si se valora a mano, tus saldos anotados y un botón para anotar uno nuevo."],
+      ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. Para volver, usa «← Volver a Distribución»."],
     ] },
 
-    "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que suma a tu patrimonio.", p: [
-      ["➕", "Añade cualquier cosa que suma", "Fondos, acciones, cripto, cuentas, planes de pensiones, inmuebles…"],
-      ["🔗", "Con cotización", "Para fondos, acciones o cripto pones su código (Yahoo, Morningstar, CoinGecko) y el panel baja el precio solo."],
-      ["✍️", "A mano", "Para efectivo, un inmueble o cualquier cosa sin cotización, anotas tú su saldo o su valoración cada tanto."],
-      ["📇", "Desde su ficha", "Al entrar en cada activo anotas sus compras o su saldo en «Saldos y movimientos»."],
+    "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que suma a tu patrimonio. La base de casi todo lo demás.", p: [
+      ["➕", "Añade cualquier cosa que suma", "Fondos, acciones, cripto, cuentas, depósitos, planes de pensiones, inmuebles… Cada uno con su nombre, tipo, titular y color."],
+      ["🔗", "Con cotización (precio automático)", "Para fondos, acciones o cripto eliges la fuente (Morningstar, Yahoo Finance o CoinGecko) y pones su código/ISIN: la app baja el precio sola y lo actualiza con «Actualizar precios»."],
+      ["✍️", "A mano", "Para efectivo, un inmueble o cualquier cosa sin precio en internet, eliges «Valor anotado a mano» y eres tú quien apunta su saldo cada tanto (una vez al mes basta)."],
+      ["🏷️", "Clasifícalo bien", "El tipo, la entidad, la clase de activo y las dimensiones que le asignes (p. ej. Geografía = Europa) son lo que luego te deja agrupar y filtrar en Distribución. Las dimensiones se crean en Configuración."],
+      ["👆", "«N movs./valores»", "La columna de datos es un enlace: púlsala para ir a los movimientos o saldos de ese activo, ya filtrados."],
     ] },
-    "datos.deudas": { t: "Mis datos · Deudas", sub: "Préstamos, hipoteca, tarjetas…", p: [
-      ["💳", "Añade tus deudas", "Con su tipo, titular, cuota, interés y vencimiento (estos dos últimos alimentan los avisos)."],
-      ["🧮", "El capital pendiente", "Lo que debes de verdad lo anotas cada mes en «Saldos y movimientos» (es el saldo de la deuda)."],
-      ["📉", "En el panel", "Aparecen en «Deudas y vencimientos» y restan de tu patrimonio neto."],
+    "datos.deudas": { t: "Mis datos · Deudas", sub: "Préstamos, hipoteca, tarjetas… lo que resta.", p: [
+      ["💳", "Añade tus deudas", "Con su tipo, titular, cuota mensual, interés y fecha de vencimiento. La cuota y el vencimiento alimentan los avisos y el ratio «cuota sobre ingresos»."],
+      ["🧮", "El capital pendiente", "Lo que debes de verdad no se calcula solo: lo anotas cada mes como un saldo en «Saldos y movimientos» (igual que una cuenta, pero en negativo)."],
+      ["📉", "En el panel", "Aparecen en «Deudas y vencimientos», dibujan su curva de amortización y restan de tu patrimonio neto."],
     ] },
-    "datos.apartados": { t: "Mis datos · Reservados", sub: "Dinero que reservas para un fin.", p: [
-      ["🗂️", "Qué es un reservado", "Dinero que separas para algo concreto (impuestos, un viaje, imprevistos). No desaparece de tu patrimonio."],
-      ["🧮", "Efecto en el panel", "Se descuenta del «dinero libre para invertir», para que no cuentes dos veces lo que ya tiene dueño."],
-      ["👤", "Por titular", "Puedes asignar cada reservado a un titular del hogar."],
+    "datos.apartados": { t: "Mis datos · Reservados", sub: "Dinero que ya tiene dueño: lo apartas para un fin.", p: [
+      ["🗂️", "Qué es un reservado", "Dinero de tus cuentas que mentalmente ya está comprometido: la declaración de la renta, un viaje, el cambio de coche, un fondo de imprevistos… Sigue siendo tuyo y suma a tu patrimonio."],
+      ["🧮", "Para qué sirve", "Se descuenta del «dinero libre para invertir» del panel, para que no inviertas por error un dinero que ya tiene destino. Puedes ponerle finalidad, fecha prevista de uso y una nota."],
+      ["👤", "Por titular", "Puedes asignar cada reservado a un titular del hogar (o dejarlo común)."],
     ] },
-    "datos.flujos": { t: "Mis datos · Ingresos y gastos", sub: "Anota lo que entra y lo que sale.", p: [
-      ["✍️", "Apunta tus movimientos", "Nómina, alquiler, la compra, recibos… con fecha, importe, categoría y titular."],
-      ["⚡", "Anotar rápido", "Un apunte en segundos desde el formulario de arriba."],
-      ["🏷️", "Categorías", "Clasifica para ver en qué se te va el dinero (y ponles presupuesto en Configuración)."],
-      ["🔁", "Recurrentes", "Apuntes que se repiten (nómina, suscripciones) para no teclearlos cada mes."],
-      ["🏦", "Importar del banco", "Trae tus gastos de golpe desde «Importar»."],
-      ["📎", "Facturas", "Adjunta el ticket o la factura a cualquier apunte."],
+    "datos.flujos": { t: "Mis datos · Ingresos y gastos", sub: "El flujo de caja del hogar: lo que entra y lo que sale.", p: [
+      ["✍️", "Apunta tus movimientos", "Nómina, alquiler, la compra, recibos… con fecha, importe, categoría y titular. Es lo que alimenta todo el panel de «Ingresos y gastos»."],
+      ["⚡", "Anotar rápido", "La barra de arriba crea un apunte en segundos. Si marcas «recurrente», lo guarda como plantilla para repetirlo con un clic el mes que viene."],
+      ["🏷️", "Categorías y titular por defecto", "La categoría la eliges de las que defines en Configuración (y así ves «en qué se va» y controlas presupuestos). Si tienes varios titulares, el «titular por defecto» de Configuración es el que se rellena solo al anotar."],
+      ["🔖", "Marcas, notas y facturas", "Marca un apunte (🚩⭐❗…) para revisarlo luego, añádele una observación o adjúntale la factura/ticket (imagen o PDF)."],
+      ["🏦", "Importar en vez de teclear", "Si tienes muchos movimientos, no los teclees: tráelos del banco desde «Importar». Con las reglas y categorías bien puestas, llegan ya clasificados."],
+      ["🔎", "Filtra y busca", "Arriba tienes filtros por tipo, categoría, titular, entidad, importe y fechas, más un buscador de texto. Pulsa una categoría del panel y llegas aquí ya filtrado."],
     ] },
-    "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus datos.", p: [
-      ["📘", "Dónde se anota todo", "Aquí registras los movimientos (compras, ventas, aportaciones) y los saldos o valoraciones de cada producto."],
-      ["🧾", "Compra y venta", "Para productos con cotización: unidades y precio. El panel calcula coste medio, plusvalía y TIR."],
-      ["💶", "Saldo o valoración", "Para efectivo, inmuebles o deudas: anotas su valor (o el capital pendiente) en una fecha."],
-      ["🎯", "Resaltado", "Si llegas aquí pulsando algo del panel, se resalta el flujo, movimiento o saldo concreto."],
+    "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus inversiones: aquí se registra lo que compras y lo que vale.", p: [
+      ["🧾", "Movimientos (productos que cotizan)", "Compra, venta, dividendo o comisión, con unidades e importe. Con eso el panel calcula tu coste medio por orden de compra (FIFO), la plusvalía y la TIR de cada producto."],
+      ["💶", "Saldos (productos a mano)", "Para cuentas, efectivo, inmuebles o deudas no hay operaciones: anotas su valor en una fecha. Cuanto más a menudo lo hagas (una vez al mes vale), mejor sale su curva."],
+      ["📅", "Cierre del mes", "El botón «Cierre del mes» te deja anotar de golpe el saldo de todas tus cuentas, depósitos, planes y deudas. El gesto de cada mes para tenerlo todo al día."],
+      ["🔎", "Filtros potentes", "Filtra los movimientos por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas. Al llegar desde la Distribución, el grupo viene ya filtrado."],
+      ["🎯", "Resaltado", "Si llegas aquí pulsando una aportación o un saldo del panel, esa fila concreta queda resaltada hasta que elijas otra."],
     ] },
-    "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas.", p: [
-      ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto."],
-      ["📎", "Imágenes o PDF", "Se guardan en tu carpeta «facturas» con nombres descriptivos (fecha, importe, concepto)."],
-      ["💻", "En tu ordenador", "Como todo en Liberty, no sale de tu equipo."],
+    "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas, unidos a tus apuntes.", p: [
+      ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto, para tener el justificante a mano cuando lo necesites."],
+      ["📎", "Imágenes o PDF", "Se guardan en tu carpeta «facturas» con un nombre descriptivo (fecha, importe, concepto), así las encuentras también desde el explorador de tu ordenador."],
+      ["💻", "En tu ordenador", "Como todo en Liberty, no salen de tu equipo. Entran en la copia .zip."],
     ] },
-    "datos.config": { t: "Mis datos · Configuración", sub: "Ajusta cómo calcula y clasifica el panel.", p: [
-      ["🏠", "Hogar", "Titulares, colchón de seguridad y tu objetivo de patrimonio."],
-      ["🎯", "Asignación y concentración", "Objetivos de reparto (para el rebalanceo) y umbrales para avisarte si te concentras demasiado."],
-      ["🏷️", "Categorías y dimensiones", "Categorías de gasto con presupuesto y tus propias dimensiones para clasificar los activos."],
-      ["📈", "Inflación, monedas y avisos", "La inflación de referencia, tus monedas y con cuántos días de antelación avisar de los vencimientos."],
-      ["🗂️", "Papelera de archivos", "Cuántos archivos borrados conservar por si te arrepientes."],
+    "datos.config": { t: "Mis datos · Configuración", sub: "El cerebro de la app: aquí defines cómo calcula, clasifica y te avisa. Dedicarle un rato hace que todo lo demás funcione mejor.", p: [
+      ["🏠", "Hogar y titulares", "Los titulares son las personas del hogar (tú, tu pareja, «Común»…). El «titular por defecto» es el que se rellena solo al anotar un ingreso o gasto, para no elegirlo cada vez: ponlo en quien más apunta."],
+      ["🎯", "Objetivo y colchón", "El objetivo de patrimonio es la meta que ves en Inicio y Patrimonio. El colchón es la liquidez mínima que quieres tener siempre: se resta del «dinero libre para invertir» para que no lo toques."],
+      ["⚖️", "Objetivos de asignación y concentración", "Define qué % quieres en cada tipo de activo (p. ej. 60/30/10) y la app te dirá en Distribución qué mover para rebalancear. El umbral de concentración te avisa si un tipo o una entidad pesa demasiado."],
+      ["🏷️", "Categorías (y presupuesto)", "Son las etiquetas de tus ingresos y gastos (Alimentación, Nómina, Ocio…). Alimentan el desplegable al anotar y el análisis «en qué se va». Si a una categoría de gasto le pones presupuesto, el panel te dice cuánto te desvías cada mes. Hace falta tenerlas creadas para que las reglas del banco funcionen."],
+      ["🤖", "Reglas para el banco", "Al importar del banco, estas reglas clasifican solas tus movimientos: «si el concepto contiene MERCADONA → Alimentación». Se crean a mano aquí, o se aprenden solas marcando «recordar mis correcciones» en la vista previa de Importar. Bien puestas, te ahorran clasificar a mano cada mes."],
+      ["📐", "Dimensiones de clasificación", "Ejes propios para mirar tu cartera como tú quieras, más allá de Tipo y Entidad. Creas una dimensión (p. ej. «Geografía» con valores Europa, EE. UU., Global; o «Riesgo»; o «Gestora») y luego la asignas a cada activo. Después agrupas y filtras por ella en Distribución y Evolución. También hay dimensiones para los ingresos y gastos."],
+      ["📈", "Inflación y monedas", "La inflación de referencia dibuja la línea «a batir» en Evolución. Las monedas te dejan fijar un cambio manual (p. ej. USD→EUR) para valorar en euros un activo o una cuenta en otra divisa."],
+      ["🔔", "Avisos y recordatorios", "Activa o silencia cada aviso automático (concentración, vencimientos, deudas…) y elige con cuántos días de antelación avisar de un vencimiento, o tras cuántos días sin anotar/sin actualizar precios recordártelo."],
+      ["🧩", "Tipos propios, marcas y entidades", "Crea tus propios tipos de activo (u oculta los de serie), define las marcas (🚩⭐❗) para tus apuntes y la lista de entidades/bancos que usas para clasificar."],
     ] },
-    "datos.importar": { t: "Mis datos · Importar", sub: "Trae tus datos de golpe.", p: [
-      ["🏦", "Varias fuentes", "El CSV de tu banco, el export de MyInvestor o una tabla que pegues (p. ej. de una IA)."],
-      ["👀", "Vista previa", "Antes de guardar nada ves qué se va a importar y puedes corregir las categorías."],
-      ["🧠", "Aprende reglas", "Recuerda cómo categorizas para acertar más la próxima vez."],
+    "datos.importar": { t: "Mis datos · Importar", sub: "Trae tus datos de golpe en vez de teclearlos uno a uno.", p: [
+      ["🎯", "Dos destinos", "Arriba eliges si importas inversiones (a «Activos»: compras, ventas, dividendos) o movimientos de gasto (al «banco»: tus ingresos y gastos del hogar)."],
+      ["🏦", "Tres formas de traerlos", "El CSV de MyInvestor (un archivo por fondo), una plantilla de Excel/CSV que rellenas tú, o «Con ayuda de una IA»: copias un prompt, se lo das a ChatGPT/Gemini junto a tu extracto o capturas, y pegas aquí su respuesta."],
+      ["👀", "Siempre con vista previa", "Nunca se guarda nada sin que lo veas antes: revisas fila a fila qué va a entrar y, en gastos, corriges la categoría de lo que no haya acertado."],
+      ["🧠", "Aprende de ti", "Si marcas «recordar mis correcciones», cada categoría que arregles se convierte en una regla del banco (en Configuración) y la próxima importación llegará ya clasificada. Por eso conviene tener antes tus categorías creadas."],
+      ["🔒", "Privacidad", "Si usas una IA externa, borra o tapa antes tu nombre, DNI, IBAN y números de cuenta: solo necesita las fechas, conceptos e importes."],
     ] },
-    "datos.copias": { t: "Mis datos · Copias de seguridad", sub: "Guarda y recupera todo.", p: [
-      ["💾", "Descarga una copia", "El .zip lo lleva todo (datos + facturas + archivos); el .json es más ligero, solo los datos."],
-      ["♻️", "Recupera", "Restaura una copia al cambiar de ordenador o si algo va mal."],
-      ["🔒", "Tuya y local", "La copia la guardas tú donde quieras; Liberty no la sube a ningún sitio."],
-    ] },
-
-    "doc.lista": { t: "Documentos · Lista de notas", sub: "Tus apuntes sueltos.", p: [
-      ["📝", "Notas con etiquetas", "Escribe lo que quieras recordar y clasifícalo con etiquetas."],
-      ["✅", "Tareas", "Una nota puede llevar tareas con casillas."],
-      ["🔗", "Vincula", "Enlaza una nota a un producto o a un apunte para tenerlo a mano."],
-      ["🔎", "Ordena y filtra", "Por fecha o por etiqueta."],
-    ] },
-    "doc.tablero": { t: "Documentos · Tablero", sub: "Organiza pendientes tipo Trello.", p: [
-      ["📋", "Columnas y tarjetas", "Crea columnas y arrastra tarjetas entre ellas."],
-      ["🧹", "Para el papeleo", "Ideal para gestiones, decisiones o cosas que revisar."],
-    ] },
-    "doc.agenda": { t: "Documentos · Agenda", sub: "Tu calendario de recordatorios.", p: [
-      ["🗓️", "Calendario", "Tus vencimientos y recordatorios sobre un mes."],
-      ["🔔", "Lo que vence pronto", "Resalta para que no se te pase."],
-    ] },
-    "doc.biblioteca": { t: "Documentos · Archivos", sub: "Un explorador para tus documentos.", p: [
-      ["🗂️", "Guarda lo importante", "Declaraciones, escrituras, contratos, pólizas… en carpetas anidadas."],
-      ["📁", "Sube carpetas enteras", "Puedes arrastrar una carpeta completa y recrea su estructura."],
-      ["🗑️", "Papelera", "Lo que borras pasa a una papelera por si quieres recuperarlo."],
-      ["💻", "En tu ordenador", "Todo se guarda en tu equipo, nunca en la nube."],
+    "datos.copias": { t: "Mis datos · Copias de seguridad", sub: "Tus datos son tuyos: guárdalos y recupéralos cuando quieras.", p: [
+      ["💾", "Dos formatos", "El .zip lo lleva TODO (tus datos, las facturas y los archivos de tu biblioteca); el .json es más ligero pero solo los datos. Para mudarte de ordenador sin perder nada, usa el .zip."],
+      ["♻️", "Recuperar o empezar de cero", "Puedes restaurar una copia sobre tu patrimonio actual, o crear uno nuevo a partir de ella sin tocar el que tienes."],
+      ["↩️", "Deshacer", "La app guarda copias automáticas al cambiar cosas, así que casi siempre puedes volver atrás si te equivocas."],
+      ["🔒", "Tuya y local", "La copia la guardas tú donde quieras (un USB, la nube que tú elijas…). Liberty nunca la sube a ningún sitio."],
     ] },
 
-    "ajustes": { t: "Ajustes", sub: "Personaliza la app a tu gusto.", p: [
-      ["🎨", "Aspecto", "Tema claro, oscuro o automático, y tamaño del texto para leer mejor."],
-      ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades, para enseñar la pantalla sin revelar tu dinero."],
-      ["🖥️", "Vista amplia y Modo vídeo", "Filas y botones más grandes, y pantalla completa para presentar o grabar (tecla V)."],
-      ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (la que estás usando ahora)."],
-      ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios."],
+    "doc.lista": { t: "Documentos · Lista de notas", sub: "Un bloc de notas para tu patrimonio.", p: [
+      ["📝", "Notas con etiquetas", "Apunta lo que quieras recordar (una idea, el teléfono de tu asesor, por qué compraste algo) y clasifícalo con etiquetas."],
+      ["✅", "Tareas", "Una nota puede llevar una lista de tareas con casillas, para no olvidar gestiones."],
+      ["🔗", "Vincula a un activo o apunte", "Enlaza una nota a un producto, deuda o apunte: luego verás un 📝 junto a ese elemento en el resto de la app."],
+      ["🔎", "Ordena y filtra", "Por fecha o por etiqueta, y fija arriba las más importantes."],
+    ] },
+    "doc.tablero": { t: "Documentos · Tablero", sub: "Un tablero tipo Trello para tus pendientes.", p: [
+      ["📋", "Columnas y tarjetas", "Crea columnas (p. ej. Por hacer · Haciendo · Hecho) y arrastra tarjetas entre ellas."],
+      ["🧹", "Para el papeleo", "Ideal para gestiones del hogar, decisiones de inversión pendientes o cosas que revisar con calma."],
+    ] },
+    "doc.agenda": { t: "Documentos · Agenda", sub: "El calendario de tu patrimonio.", p: [
+      ["🗓️", "Calendario", "Tus vencimientos y recordatorios colocados sobre el mes, para verlos de un vistazo."],
+      ["🔔", "Lo que vence pronto", "Lo cercano resalta para que no se te pase (renovaciones, impuestos, revisiones…)."],
+    ] },
+    "doc.biblioteca": { t: "Documentos · Archivos", sub: "Un explorador para guardar tus documentos importantes.", p: [
+      ["🗂️", "Guarda lo importante", "Declaraciones, escrituras, contratos, pólizas, nóminas… en carpetas anidadas, como en el explorador de tu ordenador."],
+      ["📁", "Sube carpetas enteras", "Arrastra una carpeta completa y recrea su estructura. Puedes crear, mover, copiar y renombrar."],
+      ["🗑️", "Papelera", "Lo que borras pasa a una papelera (su tamaño se ajusta en Configuración), por si quieres recuperarlo."],
+      ["💻", "En tu ordenador", "Todo se guarda en tu equipo, nunca en la nube, y entra en la copia .zip."],
+    ] },
+
+    "ajustes": { t: "Ajustes", sub: "Cómo se ve la app. Se guarda en este navegador y no afecta a tus datos.", p: [
+      ["🎨", "Aspecto", "Tema claro, oscuro o automático (según tu sistema) y tamaño del texto, hasta muy grande, para leer cómodo."],
+      ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades: así puedes enseñar la pantalla o compartir una captura sin revelar tu dinero."],
+      ["🖥️", "Vista amplia y Modo vídeo", "Vista amplia agranda filas y botones (mejor para tocar). Modo vídeo pone la app a pantalla completa para presentar o grabar (también con la tecla V)."],
+      ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (esta misma). Déjalos si estás empezando; ocúltalos cuando ya te manejes."],
+      ["🏁", "Pantalla de inicio", "Elige qué se abre al arrancar: la última pantalla que usaste o siempre el Panel."],
+      ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios. Si lo activas, mira de vez en cuando si hay versión nueva (nunca envía tus datos)."],
     ] },
   };
 
