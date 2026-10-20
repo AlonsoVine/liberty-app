@@ -2712,13 +2712,12 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.12.0",
+    version: "1.13.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["📝", "Notas mucho más potentes", "Ahora una nota puede enlazar varios activos y varios documentos —o una carpeta entera de Archivos—, llevar un color, y navegar de un clic al activo o a la carpeta relacionados. Botones de editar, duplicar y borrar como en el resto de la app, y el «pin» de fijar también dentro del formulario."],
-      ["🗓️", "Agenda más navegable", "Los vencimientos (depósitos, deudas, reservados) y las tarjetas del tablero te llevan a su ficha con el registro ya seleccionado. Los recordatorios se editan desde la lista y el calendario."],
-      ["🔎", "Filtro «Sin categoría»", "En Ingresos y gastos puedes filtrar de golpe los apuntes a los que no les has puesto categoría."],
-      ["📊", "Tablas más cómodas", "La tabla de Ingresos y gastos se queda con las cabeceras fijas y scroll (como Saldos y movimientos), y todas muestran un contador discreto de registros al pie."],
+      ["📓", "Cuadernos para agrupar notas", "Nueva pestaña «Cuadernos» junto a «Lista de notas»: crea cuadernos (p. ej. «Histórico Hacienda») y envía una nota a un cuaderno cuando quieras archivarla, desde su tarjeta, al editarla o al abrirla. En Configuración → Documentos eliges si la lista enseña solo las notas sueltas o todas."],
+      ["🔎", "Nota a pantalla completa", "Las tarjetas de nota ahora adelantan unas líneas; al pulsarlas se abren en grande, con todo el texto, el checklist y los enlaces a activos y documentos. Pulsa fuera para volver."],
+      ["🗓️", "Agenda más clara", "Los recordatorios de la lista estrenan iconos de editar y borrar, y en el calendario el recordatorio de un día se resalta al pasar el ratón para que se vea que puedes editarlo."],
     ],
   };
   function quizaNovedades() {

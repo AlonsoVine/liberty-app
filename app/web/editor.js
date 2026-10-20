@@ -835,6 +835,7 @@
         <button type="button" class="cfgTab activa" data-cfg="general">🏠 General del hogar</button>
         <button type="button" class="cfgTab" data-cfg="activos">📈 Activos e inversiones</button>
         <button type="button" class="cfgTab" data-cfg="flujos">💶 Ingresos y gastos</button>
+        <button type="button" class="cfgTab" data-cfg="documentos">📄 Documentos</button>
       </div>
 
       <div class="cfgPanel" data-cfgp="general">
@@ -855,11 +856,6 @@
         ${seccion("Avisos automáticos")}
         <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
         <div class="rejilla">${avisosHTML}</div>
-        ${seccion("Archivos")}
-        <div class="rejilla">
-          ${campo("Papelera de archivos", '<input name="papeleraMax" inputmode="numeric" placeholder="5">', "últimos borrados que se guardan")}
-        </div>
-        <p class="ayuda">En el Explorador de archivos, los archivos borrados se guardan en una papelera por si quieres recuperarlos. Aquí eliges cuántos conservar (0 = borrado directo, sin papelera).</p>
         ${seccion("Privacidad")}
         <div class="rejilla">
           <label class="interruptor ancho"><input type="checkbox" name="buscarActualizaciones"><span class="pista"></span>
@@ -939,6 +935,21 @@
           ${campo("Avisar si no anoto nada", '<input name="diasSinAnotar" inputmode="numeric" placeholder="30">', "días sin registrar ingresos/gastos")}
         </div>
         <p class="ayuda">La app te recuerda que lleves al día tus ingresos y gastos si pasan estos días sin anotar ninguno. Déjalo vacío para no recibir el aviso.</p>
+      </div>
+
+      <div class="cfgPanel" data-cfgp="documentos" hidden>
+        ${seccion("Notas y cuadernos")}
+        <div class="rejilla">
+          ${campo("La «Lista de notas» muestra", `<select name="docNotasMuestra">
+            <option value="sueltas">Solo las notas sueltas (las de un cuaderno se ven en «Cuadernos»)</option>
+            <option value="todas">Todas las notas (las de un cuaderno llevan su chip)</option></select>`, "", "ancho")}
+        </div>
+        <p class="ayuda">Puedes agrupar notas en <b>cuadernos</b> (p. ej. «Histórico Hacienda») y «enviar» una nota a un cuaderno cuando quieras archivarla. Aquí eliges si la pestaña «Lista de notas» enseña solo las notas sueltas o también las que ya están en un cuaderno.</p>
+        ${seccion("Archivos")}
+        <div class="rejilla">
+          ${campo("Papelera de archivos", '<input name="papeleraMax" inputmode="numeric" placeholder="5">', "últimos borrados que se guardan")}
+        </div>
+        <p class="ayuda">En el Explorador de archivos, los archivos borrados se guardan en una papelera por si quieres recuperarlos. Aquí eliges cuántos conservar (0 = borrado directo, sin papelera).</p>
       </div>`,
     async f => {
       const d = campos(f);
@@ -1004,6 +1015,7 @@
         diasSinAnotar: d.diasSinAnotar,
         diasSinActualizar: d.diasSinActualizar,
         papeleraMax: d.papeleraMax,
+        docNotasMuestra: d.docNotasMuestra,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
         entidades, dimensionesFlujos,
@@ -1028,6 +1040,7 @@
     f.elements.diasSinAnotar.value = conf.diasSinAnotar != null ? conf.diasSinAnotar : "";
     f.elements.diasSinActualizar.value = conf.diasSinActualizar != null ? conf.diasSinActualizar : "";
     if (f.elements.papeleraMax) f.elements.papeleraMax.value = conf.papeleraMax != null ? conf.papeleraMax : 5;
+    if (f.elements.docNotasMuestra) f.elements.docNotasMuestra.value = conf.docNotasMuestra || "sueltas";
     f.elements.buscarActualizaciones.checked = !!conf.buscarActualizaciones;
     Object.entries(obj).forEach(([clave, frac]) => {
       const el = f.elements["obj_" + clave];
@@ -2474,6 +2487,12 @@
     const j = await api("POST", "api/recordatorios", { recordatorios });
     E.cfg = j.cartera; pintarNotas();
   }
+  async function guardaCuadernos(cuadernos) {
+    const j = await api("POST", "api/cuadernos", { cuadernos });
+    E.cfg = j.cartera; pintarNotas();
+  }
+  function cuadernosLista() { return (E.cfg && E.cfg.cuadernos) || []; }
+  function cuadernoDe(id) { return cuadernosLista().find(c => c.id === id) || null; }
   // Días desde hoy hasta una fecha ISO (negativo = ya pasó).
   function diasHasta(iso) {
     const h = new Date(); h.setHours(0, 0, 0, 0);
@@ -2530,6 +2549,15 @@
   function notaAccBtn(tipo, acc, id) {
     return `<button class="accIco" data-nacc="${esc(acc)}" data-id="${esc(id)}" title="${_TIT_ACC[tipo]}" aria-label="${_TIT_ACC[tipo]}">${_ICO_ACC[tipo]}</button>`;
   }
+  // Icono de acción con un data-* propio (para el editor de cuadernos: data-cuadren/cuaddel).
+  function notaAccBtn2(tipo, attr, id) {
+    return `<button class="accIco" data-${esc(attr)}="${esc(id)}" title="${_TIT_ACC[tipo]}" aria-label="${_TIT_ACC[tipo]}">${_ICO_ACC[tipo]}</button>`;
+  }
+  // Icono «enviar a un cuaderno» (un cuaderno/libreta).
+  const _ICO_CUAD = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
+  function notaCuadBtn(id) {
+    return `<button class="accIco" data-nacc="enviacuad" data-id="${esc(id)}" title="Enviar a un cuaderno" aria-label="Enviar a un cuaderno">${_ICO_CUAD}</button>`;
+  }
   // Opciones del selector para adjuntar un archivo o una carpeta a una nota.
   function opcionesArchivosNota() {
     const { carpetas, archivos } = bibData();
@@ -2571,12 +2599,15 @@
     if (!f) return `<span class="notaChipA roto" title="Archivo no encontrado">📎 (borrado)</span>`;
     return `<a class="notaChipA" href="api/biblioteca/archivo/${esc(f.id)}" target="_blank" rel="noopener" title="Abrir «${esc(f.nombre)}»">${bibIcono(f)} ${esc(f.nombre)}</a>`;
   }
-  function formNota(n) {
+  function formNota(n, pre) {
     const nuevo = !n; n = n || {};
+    pre = pre || {};
     let color = COLORES_NOTA.includes(n.color) ? n.color : "";
     let fijada = !!n.fijada;
     const vincs = notaVinculos(n);
     const archivos = (n.archivos || []).slice();
+    const cuads = cuadernosLista();
+    const cuadSel = nuevo ? (pre.cuaderno || "") : (n.cuaderno || "");
     const f = abreModal(nuevo ? "Nueva nota" : "Editar nota", `
       <div class="rejilla notaForm">
         <label class="campo ancho">
@@ -2603,6 +2634,7 @@
             <button type="button" class="btn mini" data-aadd>+ Adjuntar</button>
           </div></div>
         ${campo("Etiquetas", '<input name="etiquetas" placeholder="casa, urgente, revisar">', "sepáralas por comas", "ancho")}
+        ${campo("Cuaderno", `<select name="cuaderno"><option value="">— Ninguno (nota suelta) —</option>${cuads.map(c => `<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join("")}</select>`, "agrúpala en un cuaderno", "ancho")}
       </div>`,
     async f => {
       const d = campos(f);
@@ -2611,14 +2643,16 @@
       if (color) comun.color = color;
       if (vincs.length) comun.vinculos = vincs.slice();
       if (archivos.length) comun.archivos = archivos.slice();
+      if (d.cuaderno) comun.cuaderno = d.cuaderno;
       const notas = (E.cfg.notas || []).slice();
       if (nuevo) notas.push({ id: "n" + Date.now(), fecha: hoy(), ...comun });
       else {
         const i = notas.findIndex(x => x.id === n.id);
-        if (i >= 0) { const { vinculo: _v, vinculos: _vs, archivos: _a, color: _c, ...resto } = notas[i]; notas[i] = { ...resto, ...comun }; }
+        if (i >= 0) { const { vinculo: _v, vinculos: _vs, archivos: _a, color: _c, cuaderno: _cu, ...resto } = notas[i]; notas[i] = { ...resto, ...comun }; }
       }
       await guardaNotas(notas);
     }, "Guardar");
+    if (f.elements.cuaderno) f.elements.cuaderno.value = cuadSel;
     f.elements.titulo.value = n.titulo || "";
     f.elements.texto.value = n.texto || "";
     f.elements.etiquetas.value = (n.etiquetas || []).join(", ");
@@ -2672,14 +2706,100 @@
       return `<div class="notaLn">${esc(ln) || "&nbsp;"}</div>`;
     }).join("");
   }
-  function montaNotasLista() {
+  // Enviar una nota a un cuaderno (o sacarla). Un selector sencillo.
+  function enviaACuaderno(id) {
+    const n = (E.cfg.notas || []).find(x => x.id === id); if (!n) return;
+    const cs = cuadernosLista();
+    const opts = `<option value="">— Ninguno (nota suelta) —</option>` +
+      cs.map(c => `<option value="${esc(c.id)}"${n.cuaderno === c.id ? " selected" : ""}>${esc(c.nombre)}</option>`).join("");
+    const f = abreModal("Enviar a un cuaderno", `
+      <div class="campo ancho"><span class="et">Cuaderno</span><select name="cuad">${opts}</select></div>
+      ${cs.length ? "" : '<p class="subt">Aún no tienes cuadernos. Créalos en la pestaña «Cuadernos».</p>'}`,
+    async f => {
+      const d = campos(f);
+      const l = (E.cfg.notas || []).map(x => {
+        if (x.id !== id) return x;
+        const { cuaderno: _c, ...r } = x;
+        return d.cuad ? { ...r, cuaderno: d.cuad } : r;
+      });
+      await guardaNotas(l);
+    }, "Guardar");
+    return f;
+  }
+  // Nota a pantalla completa (lectura): texto en grande, checklist operativo y chips
+  // pulsables. Clic fuera o «Cerrar» vuelve a la lista.
+  function abreNotaModal(id) {
+    const dlg = $("#modal"); if (!dlg) return;
+    const n = (E.cfg.notas || []).find(x => x.id === id); if (!n) return;
+    const vincs = notaVinculos(n);
+    const vincChips = vincs.map(v => `<button type="button" class="notaVinc" data-vgo-tipo="${esc(v.tipo)}" data-vgo-ref="${esc(v.ref)}" title="Ir a ${esc(VINC_ETIQ[v.tipo] || "")} relacionado">🔗 ${esc(nombreVinculo(v))}</button>`).join("");
+    const archChips = (n.archivos || []).map(chipArchivoNota).join("");
+    const tags = (n.etiquetas || []).map(t => `<span class="notaTag estatica">${esc(t)}</span>`).join("");
+    const cu = n.cuaderno && cuadernoDe(n.cuaderno);
+    const ed = n.editada && n.editada !== n.fecha ? ` · editada ${fecha(n.editada)}` : "";
+    const barra = n.color ? ` style="border-top:4px solid var(--${esc(n.color)})"` : "";
+    dlg.innerHTML = `<div class="mForm notaModalG"${barra}>
+        <header><h2>${n.fijada ? "📌 " : ""}${esc(n.titulo || "(sin título)")}</h2>
+          <button type="button" class="x" data-cerrar aria-label="Cerrar">×</button></header>
+        <div class="mCuerpo">
+          <p class="subt" style="margin-top:0">${fecha(n.fecha)}${ed}${cu ? ` · 📓 ${esc(cu.nombre)}` : ""}</p>
+          <div class="notaTxt grande">${notaTextoHTML(n)}</div>
+          ${vincChips ? `<div class="notaMeta notaLinea" style="margin-top:14px">${vincChips}</div>` : ""}
+          ${archChips ? `<div class="notaMeta notaLinea">${archChips}</div>` : ""}
+          ${tags ? `<div class="notaMeta notaLinea">${tags}</div>` : ""}
+        </div>
+        <footer>
+          <button type="button" class="btn" data-m="editar">✎ Editar</button>
+          <button type="button" class="btn" data-m="enviacuad">📓 A cuaderno</button>
+          <button type="button" class="btn" data-m="duplicar">⧉ Duplicar</button>
+          <button type="button" class="btn danger" data-m="borrar">🗑 Borrar</button>
+          <span class="sp"></span><button type="button" class="btn prim" data-cerrar>Cerrar</button>
+        </footer></div>`;
+    const cerrar = () => { try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); } };
+    dlg.querySelectorAll("[data-cerrar]").forEach(b => b.onclick = cerrar);
+    dlg.onclick = e => { if (e.target === dlg) cerrar(); };   // clic en el fondo
+    dlg.querySelectorAll("[data-chk]").forEach(cb => cb.onchange = () => {
+      const notas = (E.cfg.notas || []).slice();
+      const i = notas.findIndex(x => x.id === cb.dataset.chk); if (i < 0) return;
+      const ls = String(notas[i].texto || "").split("\n"); const k = +cb.dataset.ln;
+      ls[k] = ls[k].replace(/\[([ xX])\]/, (mm, c) => c.toLowerCase() === "x" ? "[ ]" : "[x]");
+      notas[i] = { ...notas[i], texto: ls.join("\n"), editada: hoy() };
+      guardaNotas(notas).then(() => abreNotaModal(id));   // refresca el modal
+    });
+    dlg.querySelectorAll("[data-vgo-ref]").forEach(b => b.onclick = () => { cerrar(); window.Editor && window.Editor.irAEntidad(b.dataset.vgoTipo, b.dataset.vgoRef); });
+    dlg.querySelectorAll("[data-afolder]").forEach(b => b.onclick = () => { cerrar(); window.Editor && window.Editor.irACarpeta(b.dataset.afolder); });
+    dlg.querySelector('[data-m="editar"]').onclick = () => { cerrar(); formNota(n); };
+    dlg.querySelector('[data-m="enviacuad"]').onclick = () => { cerrar(); enviaACuaderno(id); };
+    dlg.querySelector('[data-m="duplicar"]').onclick = () => {
+      const { id: _i, ...resto } = n; cerrar();
+      guardaNotas([...(E.cfg.notas || []), { ...resto, id: "n" + Date.now(), titulo: (n.titulo || "Nota") + " (copia)", fijada: false, fecha: hoy(), editada: hoy() }]);
+    };
+    dlg.querySelector('[data-m="borrar"]').onclick = () => {
+      if (confirm(`¿Borrar la nota «${n.titulo || "sin título"}»?`)) { cerrar(); guardaNotas((E.cfg.notas || []).filter(x => x.id !== id)); }
+    };
+    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
+  }
+  // Lista de notas. scope.cuaderno = ver las de un cuaderno concreto (con «← volver»);
+  // sin scope = la pestaña «Lista de notas» (muestra sueltas o todas, según Configuración).
+  function montaNotasLista(scope) {
     const cont = $("#notasCuerpo"); if (!cont) return;
+    scope = scope || {};
+    const cuadId = scope.cuaderno || "";
+    const cuad = cuadId ? cuadernoDe(cuadId) : null;
+    const muestra = ((E.cfg.config || {}).docNotasMuestra) || "sueltas";
+    const cuadIds = new Set(cuadernosLista().map(c => c.id));
+    const enCuaderno = n => n.cuaderno && cuadIds.has(n.cuaderno);
+    const verChipCuad = !cuadId && muestra === "todas";
     const busca = (E.notaBusca || "").trim().toLowerCase();
     const tagSel = E.notaTag || "";
     const orden = E.notaOrden || "fecha";
-    const tagsTodas = [...new Set((E.cfg.notas || []).flatMap(n => n.etiquetas || []))].sort((a, b) => a.localeCompare(b));
     const vincRef = E.notaVincRef || "";
-    let notas = (E.cfg.notas || []).slice();
+    // Conjunto base según el ámbito.
+    let base = (E.cfg.notas || []).slice();
+    if (cuadId) base = base.filter(n => n.cuaderno === cuadId);
+    else if (muestra !== "todas") base = base.filter(n => !enCuaderno(n));   // lista = solo sueltas
+    const tagsTodas = [...new Set(base.flatMap(n => n.etiquetas || []))].sort((a, b) => a.localeCompare(b));
+    let notas = base.slice();
     if (vincRef) notas = notas.filter(n => notaVinculos(n).some(v => v.ref === vincRef));
     if (busca) notas = notas.filter(n => ((n.titulo || "") + " " + (n.texto || "") + " " + (n.etiquetas || []).join(" ")).toLowerCase().includes(busca));
     if (tagSel) notas = notas.filter(n => (n.etiquetas || []).includes(tagSel));
@@ -2693,20 +2813,23 @@
       const vincs = notaVinculos(n);
       const vincChips = vincs.map(v => `<button type="button" class="notaVinc" data-vgo-tipo="${esc(v.tipo)}" data-vgo-ref="${esc(v.ref)}" title="Ir a ${esc(VINC_ETIQ[v.tipo] || "")} relacionado">🔗 ${esc(nombreVinculo(v))}</button>`).join("");
       const archChips = (n.archivos || []).map(chipArchivoNota).join("");
+      const cu = verChipCuad && enCuaderno(n) ? cuadernoDe(n.cuaderno) : null;
+      const cuadChip = cu ? `<div class="notaMeta notaLinea"><button type="button" class="notaCuadChip" data-ircuad="${esc(n.cuaderno)}" title="Abrir el cuaderno">📓 ${esc(cu.nombre)}</button></div>` : "";
       const ed = n.editada && n.editada !== n.fecha ? ` · editada ${fecha(n.editada)}` : "";
       // Chips en líneas separadas por concepto: activos / documentos / etiquetas.
       const borde = n.color ? ` style="border-left:4px solid var(--${esc(n.color)})"` : "";
       return `<div class="notaCard${n.fijada ? " fijada" : ""}${n.color ? " conColor" : ""}"${borde}>
-        <div class="notaCabe"><div class="notaTit">${esc(n.titulo || "(sin título)")}</div>
+        <div class="notaCabe"><div class="notaTit" data-nabrir="${esc(n.id)}" title="Ver la nota">${esc(n.titulo || "(sin título)")}</div>
           <button class="notaPin${n.fijada ? " on" : ""}" data-nacc="fijar" data-id="${esc(n.id)}" title="${n.fijada ? "Dejar de fijar" : "Fijar arriba"}" aria-label="Fijar">📌</button></div>
-        <div class="notaTxt">${notaTextoHTML(n)}</div>
+        <div class="notaTxt recortada" data-nabrir="${esc(n.id)}" title="Ver la nota entera">${notaTextoHTML(n)}</div>
+        ${cuadChip}
         ${vincChips ? `<div class="notaMeta notaLinea">${vincChips}</div>` : ""}
         ${archChips ? `<div class="notaMeta notaLinea">${archChips}</div>` : ""}
         ${tags ? `<div class="notaMeta notaLinea">${tags}</div>` : ""}
         <div class="notaPie"><span class="subt">${fecha(n.fecha)}${ed}</span><span class="sp"></span>
-          ${notaAccBtn("editar", "editar", n.id)}${notaAccBtn("duplicar", "duplicar", n.id)}${notaAccBtn("borrar", "borrar", n.id)}</div></div>`;
+          ${notaCuadBtn(n.id)}${notaAccBtn("editar", "editar", n.id)}${notaAccBtn("duplicar", "duplicar", n.id)}${notaAccBtn("borrar", "borrar", n.id)}</div></div>`;
     };
-    const hayNotas = (E.cfg.notas || []).length > 0;
+    const hayNotas = base.length > 0;
     const herramientas = hayNotas ? `<div class="notasTools">
         <label class="buscaTabla">${LUPA}<input type="search" data-nbusca placeholder="Buscar en notas…" value="${esc(E.notaBusca || "")}" aria-label="Buscar notas"></label>
         ${tagsTodas.length ? `<select data-ntag aria-label="Filtrar por etiqueta"><option value="">Todas las etiquetas</option>${tagsTodas.map(t => `<option value="${esc(t)}"${t === tagSel ? " selected" : ""}>${esc(t)}</option>`).join("")}</select>` : ""}
@@ -2716,21 +2839,32 @@
     let nomEnt = vincRef;
     if (vincRef) { const p = (E.cfg.productos || []).find(x => x.id === vincRef); const a = (E.cfg.apartados || []).find(x => x.id === vincRef); nomEnt = p ? nombre(p) : a ? a.nombre : vincRef; }
     const banner = vincRef ? `<div class="notaFiltroEnt">Notas de <b>${esc(nomEnt)}</b> <button class="btn mini" data-limpiavinc>✕ ver todas</button></div>` : "";
-    cont.innerHTML = `<section class="tarjeta"><header><h2>Notas</h2>
-        <span class="subt">Apuntes libres: ideas, pendientes, enlaces… (no afectan a tus cifras)</span>
-        <span class="sp"></span><button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>
+    const cabecera = cuad
+      ? `<header><h2>📓 ${esc(cuad.nombre)}</h2>
+          <span class="subt">Notas de este cuaderno.</span><span class="sp"></span>
+          <button class="btn" data-volvercuad>← Cuadernos</button>
+          <button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>`
+      : `<header><h2>Notas</h2>
+          <span class="subt">Apuntes libres: ideas, pendientes, enlaces… (no afectan a tus cifras)</span>
+          <span class="sp"></span><button class="btn prim" data-nacc="nueva">+ Nueva nota</button></header>`;
+    const vacio = cuad ? "Este cuaderno no tiene notas todavía."
+      : muestra !== "todas" ? "No tienes notas sueltas. (Las que están en un cuaderno se ven en «Cuadernos».)"
+        : "Todavía no has escrito ninguna nota.";
+    cont.innerHTML = `<section class="tarjeta">${cabecera}
       ${banner}${herramientas}
-      ${!hayNotas ? '<p class="subt">Todavía no has escrito ninguna nota.</p>'
+      ${!hayNotas ? `<p class="subt">${vacio}</p>`
         : cards ? `<div class="notasGrid">${cards}</div>`
         : vincRef ? '<p class="subt">No hay notas asociadas a esto todavía.</p>' : '<p class="subt">Ninguna nota coincide con la búsqueda.</p>'}</section>`;
-    const lv = cont.querySelector("[data-limpiavinc]"); if (lv) lv.onclick = () => { E.notaVincRef = null; montaNotasLista(); };
-    const refiltra = () => montaNotasLista();
+    const refiltra = () => montaNotasLista(scope);
+    const lv = cont.querySelector("[data-limpiavinc]"); if (lv) lv.onclick = () => { E.notaVincRef = null; refiltra(); };
+    const vc = cont.querySelector("[data-volvercuad]"); if (vc) vc.onclick = () => { E.cuadernoAbierto = null; pintarNotas(); };
     const bq = cont.querySelector("[data-nbusca]");
     if (bq) bq.oninput = e => { E.notaBusca = e.target.value; const pos = bq.selectionStart; refiltra(); const nb = $("[data-nbusca]"); if (nb) { nb.focus(); try { nb.setSelectionRange(pos, pos); } catch (_) { /* */ } } };
     const tsel = cont.querySelector("[data-ntag]"); if (tsel) tsel.onchange = e => { E.notaTag = e.target.value; refiltra(); };
     const osel = cont.querySelector("[data-norden]"); if (osel) osel.onchange = e => { E.notaOrden = e.target.value; recuerda.guarda("patrimonio.notaOrden", e.target.value); refiltra(); };
     cont.querySelectorAll("[data-tagf]").forEach(b => b.onclick = () => { E.notaTag = b.dataset.tagf; refiltra(); });
-    cont.querySelectorAll("[data-chk]").forEach(cb => cb.onchange = () => {
+    cont.querySelectorAll("[data-chk]").forEach(cb => cb.onchange = e => {
+      e.stopPropagation();
       const notas = (E.cfg.notas || []).slice();
       const i = notas.findIndex(x => x.id === cb.dataset.chk); if (i < 0) return;
       const ls = String(notas[i].texto || "").split("\n"); const k = +cb.dataset.ln;
@@ -2741,9 +2875,10 @@
     cont.querySelectorAll("[data-nacc]").forEach(b => {
       b.onclick = () => {
         const id = b.dataset.id, acc = b.dataset.nacc;
-        if (acc === "nueva") return formNota(null);
+        if (acc === "nueva") return formNota(null, cuadId ? { cuaderno: cuadId } : null);
         const n = (E.cfg.notas || []).find(x => x.id === id);
         if (acc === "editar") return formNota(n);
+        if (acc === "enviacuad") return enviaACuaderno(id);
         if (acc === "fijar") { const l = (E.cfg.notas || []).map(x => x.id === id ? { ...x, fijada: !x.fijada } : x); return guardaNotas(l); }
         if (acc === "duplicar") {
           if (!n) return;
@@ -2756,9 +2891,68 @@
         }
       };
     });
-    // Navegar al activo/deuda/reservado relacionado y abrir la carpeta adjunta.
+    // Abrir la nota a pantalla completa (salvo si se pulsa algo interactivo dentro).
+    cont.querySelectorAll("[data-nabrir]").forEach(el => el.onclick = e => {
+      if (e.target.closest("input, button, a, label.notaChk")) return;
+      abreNotaModal(el.dataset.nabrir);
+    });
+    // Chips: navegar al activo relacionado, abrir carpeta o abrir el cuaderno.
     cont.querySelectorAll("[data-vgo-ref]").forEach(b => b.onclick = () => window.Editor && window.Editor.irAEntidad(b.dataset.vgoTipo, b.dataset.vgoRef));
     cont.querySelectorAll("[data-afolder]").forEach(b => b.onclick = () => window.Editor && window.Editor.irACarpeta(b.dataset.afolder));
+    cont.querySelectorAll("[data-ircuad]").forEach(b => b.onclick = () => { E.cuadernoAbierto = b.dataset.ircuad; E.notasVista = "cuadernos"; recuerda.guarda("patrimonio.notasVista", "cuadernos"); pintarNotas(); });
+  }
+  // Rejilla de cuadernos (crear/renombrar/borrar) y entrar en uno.
+  function montaCuadernos() {
+    const cont = $("#notasCuerpo"); if (!cont) return;
+    if (E.cuadernoAbierto && cuadernoDe(E.cuadernoAbierto)) { montaNotasLista({ cuaderno: E.cuadernoAbierto }); return; }
+    E.cuadernoAbierto = null;
+    const cs = cuadernosLista();
+    const notas = E.cfg.notas || [];
+    const cuenta = id => notas.filter(n => n.cuaderno === id).length;
+    const tiles = cs.map(c => {
+      const n = cuenta(c.id);
+      return `<div class="cuadTile" data-abrecuad="${esc(c.id)}"${c.color ? ` style="--cc:var(--${esc(c.color)})"` : ""}>
+        <div class="cuadIco">📓</div>
+        <div class="cuadNom">${esc(c.nombre)}</div>
+        <div class="cuadN">${n} nota${n === 1 ? "" : "s"}</div>
+        <div class="cuadAcc">${notaAccBtn2("editar", "cuadren", c.id)}${notaAccBtn2("borrar", "cuaddel", c.id)}</div></div>`;
+    }).join("");
+    cont.innerHTML = `<section class="tarjeta"><header><h2>Cuadernos</h2>
+        <span class="subt">Agrupa notas en cuadernos (p. ej. «Histórico Hacienda»). Envía una nota a un cuaderno desde su tarjeta, al editarla o al abrirla.</span>
+        <span class="sp"></span><button class="btn prim" data-cuadnuevo>+ Nuevo cuaderno</button></header>
+      ${cs.length ? `<div class="cuadGrid">${tiles}</div>` : '<p class="subt">Aún no tienes cuadernos. Crea el primero con «+ Nuevo cuaderno».</p>'}</section>`;
+    cont.querySelector("[data-cuadnuevo]").onclick = () => formCuaderno(null);
+    cont.querySelectorAll("[data-abrecuad]").forEach(el => el.onclick = e => { if (e.target.closest("button")) return; E.cuadernoAbierto = el.dataset.abrecuad; pintarNotas(); });
+    cont.querySelectorAll("[data-cuadren]").forEach(b => b.onclick = () => { const c = cuadernoDe(b.dataset.cuadren); if (c) formCuaderno(c); });
+    cont.querySelectorAll("[data-cuaddel]").forEach(b => b.onclick = async () => {
+      const c = cuadernoDe(b.dataset.cuaddel); if (!c) return;
+      const nn = cuenta(c.id);
+      if (!confirm(`¿Borrar el cuaderno «${c.nombre}»?${nn ? ` Sus ${nn} nota${nn === 1 ? "" : "s"} quedará${nn === 1 ? "" : "n"} suelta${nn === 1 ? "" : "s"} (no se borran).` : ""}`)) return;
+      try { const j = await api("POST", "api/cuaderno-borra", { id: c.id }); E.cfg = j.cartera; if (window.toast) window.toast("Cuaderno borrado ✓"); pintarNotas(); } catch (x) { alert(x.message); }
+    });
+  }
+  function formCuaderno(c) {
+    const nuevo = !c; c = c || {};
+    let color = COLORES_NOTA.includes(c.color) ? c.color : "";
+    const f = abreModal(nuevo ? "Nuevo cuaderno" : "Editar cuaderno", `
+      <div class="rejilla">
+        ${campo("Nombre", '<input name="nombre" maxlength="60" autocomplete="off" placeholder="Histórico Hacienda">', "", "ancho")}
+        <div class="campo ancho"><span class="et">Color</span>
+          <div class="notaColores" data-colores>${COLORES_NOTA.map(cc => `<button type="button" class="notaColor${cc ? "" : " sincolor"}" data-color="${cc}" title="${cc ? "Color" : "Sin color"}"${cc ? ` style="background:var(--${cc})"` : ""}>${cc ? "" : "∅"}</button>`).join("")}</div></div>
+      </div>`,
+    async f => {
+      const d = campos(f);
+      if (!(d.nombre || "").trim()) throw new Error("Ponle un nombre al cuaderno.");
+      const lista = cuadernosLista().slice();
+      if (nuevo) lista.push({ id: "cu" + Date.now(), nombre: d.nombre.trim(), ...(color ? { color } : {}) });
+      else { const i = lista.findIndex(x => x.id === c.id); if (i >= 0) { const { color: _c, ...r } = lista[i]; lista[i] = { ...r, nombre: d.nombre.trim(), ...(color ? { color } : {}) }; } }
+      await guardaCuadernos(lista);
+    }, "Guardar");
+    f.elements.nombre.value = c.nombre || "";
+    const pintaColores = () => f.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("sel", (b.dataset.color || "") === color));
+    f.querySelectorAll("[data-color]").forEach(b => b.onclick = () => { color = b.dataset.color || ""; pintaColores(); });
+    pintaColores();
+    return f;
   }
 
   const TABLERO_DEFECTO = () => ({ columnas: [{ id: "porhacer", nombre: "Por hacer" }, { id: "encurso", nombre: "En curso" }, { id: "hecho", nombre: "Hecho" }], tarjetas: [] });
@@ -2996,8 +3190,7 @@
         <span class="agDias ${i.hecho ? "" : clD}">${i.hecho ? "hecho" : etqD}</span>
         <span class="agTxt">${esc(i.texto)} ${rep} ${vinc}</span>
         ${i.repetir === "no" ? `<input type="checkbox" class="agChk"${i.hecho ? " checked" : ""} data-rdone="${esc(i.id)}" title="Marcar como hecho">` : ""}
-        <button class="btn mini" data-redit="${esc(i.id)}">Editar</button>
-        <button class="btn mini" data-rdel="${esc(i.id)}">Borrar</button></div>`;
+        <span class="agAcc"><button class="accIco" data-redit="${esc(i.id)}" title="${_TIT_ACC.editar}" aria-label="${_TIT_ACC.editar}">${_ICO_ACC.editar}</button><button class="accIco" data-rdel="${esc(i.id)}" title="${_TIT_ACC.borrar}" aria-label="${_TIT_ACC.borrar}">${_ICO_ACC.borrar}</button></span></div>`;
     };
     cont.innerHTML = `${pend.length ? `<div class="agLista">${pend.map(fila).join("")}</div>` : '<p class="subt">No hay nada pendiente en la agenda.</p>'}
       ${hechos.length ? `<details class="agHechos"><summary>${hechos.length} hecho${hechos.length === 1 ? "" : "s"}</summary><div class="agLista">${hechos.map(fila).join("")}</div></details>` : ""}`;
@@ -3412,18 +3605,21 @@
     const v = E.notasVista || "lista";
     cont.innerHTML = `<div class="notasNavRow"><div class="segm notasNav">
         <button data-nv="lista" aria-pressed="${v === "lista"}">📝 Lista de notas</button>
+        <button data-nv="cuadernos" aria-pressed="${v === "cuadernos"}">📓 Cuadernos</button>
         <button data-nv="tablero" aria-pressed="${v === "tablero"}">📋 Tablero</button>
         <button data-nv="agenda" aria-pressed="${v === "agenda"}">🗓️ Agenda</button>
         <button data-nv="biblioteca" aria-pressed="${v === "biblioteca"}">🗂️ Archivos</button></div>
         <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button></div>
       <div id="notasCuerpo"></div>`;
     cont.querySelectorAll("[data-nv]").forEach(b => b.onclick = () => {
-      E.notasVista = b.dataset.nv; recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
+      E.notasVista = b.dataset.nv; E.cuadernoAbierto = null;   // al cambiar de pestaña, cuadernos muestra la rejilla
+      recuerda.guarda("patrimonio.notasVista", b.dataset.nv); pintarNotas();
     });
     { const ay = cont.querySelector(".btnAyudaNav"); if (ay) ay.onclick = () => window.abreAyuda && window.abreAyuda(); }
     if (v === "tablero") montaTablero();
     else if (v === "agenda") montaAgenda();
     else if (v === "biblioteca") montaBiblioteca();
+    else if (v === "cuadernos") montaCuadernos();
     else montaNotasLista();
     if (window.actualizaFabAyuda) window.actualizaFabAyuda();   // refresca la «i» de ayuda
   }

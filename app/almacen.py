@@ -520,6 +520,10 @@ def guarda_config(cfg, datos):
     if "papeleraMax" in datos:
         pm = numero(datos.get("papeleraMax"), "la papelera de archivos", errores, obligatorio=False, minimo=0)
         conf["papeleraMax"] = min(50, int(pm)) if pm is not None else 5
+    if "docNotasMuestra" in datos:
+        # Qué muestra «Lista de notas»: solo las sueltas o todas (con chip de cuaderno).
+        v = texto(datos.get("docNotasMuestra"), 10)
+        conf["docNotasMuestra"] = v if v in ("sueltas", "todas") else "sueltas"
     if "asistenteOculto" in datos:
         conf["asistenteOculto"] = bool(datos.get("asistenteOculto"))
     if "buscarActualizaciones" in datos:
@@ -857,6 +861,9 @@ def guarda_notas(cfg, notas):
         color = texto(n.get("color"), 4)
         if color in NOTA_COLORES:
             nota["color"] = color
+        cuad = texto(n.get("cuaderno"), 40)
+        if cuad:
+            nota["cuaderno"] = cuad
         vincs = _vinculos(n.get("vinculos"), _vinculo(n.get("vinculo")))
         if vincs:
             nota["vinculos"] = vincs
@@ -867,6 +874,38 @@ def guarda_notas(cfg, notas):
         out.append(nota)
     cfg["notas"] = out
     return out
+
+
+def guarda_cuadernos(cfg, cuadernos):
+    """Cuadernos para agrupar notas: [{id, nombre, color?}]. Planos (sin anidar),
+    id único estable. Como notas/tablero, no afecta a las cifras del panel."""
+    out, ids = [], set()
+    for c in (cuadernos or [])[:60]:
+        c = c or {}
+        nombre = texto(c.get("nombre"), 60)
+        if not nombre:
+            continue
+        cid = texto(c.get("id"), 40) or slug(nombre, ids)
+        if cid in ids:
+            continue
+        ids.add(cid)
+        cua = {"id": cid, "nombre": nombre}
+        color = texto(c.get("color"), 4)
+        if color in NOTA_COLORES:
+            cua["color"] = color
+        out.append(cua)
+    cfg["cuadernos"] = out
+    return out
+
+
+def borra_cuaderno(cfg, ident):
+    """Borra un cuaderno. Sus notas NO se borran: quedan sueltas (sin cuaderno)."""
+    ident = texto(ident, 40)
+    cfg["cuadernos"] = [c for c in cfg.get("cuadernos", []) if c.get("id") != ident]
+    for n in cfg.get("notas", []):
+        if n.get("cuaderno") == ident:
+            n.pop("cuaderno", None)
+    return cfg["cuadernos"]
 
 
 REC_REPETIR = ("no", "mensual", "anual")

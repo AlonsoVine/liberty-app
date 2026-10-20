@@ -865,6 +865,20 @@ def api_recordatorios():
     return cambia(lambda cfg: almacen.guarda_recordatorios(cfg, d.get("recordatorios")), recalc=False)
 
 
+@app.post("/api/cuadernos")
+def api_cuadernos():
+    """Guarda los cuadernos (agrupadores de notas). No recalcula el panel."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.guarda_cuadernos(cfg, d.get("cuadernos")), recalc=False)
+
+
+@app.post("/api/cuaderno-borra")
+def api_cuaderno_borra():
+    """Borra un cuaderno; sus notas quedan sueltas. No recalcula el panel."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.borra_cuaderno(cfg, d.get("id")), recalc=False)
+
+
 @app.post("/api/repartir-colores")
 def api_repartir_colores():
     # Con {"que": "apartados"} reparte colores entre los reservados; por defecto,

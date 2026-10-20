@@ -182,6 +182,30 @@ def test_notas_color_fuera_de_paleta_se_descarta():
     assert "color" not in cfg["notas"][0]
 
 
+def test_cuadernos_se_guardan_y_nota_se_asigna():
+    cfg = cfg_vacia()
+    almacen.guarda_cuadernos(cfg, [
+        {"id": "cu1", "nombre": "Histórico Hacienda", "color": "s2"},
+        {"nombre": "Sin color"},                      # id se genera solo
+        {"nombre": ""},                               # sin nombre: fuera
+    ])
+    assert [c["nombre"] for c in cfg["cuadernos"]] == ["Histórico Hacienda", "Sin color"]
+    assert cfg["cuadernos"][0]["color"] == "s2" and "color" not in cfg["cuadernos"][1]
+    almacen.guarda_notas(cfg, [{"titulo": "Renta 2025", "cuaderno": "cu1"}])
+    assert cfg["notas"][0]["cuaderno"] == "cu1"
+
+
+def test_borra_cuaderno_deja_sus_notas_sueltas():
+    cfg = cfg_vacia()
+    almacen.guarda_cuadernos(cfg, [{"id": "cu1", "nombre": "H"}])
+    almacen.guarda_notas(cfg, [{"titulo": "a", "cuaderno": "cu1"},
+                               {"titulo": "b", "cuaderno": "cu1"}])
+    almacen.borra_cuaderno(cfg, "cu1")
+    assert cfg["cuadernos"] == []
+    assert all("cuaderno" not in n for n in cfg["notas"])   # las notas siguen, sin cuaderno
+    assert len(cfg["notas"]) == 2
+
+
 def test_dividendo_guarda_retencion():
     cfg = cfg_vacia()
     almacen.guarda_producto(cfg, {"nombre": "Acme", "tipo": "accion", "fuente": "manual"})
