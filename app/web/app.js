@@ -2712,12 +2712,13 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.11.2",
+    version: "1.12.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["ⓘ", "Ayuda mucho más completa", "Las tarjetas de ayuda «i» de cada pantalla ahora explican de verdad para qué sirve cada cosa, con ejemplos: dimensiones, reglas del banco, titular por defecto, rebalanceo, colchón, FIFO…"],
-      ["💬", "Iconitos de info mejorados", "Los iconitos «i» repartidos por la app estrenan el mismo estilo que la ayuda y ahora puedes ver su explicación también al pulsarlos (no solo al pasar el ratón), y queda fijada hasta que pulses fuera."],
-      ["🛠️", "Pulidos", "Pequeños ajustes de coherencia visual. Tus datos siguen intactos."],
+      ["📝", "Notas mucho más potentes", "Ahora una nota puede enlazar varios activos y varios documentos —o una carpeta entera de Archivos—, llevar un color, y navegar de un clic al activo o a la carpeta relacionados. Botones de editar, duplicar y borrar como en el resto de la app, y el «pin» de fijar también dentro del formulario."],
+      ["🗓️", "Agenda más navegable", "Los vencimientos (depósitos, deudas, reservados) y las tarjetas del tablero te llevan a su ficha con el registro ya seleccionado. Los recordatorios se editan desde la lista y el calendario."],
+      ["🔎", "Filtro «Sin categoría»", "En Ingresos y gastos puedes filtrar de golpe los apuntes a los que no les has puesto categoría."],
+      ["📊", "Tablas más cómodas", "La tabla de Ingresos y gastos se queda con las cabeceras fijas y scroll (como Saldos y movimientos), y todas muestran un contador discreto de registros al pie."],
     ],
   };
   function quizaNovedades() {

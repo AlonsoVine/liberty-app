@@ -140,6 +140,48 @@ def test_carga_json_valido_ok(tmp_path):
     assert almacen.carga(str(ruta))["version"] == 1
 
 
+def test_notas_color_vinculos_y_archivos():
+    """Una nota guarda su color (solo de la paleta), varios activos relacionados y
+    documentos adjuntos (archivo o carpeta), sin duplicados."""
+    cfg = cfg_vacia()
+    almacen.guarda_notas(cfg, [{
+        "titulo": "Piso", "texto": "cosas",
+        "color": "s2",
+        "vinculos": [
+            {"tipo": "activo", "ref": "p1"},
+            {"tipo": "deuda", "ref": "p2"},
+            {"tipo": "activo", "ref": "p1"},          # repetido: se ignora
+            {"tipo": "basura", "ref": "x"},           # tipo inválido: fuera
+        ],
+        "archivos": [
+            {"tipo": "carpeta", "id": "c1"},
+            {"tipo": "archivo", "id": "a9"},
+            {"tipo": "archivo", "id": "a9"},          # repetido: se ignora
+            {"tipo": "otro", "id": "z"},              # tipo inválido: fuera
+        ],
+    }])
+    n = cfg["notas"][0]
+    assert n["color"] == "s2"
+    assert n["vinculos"] == [{"tipo": "activo", "ref": "p1"}, {"tipo": "deuda", "ref": "p2"}]
+    assert n["vinculo"] == {"tipo": "activo", "ref": "p1"}   # compat con los 📝 antiguos
+    assert n["archivos"] == [{"tipo": "carpeta", "id": "c1"}, {"tipo": "archivo", "id": "a9"}]
+
+
+def test_notas_migra_vinculo_unico_a_lista():
+    """Una nota antigua con un único `vinculo` se lee como lista de vínculos."""
+    cfg = cfg_vacia()
+    almacen.guarda_notas(cfg, [{"titulo": "x", "vinculo": {"tipo": "reservado", "ref": "ap1"}}])
+    n = cfg["notas"][0]
+    assert n["vinculos"] == [{"tipo": "reservado", "ref": "ap1"}]
+    assert n["vinculo"] == {"tipo": "reservado", "ref": "ap1"}
+
+
+def test_notas_color_fuera_de_paleta_se_descarta():
+    cfg = cfg_vacia()
+    almacen.guarda_notas(cfg, [{"titulo": "x", "color": "rojo-malo"}])
+    assert "color" not in cfg["notas"][0]
+
+
 def test_dividendo_guarda_retencion():
     cfg = cfg_vacia()
     almacen.guarda_producto(cfg, {"nombre": "Acme", "tipo": "accion", "fuente": "manual"})

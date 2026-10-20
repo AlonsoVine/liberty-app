@@ -283,8 +283,39 @@ table.dt tr.filaClic:hover>td{background:color-mix(in srgb,var(--s1) 9%,transpar
 .notaMeta{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:2px}
 .notaTag{border:1px solid var(--borde);background:var(--sup);color:var(--tinta2);font-size:11.5px;padding:2px 8px;border-radius:999px;cursor:pointer}
 .notaTag:hover{border-color:var(--s1);color:var(--tinta)}
-.notaVinc{font-size:11.5px;color:var(--tinta3);background:var(--sup);border:1px solid var(--borde);padding:2px 8px;border-radius:999px}
+.notaVinc{font-size:11.5px;color:var(--tinta3);background:var(--sup);border:1px solid var(--borde);padding:2px 8px;border-radius:999px;cursor:pointer;font-family:inherit}
+.notaVinc:hover{border-color:var(--s1);color:var(--tinta)}
 .notaLn{min-height:1.3em}
+/* Notas: líneas de chips separadas, color, documentos y pin en el formulario */
+.notaMeta.notaLinea{gap:6px}
+.notaMeta.notaLinea + .notaMeta.notaLinea{margin-top:0}
+.notaChipA{display:inline-flex;align-items:center;gap:5px;max-width:100%;font-size:11.5px;color:var(--tinta2);background:var(--sup);border:1px solid var(--borde);padding:2px 9px;border-radius:999px;cursor:pointer;text-decoration:none;font-family:inherit;overflow:hidden}
+.notaChipA>span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.notaChipA small{color:var(--tinta3)}
+.notaChipA:hover{border-color:var(--s1);color:var(--tinta)}
+.notaChipA.roto{opacity:.6;cursor:default;font-style:italic}
+.notaColores{display:flex;gap:7px;flex-wrap:wrap}
+.notaColor{width:24px;height:24px;border-radius:50%;border:1px solid var(--borde);cursor:pointer;padding:0;color:var(--tinta3);font-size:12px;line-height:1}
+.notaColor.sincolor{background:var(--sup)}
+.notaColor.sel{box-shadow:0 0 0 2px var(--plano),0 0 0 4px var(--s1)}
+.notaTitRow{display:flex;align-items:center;gap:8px}
+.notaTitRow input{flex:1;min-width:0}
+.notaPinForm{font-size:18px;flex:none}
+.notaForm .chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:7px;min-height:4px}
+.notaChipV,.notaChipA.enForm{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--tinta2);background:var(--sup);border:1px solid var(--borde);padding:3px 4px 3px 10px;border-radius:999px}
+.notaChipV button,.notaChipA.enForm button{border:0;background:none;color:var(--tinta3);cursor:pointer;font-size:15px;line-height:1;padding:0 4px;border-radius:50%}
+.notaChipV button:hover,.notaChipA.enForm button:hover{color:var(--mal)}
+.notaAddRow{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.notaAddRow select{flex:1;min-width:120px}
+/* Tabla: pie discreto con el nº de registros */
+.tablaPie{font-size:11.5px;color:var(--tinta3);padding:6px 4px 0;text-align:right}
+/* Agenda: vencimientos que llevan a su ficha */
+.agItem.venc.navegable{cursor:pointer}
+.agItem.venc.navegable:hover{background:var(--sup2)}
+.agIr{color:var(--tinta3);font-size:14px;flex:none}
+.agItem.venc.navegable:hover .agIr{color:var(--s1)}
+button.calChip.venc{cursor:pointer;font-family:inherit}
+button.calChip.venc:hover{border-color:var(--s1);color:var(--tinta)}
 .notaChk{display:flex;gap:7px;align-items:flex-start;font-size:13.5px;color:var(--tinta2);line-height:1.4;cursor:pointer}
 .notaChk input{margin-top:2px}
 .notaChk.hecha span{text-decoration:line-through;color:var(--tinta3)}

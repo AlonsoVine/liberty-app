@@ -1719,7 +1719,7 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
 
     vencimientos = []
 
-    def _venc(fecha, nombre, clase, tipo, entidad, titular, saldo):
+    def _venc(fecha, nombre, clase, tipo, entidad, titular, saldo, ref=None, origen=""):
         if not fecha:
             return
         try:
@@ -1730,23 +1730,27 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         vencimientos.append({"nombre": nombre, "clase": clase, "tipo": tipo,
                              "entidad": entidad or "", "titular": titular or "",
                              "fecha": fecha, "diasRestantes": dias, "estado": estado,
-                             "saldo": round(abs(saldo or 0), 2)})
+                             "saldo": round(abs(saldo or 0), 2),
+                             "ref": ref or "", "origen": origen})
 
     # Activos y deudas: fecha de vencimiento (depósito, fin de promoción, préstamo…).
     for p in productos + ser_otros + ser_pasivos:
         es_pasivo = p in ser_pasivos
+        origen = "deuda" if es_pasivo else "activo"
         _venc(p.get("fechaVencimiento"), p.get("corto") or p.get("nombre"),
               "Deuda" if es_pasivo else "Activo", p.get("tipo"),
-              p.get("entidad"), p.get("titular"), p.get("valor"))
+              p.get("entidad"), p.get("titular"), p.get("valor"),
+              ref=p.get("id"), origen=origen)
         # Deudas: además, la fecha de revisión del tipo de interés.
         if es_pasivo:
             _venc(p.get("fechaRevision"), p.get("corto") or p.get("nombre"),
                   "Revisión", "Revisión de interés", p.get("entidad"),
-                  p.get("titular"), p.get("valor"))
+                  p.get("titular"), p.get("valor"), ref=p.get("id"), origen="deuda")
     # Apartados: fecha prevista para disponer del dinero comprometido.
     for a in apartados_cfg:
         _venc(a.get("fechaPrevista"), a.get("nombre"), "Apartado",
-              a.get("finalidad", ""), "", a.get("titular"), a.get("importe"))
+              a.get("finalidad", ""), "", a.get("titular"), a.get("importe"),
+              ref=a.get("id"), origen="reservado")
     vencimientos.sort(key=lambda x: x["fecha"])
 
     alertas = []

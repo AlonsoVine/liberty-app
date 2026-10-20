@@ -195,6 +195,19 @@
     return String(ca.v).localeCompare(String(cb.v), "es");
   }
   function _tablaDe(bloque) { return bloque.querySelector("table"); }
+  // Pie discreto con el nº de registros que muestra la tabla (y «N de M» si la
+  // búsqueda deja fuera algunos). Vive fuera del área con scroll, siempre visible.
+  function actualizaPie(bloque) {
+    const pie = bloque && bloque.querySelector("[data-pie]");
+    if (!pie) return;
+    const tabla = _tablaDe(bloque);
+    if (!tabla || !tabla.tBodies[0]) { pie.textContent = ""; return; }
+    const filas = [...tabla.tBodies[0].rows];
+    const total = filas.length;
+    const vis = filas.filter(r => r.style.display !== "none").length;
+    const palabra = n => n === 1 ? "registro" : "registros";
+    pie.textContent = vis === total ? `${total} ${palabra(total)}` : `${vis} de ${total} ${palabra(total)}`;
+  }
   function filtraBloque(bloque, q) {
     const tabla = _tablaDe(bloque);
     if (!tabla || !tabla.tBodies[0]) return;
@@ -202,6 +215,7 @@
     [...tabla.tBodies[0].rows].forEach(r => {
       r.style.display = (!nq || _norm(r.textContent).includes(nq)) ? "" : "none";
     });
+    actualizaPie(bloque);
   }
   function ordenaTabla(tabla, col, dir) {
     const tb = tabla.tBodies[0];
@@ -231,9 +245,10 @@
       const tabla = _tablaDe(bloque);
       const inp = bloque.querySelector("[data-buscar]");
       if (inp && st) inp.value = st.q || "";
-      if (!tabla) return;
+      if (!tabla) { actualizaPie(bloque); return; }
       if (st && st.q) filtraBloque(bloque, st.q);
       if (st && st.col != null && tabla.tHead) { ordenaTabla(tabla, st.col, st.dir); marcaFlechas(tabla, st.col, st.dir); }
+      actualizaPie(bloque);
     });
   }
   const _estTabla = key => (E.tablas[key] || (E.tablas[key] = { q: "", col: null, dir: 1 }));
@@ -259,8 +274,13 @@
   // Indicador «📝» en una entidad (activo/deuda/reservado) que tiene alguna nota
   // asociada: al pulsarlo, abre la pestaña Notas con esa nota. Llama la atención.
   function indicadorNota(ref) {
-    return (E.cfg.notas || []).some(n => n.vinculo && n.vinculo.ref === ref)
+    return (E.cfg.notas || []).some(n => notaVinculos(n).some(v => v.ref === ref))
       ? ` <button class="notaInd" data-acc="verNotas" data-id="${esc(ref)}" title="Tiene una nota — pulsa para verla" aria-label="Ver nota">📝</button>` : "";
+  }
+  // Enlaces a activos de una nota como lista (migra el `vinculo` único antiguo).
+  function notaVinculos(n) {
+    if (n && n.vinculos && n.vinculos.length) return n.vinculos.slice();
+    return (n && n.vinculo) ? [n.vinculo] : [];
   }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
   function envTabla(key, thead, filas, alto, toolsExtra, sinBuscar) {
@@ -274,7 +294,8 @@
         <span class="sp"></span>
         <button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button></div>
       <div class="tablaEnv${alto ? " alto" : ""}"><table class="dt orden"><thead>${thead}</thead>
-        <tbody>${filas}</tbody></table></div></div>`;
+        <tbody>${filas}</tbody></table></div>
+      <div class="tablaPie" data-pie aria-live="polite"></div></div>`;
   }
   // Descarga la tabla visible (respetando búsqueda y orden) como CSV para Excel.
   function descargaTablaCSV(bloque) {
@@ -427,7 +448,7 @@
     const n = soloSaldo(p) || manual(p)
       ? E.cfg.valoraciones.filter(v => v.producto === p.id).length + " valores"
       : E.cfg.movimientos.filter(m => m.producto === p.id).length + " movs.";
-    return `<tr><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}${indicadorNota(p.id)}
+    return `<tr id="fila-prod-${esc(p.id)}"${p.id === E.resaltaProd ? ' class="resaltado"' : ""}><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}${indicadorNota(p.id)}
         ${p.identificador ? `<small class="idp">${esc(p.identificador)}</small>` : ""}</td>
       <td>${esc(E.tipos[p.tipo] || p.tipo)}</td><td>${precioDe(p)}</td>
       <td>${esc(E.fuentes[p.fuente] || "")}${p.codigo ? ` <small>${esc(p.codigo)}</small>` : ""}</td>
@@ -673,7 +694,7 @@
   /* ---------------------------------------------- hogar (apartados y parámetros) */
   function vistaApartados() {
     const aps = E.cfg.apartados || [];
-    const filasAp = aps.map(a => `<tr>
+    const filasAp = aps.map(a => `<tr id="fila-ap-${esc(a.id)}"${a.id === E.resaltaApartado ? ' class="resaltado"' : ""}>
       <td><i class="pt" style="background:var(--s${a.slot || 8})"></i>${esc(a.nombre)}${indicadorNota(a.id)}</td><td>${esc(a.finalidad || "")}</td><td>${esc(a.titular || "")}</td>
       <td>${eur(a.importe || 0)}</td><td>${a.fechaPrevista ? fecha(a.fechaPrevista) : ""}</td>
       ${celdaAcc(a.id, { editar: "editarApartado", borrar: "borrarApartado" })}</tr>`).join("");
@@ -1200,6 +1221,8 @@
     dlg.showModal();
   }
   // Filtros potentes de la tabla de ingresos y gastos (por columna, importe y fechas).
+  // Valor centinela del filtro de categoría para «apuntes sin categoría».
+  const SIN_CAT = "\u0000sincat";
   function filtrosFlujos() {
     try { E.flujoFiltros = E.flujoFiltros || JSON.parse(recuerda.lee("patrimonio.flujoFiltros") || "{}") || {}; } catch (e) { E.flujoFiltros = {}; }
     if (!E.flujoFiltros.dim) E.flujoFiltros.dim = {};
@@ -1211,7 +1234,8 @@
     const titDef = (cfg.titularDefecto && (E.cfg.titulares || []).includes(cfg.titularDefecto)) ? cfg.titularDefecto : (E.cfg.titulares || [])[0] || "";
     return fs.filter(x => {
       if (F.tipo && x.tipo !== F.tipo) return false;
-      if (F.categoria && (x.categoria || "") !== F.categoria) return false;
+      if (F.categoria === SIN_CAT) { if (x.categoria) return false; }
+      else if (F.categoria && (x.categoria || "") !== F.categoria) return false;
       if (F.entidad && (x.entidad || "") !== F.entidad) return false;
       if (F.titular && (((x.titular || "").trim()) || titDef) !== F.titular) return false;
       if (F.marca === "__con__" && !x.marca) return false;
@@ -1243,8 +1267,14 @@
     const tits = E.cfg.titulares || [], marcas = E.marcas || [], dims = cfg.dimensionesFlujos || [];
     const campo = (key, label, opts, val, todas = "Todas") => `<span class="filtroCampo${val ? " activo" : ""}"><label>${esc(label)}</label>
       <select data-ff="${esc(key)}"><option value="">${todas}</option>${opts.map(o => `<option value="${esc(o.v)}"${o.v === val ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`;
+    const haySinCat = (E.cfg.flujos || []).some(f => !f.categoria);
     let h = campo("tipo", "Tipo", [{ v: "ingreso", t: "Ingresos" }, { v: "gasto", t: "Gastos" }], F.tipo || "");
-    if (cats.length) h += campo("categoria", "Categoría", cats.map(c => ({ v: c, t: c })), F.categoria || "");
+    if (cats.length || haySinCat) {
+      // «Sin categoría» (valor centinela) filtra los apuntes que no tienen ninguna.
+      const opCats = cats.map(c => ({ v: c, t: c }));
+      if (haySinCat) opCats.push({ v: SIN_CAT, t: "— Sin categoría —" });
+      h += campo("categoria", "Categoría", opCats, F.categoria || "");
+    }
     if (ents.length) h += campo("entidad", "Entidad", ents.map(e => ({ v: e, t: e })), F.entidad || "");
     if (tits.length > 1) h += campo("titular", "Titular", tits.map(t => ({ v: t, t })), F.titular || "");
     if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
@@ -1448,7 +1478,7 @@
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${total
         ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort">Observaciones</th><th class="nosort">Facturas</th>
-          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, false, toolsFlujosHTML(), true)
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, true, toolsFlujosHTML(), true)
           : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${toolsFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
       <div id="flujosContador">${contador}</div>
@@ -1682,8 +1712,7 @@
         <button class="btn prim" data-acc="nuevoMov">+ Añadir movimiento</button></header>
       ${envTabla("movimientos", `<tr><th>Fecha</th><th style="text-align:left">Producto</th>
         <th style="text-align:left">Tipo</th><th>Unidades</th><th>Importe</th><th>Precio por unidad</th>
-        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true, filtrosMovHTML() + filtroFechasMovHTML())}
-      <p class="subt" style="margin-top:10px">${movs.length} movimiento${movs.length === 1 ? "" : "s"}${hayFiltroMov() ? " · filtrados" : ""}.</p></section>`;
+        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true, filtrosMovHTML() + filtroFechasMovHTML())}${hayFiltroMov() ? '<p class="subt" style="margin-top:10px">Filtrados.</p>' : ""}</section>`;
   }
 
   const AYUDA_IMPORTE = {
@@ -2495,32 +2524,140 @@
     f.elements.vinculoTipo.onchange = () => { f.elements.vinculoRef.innerHTML = opcionesRefNota(f.elements.vinculoTipo.value, ""); };
   }
   function leeVinculo(d) { return d.vinculoTipo && d.vinculoRef ? { tipo: d.vinculoTipo, ref: d.vinculoRef } : null; }
+  // Colores que puede llevar una nota (igual paleta que las tarjetas del tablero).
+  const COLORES_NOTA = ["", "s6", "s2", "s8", "s14", "s11"];
+  // Icono de acción con data-nacc (para las notas, que tienen su propio despachador).
+  function notaAccBtn(tipo, acc, id) {
+    return `<button class="accIco" data-nacc="${esc(acc)}" data-id="${esc(id)}" title="${_TIT_ACC[tipo]}" aria-label="${_TIT_ACC[tipo]}">${_ICO_ACC[tipo]}</button>`;
+  }
+  // Opciones del selector para adjuntar un archivo o una carpeta a una nota.
+  function opcionesArchivosNota() {
+    const { carpetas, archivos } = bibData();
+    let h = `<option value="">— elige un archivo o una carpeta —</option>`;
+    const cars = bibOpcionesCarpetas().filter(o => o.id);   // sin la raíz
+    if (cars.length) h += `<optgroup label="Carpetas (con todo su contenido)">${cars.map(o => `<option value="carpeta:${esc(o.id)}">${esc(o.nombre)}</option>`).join("")}</optgroup>`;
+    if (archivos.length) {
+      const ruta = a => bibRutaTexto(a.carpeta).replace("🗂️ Biblioteca", "").replace(/^\s*\/?\s*/, "").trim();
+      h += `<optgroup label="Archivos">${archivos.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).map(a =>
+        `<option value="archivo:${esc(a.id)}">${esc(a.nombre)}${a.carpeta ? ` — ${esc(ruta(a) || "/")}` : ""}</option>`).join("")}</optgroup>`;
+    }
+    return h;
+  }
+  // Nombre legible de un adjunto (dentro del formulario): archivo o carpeta con su recuento.
+  function nombreAdjunto(a) {
+    const { carpetas, archivos } = bibData();
+    if (a.tipo === "carpeta") {
+      const c = carpetas.find(x => x.id === a.id);
+      if (!c) return "📁 (carpeta borrada)";
+      const desc = bibDescendientes(a.id);
+      const num = archivos.filter(x => desc.has(x.carpeta)).length;
+      return `📁 ${esc(c.nombre)} (${num} archivo${num === 1 ? "" : "s"})`;
+    }
+    const f = archivos.find(x => x.id === a.id);
+    return f ? `${bibIcono(f)} ${esc(f.nombre)}` : "📎 (archivo borrado)";
+  }
+  // Chip de un adjunto en la tarjeta de la nota: el archivo abre/descarga, la carpeta
+  // lleva a la Biblioteca ya posicionada en ella.
+  function chipArchivoNota(a) {
+    const { carpetas, archivos } = bibData();
+    if (a.tipo === "carpeta") {
+      const c = carpetas.find(x => x.id === a.id);
+      if (!c) return `<span class="notaChipA roto" title="Carpeta no encontrada">📁 (borrada)</span>`;
+      const desc = bibDescendientes(a.id);
+      const num = archivos.filter(x => desc.has(x.carpeta)).length;
+      return `<button type="button" class="notaChipA" data-afolder="${esc(a.id)}" title="Abrir esta carpeta en Archivos">📁 ${esc(c.nombre)} <small>(${num})</small></button>`;
+    }
+    const f = archivos.find(x => x.id === a.id);
+    if (!f) return `<span class="notaChipA roto" title="Archivo no encontrado">📎 (borrado)</span>`;
+    return `<a class="notaChipA" href="api/biblioteca/archivo/${esc(f.id)}" target="_blank" rel="noopener" title="Abrir «${esc(f.nombre)}»">${bibIcono(f)} ${esc(f.nombre)}</a>`;
+  }
   function formNota(n) {
     const nuevo = !n; n = n || {};
-    const vinc = n.vinculo || {};
+    let color = COLORES_NOTA.includes(n.color) ? n.color : "";
+    let fijada = !!n.fijada;
+    const vincs = notaVinculos(n);
+    const archivos = (n.archivos || []).slice();
     const f = abreModal(nuevo ? "Nueva nota" : "Editar nota", `
-      <div class="rejilla">
-        ${campo("Título", '<input name="titulo" maxlength="120">', "", "ancho")}
+      <div class="rejilla notaForm">
+        <label class="campo ancho">
+          <span class="et">Título</span>
+          <div class="notaTitRow">
+            <input name="titulo" maxlength="120" autocomplete="off">
+            <button type="button" class="notaPin notaPinForm" data-pinform title="Fijar arriba" aria-label="Fijar arriba">📌</button>
+          </div>
+        </label>
         ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "Para una lista de tareas, escribe «- [ ] comprar X» (se vuelve una casilla).", "ancho")}
+        <div class="campo ancho"><span class="et">Color</span>
+          <div class="notaColores" data-colores>${COLORES_NOTA.map(c => `<button type="button" class="notaColor${c ? "" : " sincolor"}" data-color="${c}" title="${c ? "Color" : "Sin color"}"${c ? ` style="background:var(--${c})"` : ""}>${c ? "" : "∅"}</button>`).join("")}</div></div>
+        <div class="campo ancho"><span class="et">Activos relacionados <em>navega a ellos desde la nota</em></span>
+          <div class="notaVincs chips" data-vincs></div>
+          <div class="notaAddRow">
+            <select data-vtipo><option value="activo">Un activo</option><option value="deuda">Una deuda</option><option value="reservado">Un reservado</option></select>
+            <select data-vref></select>
+            <button type="button" class="btn mini" data-vadd>+ Añadir</button>
+          </div></div>
+        <div class="campo ancho"><span class="et">Documentos <em>enlaza archivos, o una carpeta entera con todo lo que contenga</em></span>
+          <div class="notaArchs chips" data-archs></div>
+          <div class="notaAddRow">
+            <select data-asel>${opcionesArchivosNota()}</select>
+            <button type="button" class="btn mini" data-aadd>+ Adjuntar</button>
+          </div></div>
         ${campo("Etiquetas", '<input name="etiquetas" placeholder="casa, urgente, revisar">', "sepáralas por comas", "ancho")}
-        ${campo("Fijar arriba", '<label class="chkLinea"><input type="checkbox" name="fijada"> Mantener esta nota arriba del todo</label>', "", "ancho")}
-        ${vinculoCamposHTML(vinc)}
       </div>`,
     async f => {
       const d = campos(f);
       const etiquetas = (d.etiquetas || "").split(/[,\n;]/).map(s => s.trim()).filter(Boolean);
-      const vinculo = leeVinculo(d);
-      const comun = { titulo: d.titulo, texto: d.texto, etiquetas, fijada: !!f.elements.fijada.checked, editada: hoy() };
-      if (vinculo) comun.vinculo = vinculo;
+      const comun = { titulo: d.titulo, texto: d.texto, etiquetas, fijada, editada: hoy() };
+      if (color) comun.color = color;
+      if (vincs.length) comun.vinculos = vincs.slice();
+      if (archivos.length) comun.archivos = archivos.slice();
       const notas = (E.cfg.notas || []).slice();
       if (nuevo) notas.push({ id: "n" + Date.now(), fecha: hoy(), ...comun });
-      else { const i = notas.findIndex(x => x.id === n.id); if (i >= 0) { const { vinculo: _v, ...resto } = notas[i]; notas[i] = { ...resto, ...comun }; } }
+      else {
+        const i = notas.findIndex(x => x.id === n.id);
+        if (i >= 0) { const { vinculo: _v, vinculos: _vs, archivos: _a, color: _c, ...resto } = notas[i]; notas[i] = { ...resto, ...comun }; }
+      }
       await guardaNotas(notas);
     }, "Guardar");
-    rellena(f, n);
-    wireVinculo(f);
+    f.elements.titulo.value = n.titulo || "";
+    f.elements.texto.value = n.texto || "";
     f.elements.etiquetas.value = (n.etiquetas || []).join(", ");
-    f.elements.fijada.checked = !!n.fijada;
+    // Pin (fijar) arriba a la derecha, como fuera del formulario.
+    const pin = f.querySelector("[data-pinform]");
+    const pintaPin = () => { pin.classList.toggle("on", fijada); pin.setAttribute("aria-pressed", String(fijada)); pin.title = fijada ? "Fijada arriba — pulsa para soltar" : "Fijar arriba"; };
+    pin.onclick = () => { fijada = !fijada; pintaPin(); };
+    pintaPin();
+    // Color.
+    const pintaColores = () => f.querySelectorAll("[data-color]").forEach(b => b.classList.toggle("sel", (b.dataset.color || "") === color));
+    f.querySelectorAll("[data-color]").forEach(b => b.onclick = () => { color = b.dataset.color || ""; pintaColores(); });
+    pintaColores();
+    // Activos relacionados (varios).
+    const contV = f.querySelector("[data-vincs]"), vtipo = f.querySelector("[data-vtipo]"), vref = f.querySelector("[data-vref]");
+    const refrescaVref = () => { vref.innerHTML = opcionesRefNota(vtipo.value, ""); };
+    vtipo.onchange = refrescaVref; refrescaVref();
+    const pintaVincs = () => {
+      contV.innerHTML = vincs.length ? vincs.map((v, i) => `<span class="notaChipV"><span>🔗 ${esc(nombreVinculo(v))}</span><button type="button" data-vdel="${i}" aria-label="Quitar">×</button></span>`).join("") : '<span class="subt">Ninguno todavía.</span>';
+      contV.querySelectorAll("[data-vdel]").forEach(b => b.onclick = () => { vincs.splice(+b.dataset.vdel, 1); pintaVincs(); });
+    };
+    f.querySelector("[data-vadd]").onclick = () => {
+      const tipo = vtipo.value, ref = vref.value;
+      if (!tipo || !ref || vincs.some(v => v.tipo === tipo && v.ref === ref)) return;
+      vincs.push({ tipo, ref }); pintaVincs();
+    };
+    pintaVincs();
+    // Documentos (archivos y carpetas).
+    const contA = f.querySelector("[data-archs]"), asel = f.querySelector("[data-asel]");
+    const pintaArchs = () => {
+      contA.innerHTML = archivos.length ? archivos.map((a, i) => `<span class="notaChipA enForm"><span>${nombreAdjunto(a)}</span><button type="button" data-adel="${i}" aria-label="Quitar">×</button></span>`).join("") : '<span class="subt">Ninguno todavía.</span>';
+      contA.querySelectorAll("[data-adel]").forEach(b => b.onclick = () => { archivos.splice(+b.dataset.adel, 1); pintaArchs(); });
+    };
+    f.querySelector("[data-aadd]").onclick = () => {
+      const val = asel.value; if (!val) return;
+      const i = val.indexOf(":"); const tipo = val.slice(0, i), id = val.slice(i + 1);
+      if (tipo && id && !archivos.some(a => a.tipo === tipo && a.id === id)) archivos.push({ tipo, id });
+      pintaArchs();
+    };
+    pintaArchs();
     return f;
   }
 
@@ -2543,7 +2680,7 @@
     const tagsTodas = [...new Set((E.cfg.notas || []).flatMap(n => n.etiquetas || []))].sort((a, b) => a.localeCompare(b));
     const vincRef = E.notaVincRef || "";
     let notas = (E.cfg.notas || []).slice();
-    if (vincRef) notas = notas.filter(n => n.vinculo && n.vinculo.ref === vincRef);
+    if (vincRef) notas = notas.filter(n => notaVinculos(n).some(v => v.ref === vincRef));
     if (busca) notas = notas.filter(n => ((n.titulo || "") + " " + (n.texto || "") + " " + (n.etiquetas || []).join(" ")).toLowerCase().includes(busca));
     if (tagSel) notas = notas.filter(n => (n.etiquetas || []).includes(tagSel));
     notas.sort((a, b) => {
@@ -2553,16 +2690,21 @@
     });
     const card = n => {
       const tags = (n.etiquetas || []).map(t => `<button class="notaTag" data-tagf="${esc(t)}">${esc(t)}</button>`).join("");
-      const vinc = n.vinculo ? `<span class="notaVinc" title="Relacionada con ${esc(n.vinculo.tipo)}">🔗 ${esc(nombreVinculo(n.vinculo))}</span>` : "";
+      const vincs = notaVinculos(n);
+      const vincChips = vincs.map(v => `<button type="button" class="notaVinc" data-vgo-tipo="${esc(v.tipo)}" data-vgo-ref="${esc(v.ref)}" title="Ir a ${esc(VINC_ETIQ[v.tipo] || "")} relacionado">🔗 ${esc(nombreVinculo(v))}</button>`).join("");
+      const archChips = (n.archivos || []).map(chipArchivoNota).join("");
       const ed = n.editada && n.editada !== n.fecha ? ` · editada ${fecha(n.editada)}` : "";
-      return `<div class="notaCard${n.fijada ? " fijada" : ""}">
+      // Chips en líneas separadas por concepto: activos / documentos / etiquetas.
+      const borde = n.color ? ` style="border-left:4px solid var(--${esc(n.color)})"` : "";
+      return `<div class="notaCard${n.fijada ? " fijada" : ""}${n.color ? " conColor" : ""}"${borde}>
         <div class="notaCabe"><div class="notaTit">${esc(n.titulo || "(sin título)")}</div>
           <button class="notaPin${n.fijada ? " on" : ""}" data-nacc="fijar" data-id="${esc(n.id)}" title="${n.fijada ? "Dejar de fijar" : "Fijar arriba"}" aria-label="Fijar">📌</button></div>
         <div class="notaTxt">${notaTextoHTML(n)}</div>
-        ${(tags || vinc) ? `<div class="notaMeta">${vinc}${tags}</div>` : ""}
+        ${vincChips ? `<div class="notaMeta notaLinea">${vincChips}</div>` : ""}
+        ${archChips ? `<div class="notaMeta notaLinea">${archChips}</div>` : ""}
+        ${tags ? `<div class="notaMeta notaLinea">${tags}</div>` : ""}
         <div class="notaPie"><span class="subt">${fecha(n.fecha)}${ed}</span><span class="sp"></span>
-          <button class="btn mini" data-nacc="editar" data-id="${esc(n.id)}">Editar</button>
-          <button class="btn mini" data-nacc="borrar" data-id="${esc(n.id)}">Borrar</button></div></div>`;
+          ${notaAccBtn("editar", "editar", n.id)}${notaAccBtn("duplicar", "duplicar", n.id)}${notaAccBtn("borrar", "borrar", n.id)}</div></div>`;
     };
     const hayNotas = (E.cfg.notas || []).length > 0;
     const herramientas = hayNotas ? `<div class="notasTools">
@@ -2603,11 +2745,20 @@
         const n = (E.cfg.notas || []).find(x => x.id === id);
         if (acc === "editar") return formNota(n);
         if (acc === "fijar") { const l = (E.cfg.notas || []).map(x => x.id === id ? { ...x, fijada: !x.fijada } : x); return guardaNotas(l); }
+        if (acc === "duplicar") {
+          if (!n) return;
+          const { id: _i, ...resto } = n;
+          const copia = { ...resto, id: "n" + Date.now(), titulo: (n.titulo || "Nota") + " (copia)", fijada: false, fecha: hoy(), editada: hoy() };
+          return guardaNotas([...(E.cfg.notas || []), copia]);
+        }
         if (acc === "borrar" && confirm(`¿Borrar la nota «${n ? (n.titulo || "sin título") : ""}»?`)) {
           guardaNotas((E.cfg.notas || []).filter(x => x.id !== id));
         }
       };
     });
+    // Navegar al activo/deuda/reservado relacionado y abrir la carpeta adjunta.
+    cont.querySelectorAll("[data-vgo-ref]").forEach(b => b.onclick = () => window.Editor && window.Editor.irAEntidad(b.dataset.vgoTipo, b.dataset.vgoRef));
+    cont.querySelectorAll("[data-afolder]").forEach(b => b.onclick = () => window.Editor && window.Editor.irACarpeta(b.dataset.afolder));
   }
 
   const TABLERO_DEFECTO = () => ({ columnas: [{ id: "porhacer", nombre: "Por hacer" }, { id: "encurso", nombre: "En curso" }, { id: "hecho", nombre: "Hecho" }], tarjetas: [] });
@@ -2792,7 +2943,8 @@
       items.push({ clase: "rec", id: r.id, texto: r.texto, fecha: fEff, hecho: !!r.hecho, repetir: r.repetir, vinculo: r.vinculo });
     });
     ((window.DATOS && window.DATOS.vencimientos) || []).forEach(v => items.push({ clase: "venc", texto: v.nombre, fecha: v.fecha,
-      meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado }));
+      meta: (v.clase || "") + (v.entidad ? " · " + v.entidad : ""), tipo: v.tipo, estado: v.estado,
+      ref: v.ref || "", origen: v.origen || "" }));
     // Tarjetas del tablero que tengan fecha de vencimiento (solo lectura en la agenda;
     // se gestionan en el Tablero). Se muestran diferenciadas con un badge «Tablero».
     const tab = E.cfg.tablero || {}, colNom = {};
@@ -2825,10 +2977,12 @@
       const etqD = d < 0 ? `hace ${-d} d` : d === 0 ? "hoy" : d === 1 ? "mañana" : `en ${d} d`;
       const clD = d < 0 ? "neg" : d <= 7 ? "aviso" : "";
       if (i.clase === "venc") {
-        return `<div class="agItem venc"><span class="agFecha">${fecha(i.fecha)}</span>
+        const nav = i.ref && i.origen;
+        const dondeTxt = i.origen === "deuda" ? "la deuda" : i.origen === "reservado" ? "el reservado" : "el activo";
+        return `<div class="agItem venc${nav ? " navegable" : ""}"${nav ? ` data-agent="${esc(i.origen)}" data-agref="${esc(i.ref)}" title="Ir a ${dondeTxt} en Mis datos" role="button" tabindex="0"` : ' title="Se gestiona en Mis datos"'}><span class="agFecha">${fecha(i.fecha)}</span>
           <span class="agDias ${clD}">${etqD}</span>
           <span class="agTxt">${esc(i.texto)}${i.meta ? ` <span class="agMeta">${esc(i.meta)}</span>` : ""}</span>
-          <span class="agBadge" title="Se gestiona en Mis datos">${esc(i.tipo || "Vencimiento")}</span></div>`;
+          <span class="agBadge">${esc(i.tipo || "Vencimiento")}</span>${nav ? '<span class="agIr" aria-hidden="true">→</span>' : ""}</div>`;
       }
       if (i.clase === "tar") {
         return `<div class="agItem tar" data-irtablero title="Tarjeta del tablero — pulsa para abrir el tablero"><span class="agFecha">${fecha(i.fecha)}</span>
@@ -2851,6 +3005,11 @@
     cont.querySelectorAll("[data-rdel]").forEach(b => b.onclick = () => { if (confirm("¿Borrar este recordatorio?")) guardaRecordatorios((E.cfg.recordatorios || []).filter(x => x.id !== b.dataset.rdel)); });
     cont.querySelectorAll("[data-rdone]").forEach(cb => cb.onchange = () => guardaRecordatorios((E.cfg.recordatorios || []).map(x => x.id === cb.dataset.rdone ? { ...x, hecho: cb.checked } : x)));
     cont.querySelectorAll("[data-irtablero]").forEach(el => el.onclick = () => irTablero());
+    cont.querySelectorAll("[data-agref]").forEach(el => {
+      const ir = () => window.Editor && window.Editor.irAEntidad(el.dataset.agent, el.dataset.agref);
+      el.onclick = ir;
+      el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
+    });
   }
   function montaAgendaCalendario() {
     const cont = $("#agCuerpo"); if (!cont) return;
@@ -2876,7 +3035,7 @@
     });
     ((window.DATOS && window.DATOS.vencimientos) || []).forEach(v => {
       const d = diaEnMes(v.fecha, "no");
-      if (d) porDia[d].push({ clase: "venc", texto: v.nombre, tipo: v.tipo });
+      if (d) porDia[d].push({ clase: "venc", texto: v.nombre, tipo: v.tipo, ref: v.ref || "", origen: v.origen || "" });
     });
     ((E.cfg.tablero || {}).tarjetas || []).forEach(t => {
       if (!t.vence) return;
@@ -2891,7 +3050,9 @@
         ? `<button class="calChip rec" data-cedit="${esc(it.id)}" title="${esc(it.texto)}">${it.repetir !== "no" ? "🔁 " : ""}${esc(it.texto)}</button>`
         : it.clase === "tar"
           ? `<button class="calChip tar" data-ctablero title="${esc(it.texto)} · Tablero">📋 ${esc(it.texto)}</button>`
-          : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
+          : (it.ref && it.origen)
+            ? `<button class="calChip venc" data-cvent="${esc(it.origen)}" data-cvref="${esc(it.ref)}" title="${esc(it.texto)} · ${esc(it.tipo || "")} — pulsa para ir">${esc(it.texto)}</button>`
+            : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
       celdas.push(`<div class="calDia${iso === hoyISO ? " hoy" : ""}" data-cnuevo="${iso}">
         <div class="calNum">${d}</div><div class="calChips">${chips}</div></div>`);
     }
@@ -2904,7 +3065,7 @@
         <button class="btn mini" data-choy>Hoy</button></div>
       <div class="calCab">${["L", "M", "X", "J", "V", "S", "D"].map(x => `<div>${x}</div>`).join("")}</div>
       <div class="calRejilla">${celdas.join("")}</div>
-      <p class="subt" style="margin-top:8px">Pulsa un día para añadir un recordatorio; pulsa uno existente para editarlo.</p>`;
+      <p class="subt" style="margin-top:8px">Pulsa un día para añadir un recordatorio; pulsa uno tuyo para editarlo. Los vencimientos y las tarjetas del tablero te llevan a su ficha.</p>`;
     const irMes = (y, m) => { E.calMes = y + "-" + String(m).padStart(2, "0"); montaAgendaCalendario(); };
     cont.querySelector("[data-cmes='-1']").onclick = () => irMes(M === 1 ? Y - 1 : Y, M === 1 ? 12 : M - 1);
     cont.querySelector("[data-cmes='1']").onclick = () => irMes(M === 12 ? Y + 1 : Y, M === 12 ? 1 : M + 1);
@@ -2913,6 +3074,7 @@
     cont.querySelector("[data-caniosel]").onchange = e => irMes(+e.target.value, M);
     cont.querySelectorAll("[data-cedit]").forEach(b => b.onclick = e => { e.stopPropagation(); formRecordatorio((E.cfg.recordatorios || []).find(x => x.id === b.dataset.cedit)); });
     cont.querySelectorAll("[data-ctablero]").forEach(b => b.onclick = e => { e.stopPropagation(); irTablero(); });
+    cont.querySelectorAll("[data-cvref]").forEach(b => b.onclick = e => { e.stopPropagation(); window.Editor && window.Editor.irAEntidad(b.dataset.cvent, b.dataset.cvref); });
     cont.querySelectorAll("[data-cnuevo]").forEach(c => c.onclick = () => formRecordatorio(null, c.dataset.cnuevo));
   }
 
@@ -3337,6 +3499,37 @@
     irAMovimiento,
     // Ir a un saldo/valor anotado a mano y resaltarlo (fichas de cuentas, efectivo, etc.).
     irAValor,
+    // Ir a la ficha de un activo / deuda / reservado y SELECCIONARLO (resaltado + scroll).
+    // Lo usan los vencimientos de la Agenda y los activos enlazados a una nota.
+    irAEntidad(origen, ref) {
+      if (!ref) return;
+      // Deducir el origen si no se da: por si el id es de un producto o de un reservado.
+      if (!origen) {
+        const p = prod(ref);
+        origen = p ? (p.tipo === "deuda" ? "deuda" : "activo")
+          : (E.cfg.apartados || []).some(a => a.id === ref) ? "reservado" : "activo";
+      }
+      const vista = origen === "deuda" ? "deudas" : origen === "reservado" ? "apartados" : "activos";
+      E.vista = vista; recuerda.guarda("patrimonio.editor", vista);
+      E.resaltaProd = origen === "reservado" ? null : ref;
+      E.resaltaApartado = origen === "reservado" ? ref : null;
+      const tab = document.querySelector('[data-tab="datos"]');
+      if (tab) tab.click(); else pinta();
+      requestAnimationFrame(() => {
+        const fila = document.getElementById((origen === "reservado" ? "fila-ap-" : "fila-prod-") + ref);
+        if (!fila) return;
+        try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
+      });
+    },
+    // Abrir la Biblioteca con una carpeta seleccionada (chip de carpeta de una nota).
+    irACarpeta(id) {
+      E.notasVista = "biblioteca";
+      recuerda.guarda("patrimonio.notasVista", "biblioteca");
+      if (id) { E.bibSel = id; if (!(E.bibAbiertas instanceof Set)) E.bibAbiertas = new Set(); E.bibAbiertas.add(id); }
+      const tab = document.querySelector('[data-tab="notas"]');
+      if (tab) tab.click();
+      pintarNotas();
+    },
     // Abrir la pestaña Notas directamente en la Biblioteca de documentos.
     biblioteca() {
       E.notasVista = "biblioteca";

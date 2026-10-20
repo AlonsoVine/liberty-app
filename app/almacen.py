@@ -794,6 +794,52 @@ def _vinculo(valor):
     return None
 
 
+def _vinculos(valor, legado):
+    """Lista de enlaces a activos/deudas/reservados de una nota: [{tipo, ref}].
+    Admite el `vinculo` único antiguo (se migra a lista). Sin repetir, hasta 20."""
+    out, vistas = [], set()
+    bruto = list(valor or [])
+    if legado:                          # compat: la nota tenía un único `vinculo`
+        bruto = [legado] + bruto
+    for v in bruto[:40]:
+        vinc = _vinculo(v)
+        if not vinc:
+            continue
+        k = (vinc["tipo"], vinc["ref"])
+        if k in vistas:
+            continue
+        vistas.add(k)
+        out.append(vinc)
+        if len(out) >= 20:
+            break
+    return out
+
+
+# Colores que puede llevar una nota (etiqueta corta de slot, como en el tablero).
+NOTA_COLORES = {"s2", "s6", "s8", "s11", "s14"}
+
+
+def _adjuntos_nota(valor):
+    """Documentos enlazados a una nota: [{tipo, id}] con tipo archivo|carpeta.
+    Una carpeta representa «todos los archivos que haya dentro» (se resuelve al
+    mostrarla). Sin repetir, hasta 40."""
+    out, vistas = [], set()
+    for a in (valor or [])[:80]:
+        a = a or {}
+        tipo = texto(a.get("tipo"), 10)
+        ident = texto(a.get("id"), 40)
+        if tipo not in ("archivo", "carpeta") or not ident:
+            continue
+        k = (tipo, ident)
+        if k in vistas:
+            continue
+        vistas.add(k)
+        out.append({"tipo": tipo, "id": ident})
+        if len(out) >= 40:
+            break
+    return out
+
+
 def guarda_notas(cfg, notas):
     out = []
     for n in (notas or [])[:500]:
@@ -808,9 +854,16 @@ def guarda_notas(cfg, notas):
                 "editada": fecha_suave(n.get("editada")) or "",
                 "fijada": bool(n.get("fijada")),
                 "etiquetas": _etiquetas(n.get("etiquetas"))}
-        vinc = _vinculo(n.get("vinculo"))
-        if vinc:
-            nota["vinculo"] = vinc
+        color = texto(n.get("color"), 4)
+        if color in NOTA_COLORES:
+            nota["color"] = color
+        vincs = _vinculos(n.get("vinculos"), _vinculo(n.get("vinculo")))
+        if vincs:
+            nota["vinculos"] = vincs
+            nota["vinculo"] = vincs[0]       # compat: indicadores 📝 y filtros antiguos
+        adjuntos = _adjuntos_nota(n.get("archivos"))
+        if adjuntos:
+            nota["archivos"] = adjuntos
         out.append(nota)
     cfg["notas"] = out
     return out
