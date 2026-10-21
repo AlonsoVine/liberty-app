@@ -5,6 +5,7 @@ propaga, tipos de activo propios (añadir y ocultar los de base) y alta automát
 de categorías al anotar un ingreso o gasto con una categoría nueva.
 """
 import copy
+import datetime as _dt
 
 from app import almacen, motor
 
@@ -164,6 +165,51 @@ def test_avisos_off_valida_claves():
     c = cfg()
     almacen.guarda_config(c, {"avisosOff": ["dinero-libre", "inventado", "dinero-libre"]})
     assert c["config"]["avisosOff"] == ["dinero-libre"]
+
+
+# ---------------------------------------------------------------- avisos de la agenda
+def test_aviso_agenda_dias_se_valida():
+    c = cfg()
+    almacen.guarda_config(c, {"avisoAgendaDias": "14"})
+    assert c["config"]["avisoAgendaDias"] == 14
+    almacen.guarda_config(c, {"avisoAgendaDias": "999"})   # se limita a 365
+    assert c["config"]["avisoAgendaDias"] == 365
+    almacen.guarda_config(c, {"avisoAgendaDias": ""})      # vacío = sin aviso (se elimina)
+    assert "avisoAgendaDias" not in c["config"]
+
+
+def _cartera_con_recordatorio(dias):
+    c = cfg()
+    almacen.guarda_producto(c, {"nombre": "Cuenta", "tipo": "efectivo", "fuente": "manual"})
+    almacen.guarda_valoracion(c, {"producto": c["productos"][0]["id"],
+                                  "fecha": "2025-01-01", "valor": "1000"})
+    f = (_dt.date.today() + _dt.timedelta(days=dias)).isoformat()
+    c["recordatorios"] = [{"id": "r1", "texto": "Renovar seguro",
+                           "fecha": f, "repetir": "no", "hecho": False}]
+    return c
+
+
+def test_aviso_agenda_salta_dentro_de_ventana(tmp_path):
+    c = _cartera_con_recordatorio(5)
+    almacen.guarda_config(c, {"avisoAgendaDias": "14"})
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    ag = [a for a in d["alertas"] if a.get("clave") == "agenda-proxima"]
+    assert len(ag) == 1
+    assert ag[0]["destino"]["tab"] == "notas"
+    assert ag[0]["destino"]["fecha"] == (_dt.date.today() + _dt.timedelta(days=5)).isoformat()
+
+
+def test_aviso_agenda_no_salta_fuera_de_ventana(tmp_path):
+    c = _cartera_con_recordatorio(40)
+    almacen.guarda_config(c, {"avisoAgendaDias": "14"})
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    assert not [a for a in d["alertas"] if a.get("clave") == "agenda-proxima"]
+
+
+def test_aviso_agenda_sin_config_no_salta(tmp_path):
+    c = _cartera_con_recordatorio(3)   # sin avisoAgendaDias en config
+    d = motor.construir(c, str(tmp_path), descargar=False)
+    assert not [a for a in d["alertas"] if a.get("clave") == "agenda-proxima"]
 
 
 # ---------------------------------------------------------------- marcas de apuntes

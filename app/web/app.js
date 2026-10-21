@@ -1106,6 +1106,12 @@
     const f = D.flujos, hay = !!f;
     const nav = $("#igNav"); if (nav) nav.hidden = !hay;
     const vac = $("#igVacio"); if (vac) vac.hidden = hay;
+    // Transparencia: si hay apuntes archivados que NO se cuentan en el panel, avisar.
+    const arch = $("#igArchivados"), n = hay && f.archivadosFuera;
+    if (arch) {
+      arch.hidden = !n;
+      if (n) arch.querySelector("span").textContent = `Este panel no incluye ${n} apunte${n > 1 ? "s" : ""} archivado${n > 1 ? "s" : ""} (lo cambias en Configuración → Ingresos y gastos).`;
+    }
     pintaIgFiltros();
     document.querySelectorAll(".ig").forEach(el => { el.hidden = true; });
     if (!hay) return;
@@ -1241,18 +1247,35 @@
       : "Define un presupuesto por categoría en «Mis datos → Configuración» para ver si te pasas.";
   }
 
+  // Icono de la sección a la que corresponde un aviso (homogéneo en Panel y Mis datos).
+  const AVISO_ICO = { distribucion: "📊", deudas: "💳", patrimonio: "💰", ingresos: "💶", fiscal: "🧾", notas: "🗓️" };
+  window.avisoIco = a => {
+    if (a && a.destino && a.destino.tab) return AVISO_ICO[a.destino.tab] || "🗓️";
+    if (a && a.pv) return AVISO_ICO[a.pv] || (a.nivel === "info" ? "ℹ️" : "⚠️");
+    return (a && a.nivel === "info") ? "ℹ️" : "⚠️";
+  };
+
   /* Banner de alertas del cuadro de control (F4). */
   function pintaAlertas() {
     const cont = $("#bannerAlertas"), al = D.alertas || [];
-    cont.innerHTML = al.map((a, i) => {
-      const color = a.nivel === "info" ? "var(--tinta2)" : "var(--mal)";
-      const clic = a.pv && document.getElementById("pv-" + a.pv);
-      const extra = clic ? ` class="avisoClic" role="button" tabindex="0" data-pv="${esc(a.pv)}" title="Ir a la sección"` : "";
-      return `<div class="avisoLinea${clic ? " clicable" : ""}" style="border-left:3px solid ${color}"${extra}>
-        <b>${a.n}</b> ${esc(a.texto)}${clic ? ' <span class="avisoIr">Ver →</span>' : ""}</div>`;
+    cont.innerHTML = al.map(a => {
+      const dest = a.destino && a.destino.tab === "notas";
+      const clic = dest || (a.pv && document.getElementById("pv-" + a.pv));
+      const attrs = dest
+        ? ` data-dest-fecha="${esc(a.destino.fecha || "")}"`
+        : (clic ? ` data-pv="${esc(a.pv)}"` : "");
+      const extra = clic ? ` role="button" tabindex="0" title="${dest ? "Ir a la agenda" : "Ir a la sección"}"${attrs}` : "";
+      return `<div class="avisoLinea${a.nivel === "info" ? "" : " aviso"}${clic ? " clicable" : ""}"${extra}>
+        <span class="avisoIco">${window.avisoIco(a)}</span>
+        <span class="avisoCuerpo"><b>${a.n}</b> ${esc(a.texto)}</span>${clic ? `<span class="avisoIr">${dest ? "Ver en la agenda →" : "Ver →"}</span>` : ""}</div>`;
     }).join("");
     cont.querySelectorAll("[data-pv]").forEach(el => {
       const ir = () => irVista(el.dataset.pv);
+      el.onclick = ir;
+      el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
+    });
+    cont.querySelectorAll("[data-dest-fecha]").forEach(el => {
+      const ir = () => { irA("notas"); if (window.Editor && window.Editor.irAgenda) window.Editor.irAgenda(el.dataset.destFecha); };
       el.onclick = ir;
       el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
     });
@@ -1473,7 +1496,7 @@
         <div class="pi"><span>${oculto ? "fuera del gráfico" : G.fmtPct(p.peso, 1) + " del total"}</span>
           <span class="${rent == null ? "" : rent >= 0 ? "pos" : "neg"}">${rent == null ? "—" : G.fmtPctSigno(rent, 1)}</span></div>
         <div class="sp"></div>`;
-      b.onclick = () => { estado.fondo = p.id; irVista("producto"); };
+      b.onclick = () => abreFicha(p.id, "distribucion");
       cont.appendChild(b);
       G.mini(b.querySelector(".sp"), corta(p.serie), color(p));
     });
@@ -1484,7 +1507,7 @@
   // aunque el panel reetiquete tipos/clases). Las fichas siguen a un clic en sus tarjetas.
   function irMovDesdeDist(d) {
     const Ed = window.Editor;
-    if (!(Ed && Ed.verMovimientos)) { if (d.id) { estado.fondo = d.id; irVista("producto"); } return; }
+    if (!(Ed && Ed.verMovimientos)) { if (d.id) abreFicha(d.id, "distribucion"); return; }
     if (estado.dist === "producto" && d.id) { Ed.verMovimientos({ producto: d.id }); return; }
     const ids = visibles().filter(p => valorCampo(p, estado.dist) === d.nombre).map(p => p.id);
     Ed.verMovimientos({ productos: ids, etq: etqCampo(estado.dist) + ": " + d.nombre });
@@ -1535,7 +1558,7 @@
     const raiz = arbolEstructura(activos, estado.estr1, estado.estr2);
     G.treemap($("#grafTreemap"), {
       raiz, alto: 440,
-      onClick: d => { if (d.id) { estado.fondo = d.id; irVista("producto"); } },
+      onClick: d => { if (d.id) abreFicha(d.id, "distribucion"); },
     });
     const n = activos.length;
     $("#estrNota").textContent = n
@@ -1568,6 +1591,103 @@
         <div class="fe">${hecho ? "✓ " + G.fmtFecha(h.fecha) : "faltan " + G.fmtEurCorto(h.importe - mTodo.valor)}</div>
       </div>`;
     }).join("");
+  }
+
+  /* Bloque central de Rentabilidad: resumen de cartera + tabla por activo, con
+     selector de periodo (Total / Año / Mes). Reutiliza los datos ya calculados por
+     el motor (total, resumenMensual, rentabilidadAnual, indiceCartera, TWR/TIR por
+     producto); no recalcula nada en el cliente salvo agregados. */
+  function pintaRentCentral() {
+    const cont = $("#rentCentral");
+    if (!cont) return;
+    const rm = D.resumenMensual || [];
+    const inv = (D.productos || []).filter(p => p.aportado != null || p.tir != null || p.twr != null);
+    if (!rm.length && !inv.length) { cont.hidden = true; return; }
+    cont.hidden = false;
+    const anios = [...new Set(rm.map(x => x.mes.slice(0, 4)))];
+    const per = estado.rentPeriodo || (estado.rentPeriodo = { modo: "total" });
+    if (per.modo === "ano" && !anios.includes(per.ano)) per.ano = anios[anios.length - 1];
+    if (per.modo === "mes" && (per.mesIdx == null || per.mesIdx < 0 || per.mesIdx >= rm.length)) per.mesIdx = rm.length - 1;
+    if ((per.modo === "ano" || per.modo === "mes") && !rm.length) per.modo = "total";
+
+    const selAno = per.modo === "ano"
+      ? `<select class="rcSel" data-rcano>${anios.slice().reverse().map(a => `<option value="${a}"${a === per.ano ? " selected" : ""}>${a}</option>`).join("")}</select>` : "";
+    const selMes = per.modo === "mes"
+      ? `<select class="rcSel" data-rcmes>${rm.map((x, i) => `<option value="${i}"${i === per.mesIdx ? " selected" : ""}>${G.fmtMes(x.mes)}</option>`).join("")}</select>` : "";
+    const seg = `<div class="segm rcSeg">
+        <button data-rcmodo="total" aria-pressed="${per.modo === "total"}">Total</button>
+        <button data-rcmodo="ano" aria-pressed="${per.modo === "ano"}"${rm.length ? "" : " disabled"}>Por año</button>
+        <button data-rcmodo="mes" aria-pressed="${per.modo === "mes"}"${rm.length ? "" : " disabled"}>Por mes</button>
+      </div>${selAno}${selMes}`;
+
+    const celPct = v => v == null ? '<td class="subt">—</td>' : `<td class="${v >= 0 ? "pos" : "neg"}">${G.fmtPctSigno(v, 1)}</td>`;
+    const celEurS = v => v == null ? '<td class="subt">—</td>' : `<td class="${v >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(v, 0)}</td>`;
+    let kpis, cols, filas, totalFila, nota;
+
+    if (per.modo === "total") {
+      const t = D.total || {};
+      const twrCart = (D.indiceCartera && D.indiceCartera.length) ? D.indiceCartera[D.indiceCartera.length - 1] / 100 - 1 : null;
+      kpis = [
+        ["Aportado", G.fmtEur(t.aportado || 0, 0), ""],
+        ["Valor hoy", G.fmtEur(t.valorConCoste || 0, 0), ""],
+        ["Plusvalía", t.plusvalia != null ? `${G.fmtEurSigno(t.plusvalia, 0)} · ${G.fmtPctSigno(t.rentabilidad, 1)}` : "—", (t.plusvalia || 0) >= 0 ? "pos" : "neg"],
+        ["TIR anualizada", t.tir != null ? G.fmtPctSigno(t.tir, 1) : "—", (t.tir || 0) >= 0 ? "pos" : "neg"],
+      ];
+      cols = ["Activo", "Aportado", "Valor hoy", "Plusvalía", "%", "TIR", "TWR"];
+      filas = inv.filter(p => p.aportado != null).map(p => `<tr class="rcClic" data-rcficha="${esc(p.id)}" title="Ver la ficha de ${esc(p.corto || p.nombre)}">
+          <td><i class="pt" style="background:${color(p)}"></i>${esc(p.corto || p.nombre)}</td>
+          <td>${G.fmtEur(p.aportado, 0)}</td><td>${G.fmtEur(p.valor, 0)}</td>
+          ${celEurS(p.plusvalia)}${celPct(p.rentabilidad)}${celPct(p.tir)}${celPct(p.twr)}</tr>`);
+      totalFila = `<tr><td>Tu cartera</td><td>${G.fmtEur(t.aportado || 0, 0)}</td><td>${G.fmtEur(t.valorConCoste || 0, 0)}</td>
+        ${celEurS(t.plusvalia)}${celPct(t.rentabilidad)}${celPct(t.tir)}${celPct(twrCart)}</tr>`;
+      nota = "Desde el inicio. La <b>TIR</b> mide la rentabilidad de tu dinero (según cuándo lo metiste); la <b>TWR</b>, la de la inversión en sí, comparable entre productos.";
+    } else {
+      const r = per.modo === "ano" ? resumenAnio(per.ano) : rm[per.mesIdx];
+      let anualTwr = null;
+      if (per.modo === "ano" && D.rentabilidadAnual) {
+        const i = D.rentabilidadAnual.anos.indexOf(per.ano);
+        if (i >= 0) { anualTwr = {}; Object.entries(D.rentabilidadAnual.porProducto || {}).forEach(([id, arr]) => { anualTwr[id] = arr[i]; }); }
+      }
+      // Misma base que la vista Total (invertibles), para que las filas sumen el total
+      // y el alcance sea coherente entre periodos. La rentabilidad de la cartera es la
+      // encadenada (TWR) que ya calcula el motor sobre la inversión.
+      const acc = { inicio: 0, aportado: 0, mercado: 0, fin: 0 };
+      cols = ["Activo", "Inicio", "Aportado", "Mercado", "Cierre", "%"];
+      filas = inv.map(p => {
+        const dd = (r.porProducto || {})[p.id];
+        if (!dd) return "";
+        acc.inicio += dd.inicio || 0; acc.aportado += dd.aportado || 0;
+        acc.mercado += dd.mercado || 0; acc.fin += dd.fin || 0;
+        const pct = anualTwr && anualTwr[p.id] != null ? anualTwr[p.id] : (dd.inicio ? dd.mercado / dd.inicio : null);
+        return `<tr class="rcClic" data-rcficha="${esc(p.id)}" title="Ver la ficha de ${esc(p.corto || p.nombre)}"><td><i class="pt" style="background:${color(p)}"></i>${esc(p.corto || p.nombre)}</td>
+          <td>${G.fmtEur(dd.inicio, 0)}</td>${celEurS(dd.aportado)}${celEurS(dd.mercado)}<td>${G.fmtEur(dd.fin, 0)}</td>${celPct(pct)}</tr>`;
+      }).filter(Boolean);
+      kpis = [
+        ["Valor al inicio", G.fmtEur(acc.inicio, 0), ""],
+        ["Aportado", G.fmtEurSigno(acc.aportado, 0), ""],
+        ["Ganancia de mercado", G.fmtEurSigno(acc.mercado, 0), acc.mercado >= 0 ? "pos" : "neg"],
+        ["Valor al cierre", G.fmtEur(acc.fin, 0), ""],
+        ["Rentabilidad", r.rentabilidad != null ? G.fmtPctSigno(r.rentabilidad, 1) : "—", (r.rentabilidad || 0) >= 0 ? "pos" : "neg"],
+      ];
+      totalFila = `<tr><td>Tu cartera</td><td>${G.fmtEur(acc.inicio, 0)}</td>${celEurS(acc.aportado)}${celEurS(acc.mercado)}<td>${G.fmtEur(acc.fin, 0)}</td>${celPct(r.rentabilidad)}</tr>`;
+      nota = per.modo === "ano"
+        ? "Lo ganado en el año con tus inversiones. «Mercado» es la plusvalía del periodo; el % por activo es su rentabilidad del año (TWR) y el de la cartera va encadenado."
+        : "Lo ganado en el mes con tus inversiones. «Mercado» es la plusvalía generada; el % por activo es sobre su valor al inicio del mes y el de la cartera es la rentabilidad encadenada.";
+    }
+
+    cont.innerHTML = `<header><h2>Rentabilidad de la cartera</h2><span class="sp"></span>${seg}</header>
+      <div class="ventanas rcKpis">${kpis.map(k => `<div class="ventana"><div class="e">${k[0]}</div><div class="v ${k[2] || ""}">${k[1]}</div></div>`).join("")}</div>
+      <div class="tablaEnv" style="margin-top:4px"><table class="dt rcTabla">
+        <thead><tr>${cols.map(c => `<th>${c}</th>`).join("")}</tr></thead>
+        <tbody>${filas.join("") || `<tr><td colspan="${cols.length}" class="subt">Sin datos para este periodo.</td></tr>`}</tbody>
+        <tfoot>${totalFila}</tfoot></table></div>
+      <p class="subt" style="margin:8px 0 0">${nota}</p>`;
+
+    cont.querySelectorAll("[data-rcmodo]").forEach(b => b.onclick = () => { estado.rentPeriodo.modo = b.dataset.rcmodo; pintaRentCentral(); });
+    const sa = cont.querySelector("[data-rcano]"); if (sa) sa.onchange = e => { estado.rentPeriodo.ano = e.target.value; pintaRentCentral(); };
+    const sm = cont.querySelector("[data-rcmes]"); if (sm) sm.onchange = e => { estado.rentPeriodo.mesIdx = +e.target.value; pintaRentCentral(); };
+    // Fila pulsable → ficha del componente, con «Volver a Rentabilidad».
+    cont.querySelectorAll("[data-rcficha]").forEach(tr => tr.onclick = () => abreFicha(tr.dataset.rcficha, "rentabilidad"));
   }
 
   function pintaProyeccion() {
@@ -2140,7 +2260,7 @@
       $("#distTreemapWrap").hidden = modo !== "mapa";
       if (modo === "mapa") pintaEstructura(); else pintaDistribucion();
     }
-    else if (pv === "rentabilidad") { pintaProyeccion(); pintaTabla(); pintaRendimiento(); }
+    else if (pv === "rentabilidad") { pintaRentCentral(); pintaProyeccion(); pintaTabla(); pintaRendimiento(); }
     else if (pv === "ingresos") pintaIngresos();
     else if (pv === "fiscal") pintaFiscal();
     else if (pv === "producto") pintaFondos();
@@ -2302,11 +2422,28 @@
     return p && p.navFecha ? Math.round((Date.parse(D.fechaExtracto) - Date.parse(p.navFecha)) / 864e5) : 0;
   }
 
+  // Abre la ficha de un componente recordando de dónde se vino (Distribución o
+  // Rentabilidad), para que el botón «Volver» lleve de vuelta a esa pestaña.
+  function abreFicha(id, origen) {
+    if (!id) return;
+    estado.fondo = id;
+    estado.fichaOrigen = origen || "distribucion";
+    if (estado.tab !== "panel") irA("panel");
+    irVista("producto");
+  }
+
   function pintaFondos() {
     const lista = TODOS();
     if (!lista.length) { $("#fondoFicha").innerHTML = '<p class="vacio">Aún no hay componentes que mostrar.</p>'; return; }
     if (!estado.fondo || !buscaProd(estado.fondo)) estado.fondo = lista[0].id;
     const p = buscaProd(estado.fondo);
+    // El botón «Volver» apunta a la pestaña de origen (Distribución por defecto).
+    const vb = $("#btnVolverDist");
+    if (vb) {
+      const rent = estado.fichaOrigen === "rentabilidad";
+      vb.textContent = rent ? "← Volver a Rentabilidad" : "← Volver a Distribución";
+      vb.onclick = () => irVista(rent ? "rentabilidad" : "distribucion");
+    }
 
     $("#selFondo").innerHTML = "";
     lista.forEach(x => {
@@ -2712,12 +2849,16 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.13.0",
+    version: "1.14.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["📓", "Cuadernos para agrupar notas", "Nueva pestaña «Cuadernos» junto a «Lista de notas»: crea cuadernos (p. ej. «Histórico Hacienda») y envía una nota a un cuaderno cuando quieras archivarla, desde su tarjeta, al editarla o al abrirla. En Configuración → Documentos eliges si la lista enseña solo las notas sueltas o todas."],
-      ["🔎", "Nota a pantalla completa", "Las tarjetas de nota ahora adelantan unas líneas; al pulsarlas se abren en grande, con todo el texto, el checklist y los enlaces a activos y documentos. Pulsa fuera para volver."],
-      ["🗓️", "Agenda más clara", "Los recordatorios de la lista estrenan iconos de editar y borrar, y en el calendario el recordatorio de un día se resalta al pasar el ratón para que se vea que puedes editarlo."],
+      ["🧮", "Tabla central de Rentabilidad", "En Rentabilidad, un bloque arriba con el resumen de tu cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio (Total) o acotada a un año o un mes. La TIR mide la rentabilidad de tu dinero; la TWR, la de la inversión en sí."],
+      ["👉", "De Rentabilidad a la ficha", "Pulsa cualquier fila de esa tabla para abrir la ficha del componente. El botón «← Volver» te devuelve a Rentabilidad, y desde la ficha llegas a la de cualquier otro componente del patrimonio."],
+      ["🔔", "Avisos de la agenda", "En Configuración → Documentos eliges con cuántos días de antelación un recordatorio del calendario salta a la franja de avisos del Panel y de Mis datos; al pulsarlo te lleva al calendario situado en esa fecha."],
+      ["🔖", "Avisos homogéneos", "Todos los avisos se ven igual en el Panel y en Mis datos: borde redondeado y un icono que te dice a qué sección corresponden (Distribución, Deudas, Agenda…)."],
+      ["🗑️", "Borrar mejor en Ingresos y gastos y Movimientos", "Al borrar ya no saltas al principio de la lista. Con «☑ Seleccionar» borras varios de una vez, y «🗄 Archivar / borrar…» archiva (reversible, para «dejar solo este año») o borra lo anterior a una fecha. Puedes elegir si lo archivado cuenta o no en el panel."],
+      ["🧭", "Más cómodo y al día", "Las cuatro pestañas de Configuración caben en una línea; en Ingresos y gastos los botones de acción van ordenados a la derecha, bajo los filtros; y la ayuda «i» de cada pantalla (Cuadernos incluida) está al día."],
+      ["📄", "CSV compatible con Excel/Android", "Los importes negativos del CSV salen ya con el guion normal, así se importan directamente en Excel y en las hojas de cálculo de Android."],
     ],
   };
   function quizaNovedades() {
@@ -2783,7 +2924,8 @@
       ["🔍", "Filtros", "Arriba puedes acotar por titular o por un valor de cualquier dimensión, para ver el reparto de solo una parte de tu cartera."],
     ] },
     "panel.rentabilidad": { t: "Rentabilidad", sub: "Cuánto ha crecido tu dinero, bien medido.", p: [
-      ["📈", "Rentabilidad y TIR", "La rentabilidad simple es lo ganado sobre lo aportado. La TIR anualizada es más justa: tiene en cuenta CUÁNDO metiste cada euro (no es lo mismo meter 10.000 hace 5 años que el mes pasado)."],
+      ["🧮", "Tabla central (Total · Año · Mes)", "Arriba, un resumen de la cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio o acotada a un año o un mes. Pulsa una fila para abrir la ficha de ese componente (y «← Volver a Rentabilidad»)."],
+      ["📈", "Rentabilidad, TIR y TWR", "La rentabilidad simple es lo ganado sobre lo aportado. La TIR tiene en cuenta CUÁNDO metiste cada euro (premia tu acierto al elegir el momento). La TWR mide la inversión en sí, sin ese efecto, y sirve para comparar productos entre sí."],
       ["📊", "Por año", "Una barra por cada año natural, para ver los buenos y los malos. El primer año cuenta desde tu primera compra; el año en curso va marcado como incompleto."],
       ["🧾", "Por producto", "La rentabilidad de cada componente y año, desde el precio real al que compraste y con las comisiones. Para ver qué tira y qué no."],
       ["💡", "Depende de lo que anotes", "El cálculo es tan bueno como tus datos: anota tus compras y, en productos a mano, «lo aportado», en «Saldos y movimientos». Sin eso, no se puede calcular la rentabilidad real."],
@@ -2818,7 +2960,8 @@
       ["🔎", "Sus números", "Valor de hoy, lo aportado, plusvalía, rentabilidad y TIR solo de ese activo."],
       ["📈", "Su evolución", "El precio y el valor del activo en el tiempo, con tus aportaciones marcadas sobre la curva."],
       ["🧾", "Aportaciones o saldos", "Si cotiza, la lista de compras (pulsa una fila para ir a ese movimiento). Si se valora a mano, tus saldos anotados y un botón para anotar uno nuevo."],
-      ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. Para volver, usa «← Volver a Distribución»."],
+      ["🔀", "Cambia de componente", "Con el selector de arriba saltas a la ficha de cualquier otro componente, sin volver atrás."],
+      ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. El botón «← Volver» te lleva de vuelta a donde viniste (Distribución o Rentabilidad)."],
     ] },
 
     "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que suma a tu patrimonio. La base de casi todo lo demás.", p: [
@@ -2845,6 +2988,8 @@
       ["🔖", "Marcas, notas y facturas", "Marca un apunte (🚩⭐❗…) para revisarlo luego, añádele una observación o adjúntale la factura/ticket (imagen o PDF)."],
       ["🏦", "Importar en vez de teclear", "Si tienes muchos movimientos, no los teclees: tráelos del banco desde «Importar». Con las reglas y categorías bien puestas, llegan ya clasificados."],
       ["🔎", "Filtra y busca", "Arriba tienes filtros por tipo, categoría, titular, entidad, importe y fechas, más un buscador de texto. Pulsa una categoría del panel y llegas aquí ya filtrado."],
+      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un apunte la lista ya no salta al principio: te quedas donde estabas. Y con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez."],
+      ["🗄️", "Archivar o borrar lo antiguo", "«🗄 Archivar / borrar…» actúa sobre todo lo anterior a una fecha: archívalo (lo oculta de la lista, reversible, para «dejar solo este año») o bórralo para siempre. Las facturas de lo borrado se conservan. En Configuración → Ingresos y gastos eliges si lo archivado sigue contando en el panel o no."],
     ] },
     "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus inversiones: aquí se registra lo que compras y lo que vale.", p: [
       ["🧾", "Movimientos (productos que cotizan)", "Compra, venta, dividendo o comisión, con unidades e importe. Con eso el panel calcula tu coste medio por orden de compra (FIFO), la plusvalía y la TIR de cada producto."],
@@ -2852,6 +2997,7 @@
       ["📅", "Cierre del mes", "El botón «Cierre del mes» te deja anotar de golpe el saldo de todas tus cuentas, depósitos, planes y deudas. El gesto de cada mes para tenerlo todo al día."],
       ["🔎", "Filtros potentes", "Filtra los movimientos por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas. Al llegar desde la Distribución, el grupo viene ya filtrado."],
       ["🎯", "Resaltado", "Si llegas aquí pulsando una aportación o un saldo del panel, esa fila concreta queda resaltada hasta que elijas otra."],
+      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un movimiento la lista ya no vuelve al principio. Con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez. Aquí la historia se mantiene: no hay borrado por fecha."],
     ] },
     "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas, unidos a tus apuntes.", p: [
       ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto, para tener el justificante a mano cuando lo necesites."],
@@ -2884,18 +3030,29 @@
     ] },
 
     "doc.lista": { t: "Documentos · Lista de notas", sub: "Un bloc de notas para tu patrimonio.", p: [
-      ["📝", "Notas con etiquetas", "Apunta lo que quieras recordar (una idea, el teléfono de tu asesor, por qué compraste algo) y clasifícalo con etiquetas."],
-      ["✅", "Tareas", "Una nota puede llevar una lista de tareas con casillas, para no olvidar gestiones."],
-      ["🔗", "Vincula a un activo o apunte", "Enlaza una nota a un producto, deuda o apunte: luego verás un 📝 junto a ese elemento en el resto de la app."],
-      ["🔎", "Ordena y filtra", "Por fecha o por etiqueta, y fija arriba las más importantes."],
+      ["📝", "Notas con etiquetas y color", "Apunta lo que quieras recordar (una idea, el teléfono de tu asesor, por qué compraste algo), clasifícalo con etiquetas y dale color para localizarlo de un vistazo."],
+      ["✅", "Tareas", "Una nota puede llevar una lista de tareas con casillas, para no olvidar gestiones. Funciona también a pantalla completa."],
+      ["🔗", "Vincula a activos y documentos", "Enlaza una nota a varios productos, deudas o apuntes (verás un 📝 junto a ellos) y adjúntale archivos o una carpeta entera. Los chips de activos, documentos y etiquetas van en líneas separadas, y al pulsarlos saltas al activo o a la carpeta."],
+      ["🔎", "Ficha a pantalla completa", "Las tarjetas recortan el texto; pulsa una para abrirla en grande, con todo el contenido, la lista de tareas y los enlaces. Pulsa fuera para volver."],
+      ["📓", "Cuadernos", "Agrupa notas en cuadernos (p. ej. «Histórico Hacienda») y «envía» una nota a uno para archivarla. En Configuración → Documentos eliges si la lista muestra solo las notas sueltas o todas."],
+      ["📌", "Ordena y fija", "Por fecha o etiqueta, y fija arriba las más importantes con el pin (dentro del propio formulario, junto al título)."],
+    ] },
+    "doc.cuadernos": { t: "Documentos · Cuadernos", sub: "Agrupa y archiva tus notas por temas.", p: [
+      ["📓", "Qué es un cuaderno", "Una carpeta para tus notas: agrupa las que van juntas (p. ej. «Histórico Hacienda», «Compra del coche»). Cada nota pertenece a lo sumo a un cuaderno."],
+      ["➕", "Crear y organizar", "Crea cuadernos, renómbralos y dales color. Pulsa uno para entrar y ver solo sus notas; «← Cuadernos» vuelve a la rejilla."],
+      ["📥", "Enviar una nota a un cuaderno", "Desde la propia tarjeta de la nota, al editarla o al abrirla a pantalla completa, con «Enviar a un cuaderno». Útil a fin de año para archivar lo del ejercicio."],
+      ["👁️", "Qué se ve en «Lista de notas»", "En Configuración → Documentos eliges si «Lista de notas» enseña solo las notas sueltas (las de un cuaderno se ven aquí) o todas con el chip de su cuaderno."],
+      ["🗑️", "Borrar un cuaderno", "Si borras un cuaderno, sus notas NO se borran: quedan sueltas."],
     ] },
     "doc.tablero": { t: "Documentos · Tablero", sub: "Un tablero tipo Trello para tus pendientes.", p: [
       ["📋", "Columnas y tarjetas", "Crea columnas (p. ej. Por hacer · Haciendo · Hecho) y arrastra tarjetas entre ellas."],
       ["🧹", "Para el papeleo", "Ideal para gestiones del hogar, decisiones de inversión pendientes o cosas que revisar con calma."],
     ] },
     "doc.agenda": { t: "Documentos · Agenda", sub: "El calendario de tu patrimonio.", p: [
-      ["🗓️", "Calendario", "Tus vencimientos y recordatorios colocados sobre el mes, para verlos de un vistazo."],
-      ["🔔", "Lo que vence pronto", "Lo cercano resalta para que no se te pase (renovaciones, impuestos, revisiones…)."],
+      ["🗓️", "Calendario y lista", "Tus recordatorios, los vencimientos que la app detecta (depósitos, deudas, reservados) y las tarjetas del tablero con fecha, sobre el mes o en lista. Pulsa un día para crear un recordatorio; cada recordatorio se edita y se borra con sus iconos."],
+      ["🔁", "Recordatorios que se repiten", "Un recordatorio puede repetirse cada mes o cada año (p. ej. la renovación del seguro)."],
+      ["🔔", "Avisos con antelación", "En Configuración → Documentos eliges con cuántos días de antelación quieres que un recordatorio salte a la franja de avisos del Panel y de Mis datos; al pulsar el aviso te trae aquí, al día en cuestión."],
+      ["➡️", "De un vencimiento a su ficha", "Los vencimientos y las tarjetas del tablero llevan a su origen (la deuda, el depósito o el tablero) para gestionarlos."],
     ] },
     "doc.biblioteca": { t: "Documentos · Archivos", sub: "Un explorador para guardar tus documentos importantes.", p: [
       ["🗂️", "Guarda lo importante", "Declaraciones, escrituras, contratos, pólizas, nóminas… en carpetas anidadas, como en el explorador de tu ordenador."],
@@ -2961,7 +3118,7 @@
 
   function pintaComun() {
     $("#avisos").innerHTML = (D.avisos || [])
-      .map(a => `<div class="av"><span>⚠</span><span>${esc(a)}</span></div>`).join("");
+      .map(a => `<div class="avisoLinea aviso"><span class="avisoIco">⚠️</span><span class="avisoCuerpo">${esc(a)}</span></div>`).join("");
     const pa = D.preciosActualizados;
     const fuentes = [...new Set(D.productos.map(p => p.fuentePrecio).filter(Boolean))];
     $("#pie").innerHTML =
@@ -3372,7 +3529,7 @@
     const dv = { activos: "Activos", deudas: "Deudas", apartados: "Reservados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
     c.push({ ico: "⌨️", label: "Ver atajos de teclado", run: () => muestraAtajos() });
-    (D.productos || []).forEach(p => c.push({ ico: "🔎", label: p.corto || p.nombre, hint: "activo", run: () => { estado.fondo = p.id; if (estado.tab !== "panel") irA("panel"); irVista("producto"); } }));
+    (D.productos || []).forEach(p => c.push({ ico: "🔎", label: p.corto || p.nombre, hint: "activo", run: () => abreFicha(p.id, "distribucion") }));
     return c;
   }
   function abrePaleta() {

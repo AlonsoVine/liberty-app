@@ -68,9 +68,35 @@
     if (window.toast) window.toast("Borrado ✓");
     return j;
   }
+  // Re-render de «Mis datos» conservando la posición de scroll: al borrar una fila
+  // (apunte o movimiento) la lista no salta al principio, para poder seguir borrando.
+  function pintaScroll() {
+    const y = window.scrollY || window.pageYOffset || 0;
+    pinta();
+    try { window.scrollTo(0, y); } catch (e) { /* da igual */ }
+  }
+  // Recuerda los últimos avisos de texto del motor; se repintan en cada render de «Mis
+  // datos» (pinta() reconstruye #edAvisos), junto con los avisos de fechas de la agenda.
   function avisa(avisos) {
+    if (avisos) E._avisos = avisos;
+    pintaEdAvisos();
+  }
+  function pintaEdAvisos() {
     const el = $("#edAvisos");
-    if (el) el.innerHTML = (avisos || []).map(a => `<div class="av"><span>⚠</span><span>${esc(a)}</span></div>`).join("");
+    if (!el) return;
+    // Mismo aspecto que los avisos del Panel: .avisoLinea con icono de la sección.
+    let html = (E._avisos || []).map(a => `<div class="avisoLinea aviso"><span class="avisoIco">⚠️</span><span class="avisoCuerpo">${esc(a)}</span></div>`).join("");
+    // Avisos de fechas de la agenda que se acercan (alertas del motor con destino a la
+    // agenda), clicables: llevan al calendario situado en esa fecha. Idénticos al Panel.
+    const ag = ((window.DATOS || {}).alertas || []).filter(a => a.destino && a.destino.tab === "notas");
+    html += ag.map(a => `<div class="avisoLinea clicable" role="button" tabindex="0" data-agenda-fecha="${esc(a.destino.fecha || "")}" title="Ir a la agenda">
+        <span class="avisoIco">🗓️</span><span class="avisoCuerpo"><b>${esc(String(a.n || ""))}</b> ${esc(a.texto)}</span><span class="avisoIr">Ver en la agenda →</span></div>`).join("");
+    el.innerHTML = html;
+    el.querySelectorAll("[data-agenda-fecha]").forEach(x => {
+      const ir = () => window.Editor && window.Editor.irAgenda(x.dataset.agendaFecha);
+      x.onclick = ir;
+      x.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
+    });
   }
 
   /* ---------------------------------------------- ventana modal */
@@ -283,16 +309,24 @@
     return (n && n.vinculo) ? [n.vinculo] : [];
   }
   // Caja de búsqueda + tabla ordenable, envuelta con su clave para conservar el estado.
-  function envTabla(key, thead, filas, alto, toolsExtra, sinBuscar) {
+  function envTabla(key, thead, filas, alto, toolsExtra, sinBuscar, selColl, acciones) {
     // sinBuscar: el propio toolsExtra ya incluye el input [data-buscar] donde quiera (p. ej.
     // Ingresos y gastos lo pone tras los filtros). Si no, se pinta el buscador al principio.
+    // selColl: nombre de la colección ("flujos"|"movimientos") para habilitar «Seleccionar
+    // varios para borrar» (opt-in).
+    // acciones: si se define (aunque sea ""), los botones de acción (acciones propias +
+    // Seleccionar + CSV) van en una SEGUNDA línea, alineados a la derecha y debajo de los
+    // filtros, para que estos puedan crecer sin descolocar nada.
+    const buscador = sinBuscar ? "" : `<label class="buscaTabla">${LUPA}<input type="search" data-buscar
+      placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>`;
+    const csvBtn = '<button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button>';
+    const selBtn = selColl ? selBtnHTML(selColl) : "";
+    const dosFilas = acciones !== undefined;
     return `<div class="tablaBloque" data-tabla="${esc(key)}">
       <div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-        ${sinBuscar ? "" : `<label class="buscaTabla">${LUPA}<input type="search" data-buscar
-          placeholder="Buscar…" aria-label="Buscar en la tabla" autocomplete="off"></label>`}
-        ${toolsExtra || '<span class="ordenaHint">↕ Ordena pulsando una columna</span>'}
-        <span class="sp"></span>
-        <button type="button" class="btn" data-csv title="Descargar esta tabla en CSV (para Excel)">⤓ CSV</button></div>
+        ${buscador}${toolsExtra || '<span class="ordenaHint">↕ Ordena pulsando una columna</span>'}
+        ${dosFilas ? "" : `<span class="sp"></span>${selBtn}${csvBtn}`}</div>
+      ${dosFilas ? `<div class="tablaAcciones"><span class="sp"></span>${acciones}${selBtn}${csvBtn}</div>` : ""}
       <div class="tablaEnv${alto ? " alto" : ""}"><table class="dt orden"><thead>${thead}</thead>
         <tbody>${filas}</tbody></table></div>
       <div class="tablaPie" data-pie aria-live="polite"></div></div>`;
@@ -304,7 +338,9 @@
     const ths = [...tabla.tHead.rows[0].cells];
     const cols = ths.map((th, i) => ({ i, nombre: th.textContent.replace(/[↕▲▼]/g, "").trim() }))
       .filter(c => c.nombre);                         // se saltan las columnas sin título (acciones)
-    const comilla = s => '"' + String(s == null ? "" : s).replace(/"/g, '""') + '"';
+    // El signo «menos real» (U+2212) que usamos en pantalla no lo entienden Excel ni
+    // las apps de hojas de cálculo de Android: se cambia por el guion normal «-».
+    const comilla = s => '"' + String(s == null ? "" : s).replace(/−/g, "-").replace(/"/g, '""') + '"';
     const filas = [cols.map(c => comilla(c.nombre)).join(";")];
     [...(tabla.tBodies[0] ? tabla.tBodies[0].rows : [])]
       .filter(r => r.style.display !== "none")
@@ -321,6 +357,71 @@
     const b = e.target.closest("[data-csv]");
     const bloque = b && b.closest("[data-tabla]");
     if (bloque) descargaTablaCSV(bloque);
+  });
+
+  /* ---- Selección múltiple para borrar (opt-in): Ingresos y gastos y Movimientos ----
+     Se activa con «☑ Seleccionar» (junto al botón de CSV): aparece una casilla por fila
+     y un botón «Borrar (N)». No ocupa sitio cuando está apagado. E.selModo guarda qué
+     tabla está en modo selección ("flujos"|"movimientos") y E.selIds los ids marcados. */
+  function selTh(coll) {
+    return E.selModo === coll ? '<th class="nosort cSel"><input type="checkbox" data-selall aria-label="Seleccionar todo"></th>' : "";
+  }
+  function selTd(coll, id) {
+    return E.selModo === coll
+      ? `<td class="cSel"><input type="checkbox" class="selChk" data-selid="${esc(id)}"${(E.selIds && E.selIds.has(id)) ? " checked" : ""}></td>` : "";
+  }
+  function selBtnHTML(coll) {
+    if (E.selModo === coll) {
+      const n = E.selIds ? E.selIds.size : 0;
+      return `<button type="button" class="btn selBorrar" data-selborra="${coll}"${n ? "" : " disabled"}>🗑 Borrar${n ? ` (${n})` : ""}</button>
+        <button type="button" class="btn" data-selcancel>✕ Cancelar</button>`;
+    }
+    return `<button type="button" class="btn" data-selmode="${coll}" title="Marcar varias filas para borrarlas de una vez">☑ Seleccionar</button>`;
+  }
+  function actualizaSelBorrar(bloque) {
+    const b = bloque && bloque.querySelector("[data-selborra]");
+    if (!b) return;
+    const n = E.selIds ? E.selIds.size : 0;
+    b.disabled = !n;
+    b.textContent = `🗑 Borrar${n ? ` (${n})` : ""}`;
+  }
+  async function borraSeleccionados(coll) {
+    const ids = [...(E.selIds || [])];
+    if (!ids.length) return;
+    const etq = coll === "flujos" ? `${ids.length} apunte${ids.length > 1 ? "s" : ""}` : `${ids.length} movimiento${ids.length > 1 ? "s" : ""}`;
+    if (!confirm(`¿Borrar ${etq} seleccionado${ids.length > 1 ? "s" : ""}? Hay copias automáticas en tu carpeta de datos.`)) return;
+    try {
+      const j = await api("POST", `api/${coll}-borrar`, { ids });
+      E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+      E.selModo = null; E.selIds = new Set();
+      if (window.toast) window.toast("Borrado ✓");
+      pintaScroll();
+      const h = j.adjuntosHuerfanos;
+      if (h && (h.archivos || []).length) alert(`Hecho. ${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}`);
+    } catch (x) { alert(x.message); }
+  }
+  document.addEventListener("click", e => {
+    const sm = e.target.closest("[data-selmode]");
+    if (sm && sm.closest("#tab-datos")) { E.selModo = sm.dataset.selmode; E.selIds = new Set(); pintaScroll(); return; }
+    const sc = e.target.closest("[data-selcancel]");
+    if (sc && sc.closest("#tab-datos")) { E.selModo = null; E.selIds = new Set(); pintaScroll(); return; }
+    const sb = e.target.closest("[data-selborra]");
+    if (sb) borraSeleccionados(sb.dataset.selborra);
+  });
+  document.addEventListener("change", e => {
+    const sa = e.target.closest("[data-selall]");
+    if (sa) {
+      const bloque = sa.closest("[data-tabla]"); if (!bloque) return;
+      if (!E.selIds) E.selIds = new Set();
+      bloque.querySelectorAll(".selChk").forEach(c => { c.checked = sa.checked; if (sa.checked) E.selIds.add(c.dataset.selid); else E.selIds.delete(c.dataset.selid); });
+      actualizaSelBorrar(bloque); return;
+    }
+    const ck = e.target.closest(".selChk");
+    if (ck) {
+      if (!E.selIds) E.selIds = new Set();
+      if (ck.checked) E.selIds.add(ck.dataset.selid); else E.selIds.delete(ck.dataset.selid);
+      actualizaSelBorrar(ck.closest("[data-tabla]"));
+    }
   });
 
   // Listeners únicos (delegados): buscar al teclear y ordenar al pulsar una cabecera.
@@ -351,6 +452,7 @@
       .buscaTabla{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--borde);
         border-radius:9px;padding:6px 11px;background:var(--sup);max-width:280px;color:var(--tinta3)}
       .buscaTabla.media{flex:1 1 360px;max-width:none;min-width:240px}
+      .buscaTabla.flBuscar{flex:0 1 250px;max-width:260px;min-width:170px}
       .buscaTabla input{border:0;background:transparent;font:inherit;font-size:14px;color:var(--tinta);outline:none;width:100%}
       table.dt.orden thead th{cursor:pointer;user-select:none}
       table.dt.orden thead th:not(.nosort):hover{color:var(--tinta)}
@@ -432,6 +534,7 @@
     const filtro = $("#edFiltro");
     if (filtro) filtro.onchange = e => { E.filtro = e.target.value; pinta(); };
     aplicaTablas();   // restaura búsqueda y orden de cada tabla tras el re-render
+    pintaEdAvisos();  // avisos de texto + fechas de la agenda (pinta reconstruye #edAvisos)
     if (window.actualizaFabAyuda) window.actualizaFabAyuda();   // refresca la «i» de ayuda
   }
 
@@ -767,6 +870,7 @@
       <div class="secc">💶 Ingresos y gastos</div>
       <table class="leyenda">
         ${fila("Recordatorio sin anotar", (conf.diasSinAnotar != null ? conf.diasSinAnotar + " días" : "—"))}
+        ${fila("Apuntes archivados en el panel", conf.archivadosEnPanel === false ? "No cuentan" : "Cuentan")}
         ${fila("Categorías de ingresos/gastos", cats.length ? cats.length + " categorías" : sub("se escriben libres"))}
         ${fila("Reglas para el banco", reglas.length ? reglas.length + " reglas" : sub("ninguna"))}
         ${fila("Marcas de apuntes", (conf.marcas || []).length ? (conf.marcas || []).map(m => esc(m.emoji || "") + (m.nombre ? " " + esc(m.nombre) : "")).join(", ") : sub("varias por defecto (🚩 ⭐ ❗ …)"))}
@@ -935,6 +1039,9 @@
           ${campo("Avisar si no anoto nada", '<input name="diasSinAnotar" inputmode="numeric" placeholder="30">', "días sin registrar ingresos/gastos")}
         </div>
         <p class="ayuda">La app te recuerda que lleves al día tus ingresos y gastos si pasan estos días sin anotar ninguno. Déjalo vacío para no recibir el aviso.</p>
+        ${seccion("Apuntes archivados")}
+        <label class="interruptor ancho"><input type="checkbox" name="archivadosEnPanel"><span class="pista"></span>
+          <span><b>Los apuntes archivados cuentan en el panel</b><small>Al archivar un apunte (🗄 en Ingresos y gastos) se oculta de la lista pero no se borra. Activado, sigue contando en el panel de Ingresos y gastos (solo ordenas la lista). Desactívalo para que el panel muestre únicamente lo no archivado (p. ej. «solo este año»). Viene activado.</small></span></label>
       </div>
 
       <div class="cfgPanel" data-cfgp="documentos" hidden>
@@ -945,6 +1052,11 @@
             <option value="todas">Todas las notas (las de un cuaderno llevan su chip)</option></select>`, "", "ancho")}
         </div>
         <p class="ayuda">Puedes agrupar notas en <b>cuadernos</b> (p. ej. «Histórico Hacienda») y «enviar» una nota a un cuaderno cuando quieras archivarla. Aquí eliges si la pestaña «Lista de notas» enseña solo las notas sueltas o también las que ya están en un cuaderno.</p>
+        ${seccion("Avisos de la agenda")}
+        <div class="rejilla">
+          ${campo("Avisar con antelación", '<input name="avisoAgendaDias" inputmode="numeric" placeholder="14">', "días antes de una fecha del calendario")}
+        </div>
+        <p class="ayuda">Cuando se acerque un recordatorio de tu agenda, la app te lo muestra en la franja de avisos de arriba (Panel y Mis datos) con estos días de antelación; al pulsarlo te lleva al calendario situado en esa fecha. Déjalo vacío para no recibir el aviso (0 = avisar solo el mismo día). Puedes desactivarlo del todo en General → Centro de avisos.</p>
         ${seccion("Archivos")}
         <div class="rejilla">
           ${campo("Papelera de archivos", '<input name="papeleraMax" inputmode="numeric" placeholder="5">', "últimos borrados que se guardan")}
@@ -1016,6 +1128,8 @@
         diasSinActualizar: d.diasSinActualizar,
         papeleraMax: d.papeleraMax,
         docNotasMuestra: d.docNotasMuestra,
+        avisoAgendaDias: d.avisoAgendaDias,
+        archivadosEnPanel: f.elements.archivadosEnPanel.checked,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
         entidades, dimensionesFlujos,
@@ -1041,6 +1155,8 @@
     f.elements.diasSinActualizar.value = conf.diasSinActualizar != null ? conf.diasSinActualizar : "";
     if (f.elements.papeleraMax) f.elements.papeleraMax.value = conf.papeleraMax != null ? conf.papeleraMax : 5;
     if (f.elements.docNotasMuestra) f.elements.docNotasMuestra.value = conf.docNotasMuestra || "sueltas";
+    if (f.elements.avisoAgendaDias) f.elements.avisoAgendaDias.value = conf.avisoAgendaDias != null ? conf.avisoAgendaDias : "";
+    if (f.elements.archivadosEnPanel) f.elements.archivadosEnPanel.checked = conf.archivadosEnPanel !== false;   // por defecto cuentan
     f.elements.buscarActualizaciones.checked = !!conf.buscarActualizaciones;
     Object.entries(obj).forEach(([clave, frac]) => {
       const el = f.elements["obj_" + clave];
@@ -1306,7 +1422,9 @@
   }
   // El buscador de texto de la tabla, ancho, para ponerlo DESPUÉS de los filtros.
   function buscadorFlujosHTML() {
-    return `<label class="buscaTabla media">${LUPA}<input type="search" data-buscar
+    // Buscador más contenido (no crece a lo ancho) para que «Limpiar filtros» quepa en la
+    // misma línea de filtros sin empujar nada hacia abajo.
+    return `<label class="buscaTabla flBuscar">${LUPA}<input type="search" data-buscar
       placeholder="Buscar en la tabla…" aria-label="Buscar en la tabla" autocomplete="off"></label>`;
   }
   // El filtro de fechas va el último (tras el buscador), con el botón de limpiar.
@@ -1319,7 +1437,16 @@
   }
   // Barra de herramientas completa de Ingresos y gastos: filtros, buscador y fechas.
   function toolsFlujosHTML() {
+    // Solo los filtros (y el buscador y las fechas). Las acciones van en su propia línea.
     return filtrosFlujosHTML() + buscadorFlujosHTML() + filtroFechasFlujosHTML();
+  }
+  // Botones de acción de Ingresos y gastos (línea propia, a la derecha, bajo los filtros).
+  function accionesFlujosHTML() {
+    const narch = (E.cfg.flujos || []).filter(x => x.archivado).length;
+    const verArch = narch
+      ? `<label class="chkLinea" style="white-space:nowrap"><input type="checkbox" data-verarch${E.verArchivados ? " checked" : ""}> Ver archivados (${narch})</label>` : "";
+    const archBtn = '<button type="button" class="btn" data-archivarmasa title="Archivar u ocultar (reversible), o borrar, los apuntes anteriores a una fecha">🗄 Archivar / borrar…</button>';
+    return verArch + archBtn;
   }
   function montaFiltrosFlujos() {
     const F = filtrosFlujos();
@@ -1339,9 +1466,59 @@
     });
     const lb = document.querySelector("#tab-datos [data-ff-limpiar]");
     if (lb) lb.onclick = () => { E.flujoFiltros = { dim: {} }; try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* */ } pinta(); };
+    const va = document.querySelector("#tab-datos [data-verarch]");
+    if (va) va.onchange = () => { E.verArchivados = va.checked; pinta(); };
+    const am = document.querySelector("#tab-datos [data-archivarmasa]");
+    if (am) am.onclick = () => formArchivarFlujos();
+  }
+  // Archivar/desarchivar (ocultar de la lista, reversible) o borrar permanentemente los
+  // apuntes de ingreso/gasto con fecha <= la elegida. Pensado para «dejar solo este año».
+  function formArchivarFlujos() {
+    const hoyISO = hoy();
+    const f = abreModal("Archivar o borrar apuntes antiguos", `
+      <p class="subt" style="margin:0 0 4px">Actúa sobre los ingresos y gastos con fecha <b>igual o anterior</b> a la que elijas. Útil a principio de año para dejar la lista solo con lo reciente.</p>
+      ${seccion("Hasta la fecha")}
+      <div class="rejilla">
+        ${campo("Fecha (incluida)", `<input name="hasta" type="date" value="${hoyISO}" max="${hoyISO}" required>`)}
+      </div>
+      ${seccion("Qué hacer con esos apuntes")}
+      <div class="pildoras" style="margin-top:4px">
+        <label><input type="radio" name="accion" value="archivar" checked><span>🗄 Archivar (ocultar, reversible)</span></label>
+        <label><input type="radio" name="accion" value="desarchivar"><span>👁 Desarchivar</span></label>
+        <label><input type="radio" name="accion" value="borrar"><span>🗑 Borrar para siempre</span></label>
+      </div>
+      <p class="ayuda" id="archAyuda" style="margin-top:10px"></p>`,
+    async f2 => {
+      const d = campos(f2);
+      const accion = (f2.elements.accion && f2.elements.accion.value) || "archivar";
+      if (accion === "borrar" && !confirm("Esto BORRA definitivamente esos apuntes (sus facturas se conservan en tu carpeta). ¿Continuar?")) {
+        throw new Error("Operación cancelada.");
+      }
+      const j = await api("POST", "api/flujos-masa", { accion, hasta: d.hasta });
+      E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+      if (window.toast) window.toast("Hecho ✓");
+      const h = j.adjuntosHuerfanos;
+      if (h && (h.archivos || []).length) {
+        setTimeout(() => alert(`${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} de los apuntes borrados se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}`), 60);
+      }
+    }, "Aplicar");
+    const ayuda = () => {
+      const el = $("#archAyuda"); if (!el) return;
+      const v = (f.elements.accion && f.elements.accion.value) || "archivar";
+      el.textContent = v === "archivar"
+        ? "Los apuntes archivados desaparecen de esta lista (vuelves a verlos con «Ver archivados»). No se borran y siguen contando en el panel."
+        : v === "desarchivar"
+          ? "Vuelve a mostrar en la lista los apuntes de ese periodo que estuvieran archivados."
+          : "Elimina definitivamente esos apuntes. No se puede deshacer; quedan copias automáticas en tu carpeta de datos y las facturas se conservan.";
+    };
+    f.querySelectorAll("[name=accion]").forEach(r => r.onchange = ayuda);
+    ayuda();
+    return f;
   }
   function flujosFiltrados() {
-    const fs = (E.cfg.flujos || []).slice().sort((a, b) => a.fecha < b.fecha ? 1 : -1);
+    let fs = (E.cfg.flujos || []).slice();
+    if (!E.verArchivados) fs = fs.filter(x => !x.archivado);   // archivados: ocultos salvo que se pidan
+    fs.sort((a, b) => a.fecha < b.fecha ? 1 : -1);
     return filtraFlujos(fs);
   }
   // Ir a «Ingresos y gastos» y SELECCIONAR un apunte concreto (resaltado + scroll).
@@ -1430,7 +1607,7 @@
       ? `<button class="factBtn tiene" data-acc="verFact" data-id="${esc(x.id)}" title="${n} factura${n > 1 ? "s" : ""} — pulsa para verlas">📎${n > 1 ? `<span class="factN">${n}</span>` : ""}</button>`
       : `<button class="factBtn add" data-acc="verFact" data-id="${esc(x.id)}" title="Adjuntar factura">📎</button>`; };
     return fs.map(x => `<tr id="fila-flujo-${esc(x.id)}"${x.id === E.resaltaFlujo ? ' class="resaltado"' : ""}>
-      <td class="cMarca">${estrella(x)}</td>
+      ${selTd("flujos", x.id)}<td class="cMarca">${estrella(x)}</td>
       <td>${fecha(x.fecha)}</td>
       <td class="${x.tipo === "ingreso" ? "pos" : "neg"}">${(E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo}</td>
       <td>${esc(x.categoria || "")}</td>
@@ -1490,9 +1667,9 @@
         <span class="subt">Flujo de caja del hogar: nóminas, alquileres, gastos… Busca y filtra arriba; marca apuntes con el desplegable de su fila.</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoFlujo">+ Añadir apunte</button></header>
       ${total
-        ? (filas ? envTabla("flujos", `<tr><th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort">Observaciones</th><th class="nosort">Facturas</th>
-          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, true, toolsFlujosHTML(), true)
-          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${toolsFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
+        ? (filas ? envTabla("flujos", `<tr>${selTh("flujos")}<th class="nosort"></th><th>Fecha</th><th>Tipo</th><th>Categoría</th>${conEnt ? "<th>Entidad</th>" : ""}<th>Concepto</th><th class="nosort">Observaciones</th><th class="nosort">Facturas</th>
+          ${varios ? "<th>Titular</th>" : ""}<th style="text-align:right">Importe</th><th class="nosort"></th></tr>`, filas, true, toolsFlujosHTML(), true, "flujos", accionesFlujosHTML())
+          : `<div class="tablaBloque" data-tabla="flujos"><div class="tablaTools" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">${toolsFlujosHTML()}</div><div class="tablaAcciones"><span class="sp"></span>${accionesFlujosHTML()}</div></div><p class="subt" style="margin-top:12px">Ningún apunte coincide con los filtros.</p>`)
         : '<p class="subt">Todavía no has anotado ingresos ni gastos.</p>'}
       <div id="flujosContador">${contador}</div>
     </section>`;
@@ -1604,7 +1781,7 @@
     if (!confirm(msg)) return;
     try {
       const j = await borra("flujos", id);
-      pinta();
+      pintaScroll();
       const h = j && j.adjuntosHuerfanos;
       if (h && (h.archivos || []).length) {
         alert(`Apunte borrado. ${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}\n\nArchivo${h.archivos.length > 1 ? "s" : ""}: ${h.archivos.join(", ")}`);
@@ -1712,7 +1889,7 @@
     const filas = movs.map(m => {
       const p = prod(m.producto);
       const precio = m.unidades ? (m.importe - (m.comision || 0)) / m.unidades : null;
-      return `<tr id="fila-mov-${esc(m.id)}"${m.id === E.resaltaMov ? ' class="resaltado"' : ""}><td>${fecha(m.fecha)}</td><td style="text-align:left">${p ? `<i class="pt" style="background:var(--s${p.slot || 1})"></i>` : ""}${esc(nombre(p))}</td>
+      return `<tr id="fila-mov-${esc(m.id)}"${m.id === E.resaltaMov ? ' class="resaltado"' : ""}>${selTd("movimientos", m.id)}<td>${fecha(m.fecha)}</td><td style="text-align:left">${p ? `<i class="pt" style="background:var(--s${p.slot || 1})"></i>` : ""}${esc(nombre(p))}</td>
         <td style="text-align:left">${esc(E.tiposMov[m.tipo] || m.tipo)}</td>
         <td>${m.unidades ? num(m.unidades) : "—"}</td>
         <td class="${m.tipo === "compra" || m.tipo === "comision" ? "" : "pos"}">${eur(m.importe)}</td>
@@ -1723,9 +1900,9 @@
     return `<section class="tarjeta"><header><h2>Movimientos</h2>
         <span class="subt">Compras, ventas, dividendos y comisiones</span><span class="sp"></span>
         <button class="btn prim" data-acc="nuevoMov">+ Añadir movimiento</button></header>
-      ${envTabla("movimientos", `<tr><th>Fecha</th><th style="text-align:left">Producto</th>
+      ${envTabla("movimientos", `<tr>${selTh("movimientos")}<th>Fecha</th><th style="text-align:left">Producto</th>
         <th style="text-align:left">Tipo</th><th>Unidades</th><th>Importe</th><th>Precio por unidad</th>
-        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true, filtrosMovHTML() + filtroFechasMovHTML())}${hayFiltroMov() ? '<p class="subt" style="margin-top:10px">Filtrados.</p>' : ""}</section>`;
+        <th style="text-align:left">Nota</th><th class="nosort"></th></tr>`, filas, true, filtrosMovHTML() + filtroFechasMovHTML(), false, "movimientos", "")}${hayFiltroMov() ? '<p class="subt" style="margin-top:10px">Filtrados.</p>' : ""}</section>`;
   }
 
   const AYUDA_IMPORTE = {
@@ -1786,7 +1963,7 @@
   async function borrarMov(id) {
     const m = E.cfg.movimientos.find(x => x.id === id);
     if (!confirm(`¿Borrar ${(E.tiposMov[m.tipo] || "").toLowerCase()} de ${eur(m.importe)} del ${fecha(m.fecha)} en «${nombre(prod(m.producto))}»?`)) return;
-    try { await borra("movimientos", id); pinta(); } catch (x) { alert(x.message); }
+    try { await borra("movimientos", id); pintaScroll(); } catch (x) { alert(x.message); }
   }
 
   /* ---------------------------------------------- saldos y valores anotados */
@@ -3246,7 +3423,7 @@
           : (it.ref && it.origen)
             ? `<button class="calChip venc" data-cvent="${esc(it.origen)}" data-cvref="${esc(it.ref)}" title="${esc(it.texto)} · ${esc(it.tipo || "")} — pulsa para ir">${esc(it.texto)}</button>`
             : `<span class="calChip venc" title="${esc(it.texto)} · ${esc(it.tipo || "")}">${esc(it.texto)}</span>`).join("");
-      celdas.push(`<div class="calDia${iso === hoyISO ? " hoy" : ""}" data-cnuevo="${iso}">
+      celdas.push(`<div class="calDia${iso === hoyISO ? " hoy" : ""}${iso === E.calFlash ? " flash" : ""}" data-cnuevo="${iso}">
         <div class="calNum">${d}</div><div class="calChips">${chips}</div></div>`);
     }
     const anios = []; for (let a = Y - 6; a <= Y + 3; a++) anios.push(a);
@@ -3269,6 +3446,12 @@
     cont.querySelectorAll("[data-ctablero]").forEach(b => b.onclick = e => { e.stopPropagation(); irTablero(); });
     cont.querySelectorAll("[data-cvref]").forEach(b => b.onclick = e => { e.stopPropagation(); window.Editor && window.Editor.irAEntidad(b.dataset.cvent, b.dataset.cvref); });
     cont.querySelectorAll("[data-cnuevo]").forEach(c => c.onclick = () => formRecordatorio(null, c.dataset.cnuevo));
+    // Si venimos de un aviso, resaltamos el día un instante y lo traemos a la vista.
+    if (E.calFlash) {
+      const fd = cont.querySelector(".calDia.flash");
+      E.calFlash = null;
+      if (fd) { try { fd.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { /* sin scroll */ } setTimeout(() => fd.classList.remove("flash"), 2400); }
+    }
   }
 
   /* ================================================================
@@ -3739,6 +3922,17 @@
     verEntidad(ref) {
       if (!ref) return;
       E.notasVista = "lista"; E.notaVincRef = ref; E.notaBusca = ""; E.notaTag = "";
+      const tab = document.querySelector('[data-tab="notas"]');
+      if (tab) tab.click();
+      pintarNotas();
+    },
+    // Abrir la Agenda (calendario) situada en una fecha y resaltarla un instante.
+    // Lo usan los avisos de «fecha que se acerca» de la franja superior (Panel y Mis datos).
+    irAgenda(fecha) {
+      E.notasVista = "agenda"; E.agendaVista = "calendario";
+      recuerda.guarda("patrimonio.notasVista", "agenda");
+      recuerda.guarda("patrimonio.agendaVista", "calendario");
+      if (fecha && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) { E.calMes = fecha.slice(0, 7); E.calFlash = fecha; }
       const tab = document.querySelector('[data-tab="notas"]');
       if (tab) tab.click();
       pintarNotas();

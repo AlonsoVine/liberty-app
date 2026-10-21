@@ -504,6 +504,8 @@ AVISOS_CATALOGO = [
      "desc": "Avisa si pasan muchos días sin anotar ningún ingreso o gasto.", "pv": "ingresos", "umbral": "diasSinAnotar"},
     {"clave": "sin-actualizar", "nombre": "Hace mucho que no actualizas activos ni deudas",
      "desc": "Avisa si pasan muchos días sin anotar saldos ni movimientos de tus activos o deudas.", "pv": "patrimonio", "umbral": "diasSinActualizar"},
+    {"clave": "agenda-proxima", "nombre": "Fechas de la agenda que se acercan",
+     "desc": "Avisa de tus recordatorios de la agenda con los días de antelación que elijas.", "pv": None, "umbral": "avisoAgendaDias"},
 ]
 AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
 
@@ -1382,6 +1384,11 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     # euro. En un ano completo coincide con la publicada del fondo; el primer ano
     # cuenta desde tu primera compra.
     idx_prod = {p["id"]: indice_twr(p["serie"], flujo_prod[p["id"]]) for p in inv}
+    # TWR total (de vida) por producto: rentabilidad de la inversión, limpia del efecto
+    # de cuándo metiste el dinero. Va a la tabla central de Rentabilidad junto a la TIR.
+    for p in inv:
+        s_tp = idx_prod[p["id"]]
+        p["twr"] = r4(s_tp[-1] / 100.0 - 1) if s_tp and s_tp[-1] else None
     anos_nat = sorted({f[:4] for f in eje_iso})
     rent_anual = {"anos": anos_nat, "cartera": [], "parcial": [],
                   "porProducto": {p["id"]: [] for p in inv},
@@ -1587,6 +1594,13 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
 
     # ---- ingresos y gastos del hogar (F3, versión ligera) ----
     flujos_cfg = cfg.get("flujos", []) or []
+    # Apuntes archivados: por defecto siguen contando en el panel; si el usuario lo
+    # desactiva (config.archivadosEnPanel = False), se excluyen de esta sección.
+    flujos_archivados_fuera = 0
+    if not (cfg.get("config") or {}).get("archivadosEnPanel", True):
+        archivados = [f for f in flujos_cfg if f.get("archivado") and f.get("tipo") in ("ingreso", "gasto")]
+        flujos_archivados_fuera = len(archivados)
+        flujos_cfg = [f for f in flujos_cfg if not f.get("archivado")]
     ig_mes = defaultdict(lambda: {"ingreso": 0.0, "gasto": 0.0})
     for fl in flujos_cfg:
         t = fl.get("tipo")
@@ -1674,6 +1688,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                   "anio": ano_ig, "media12": media12_ig, "porCategoria": por_categoria,
                   "porTitular": por_titular_fl,
                   "presupuestoMensual": presupuesto_mensual} if flujos_cfg else None
+    if flujos_out and flujos_archivados_fuera:
+        flujos_out["archivadosFuera"] = flujos_archivados_fuera
 
     # Cuota de deudas sobre ingresos: del mes en curso, o de la media si el mes no tiene ingresos.
     ing_ratio = este_mes_ig["ingresos"] or media12_ig["ingresos"]
@@ -1756,12 +1772,16 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     alertas = []
     avisos_off = set((cfg.get("config") or {}).get("avisosOff") or [])
 
-    def _al(txt, n, nivel="aviso", pv=None, clave=None):
+    def _al(txt, n, nivel="aviso", pv=None, clave=None, destino=None):
         # pv = sub-pestaña del Panel a la que lleva la alerta al pulsarla (o None).
+        # destino = salto fuera del Panel (p. ej. {"tab":"notas","vista":"agenda","fecha":...}).
         # Si el usuario ha desactivado este aviso (config.avisosOff), no se genera.
         if clave and clave in avisos_off:
             return
-        alertas.append({"texto": txt, "n": n, "nivel": nivel, "pv": pv, "clave": clave})
+        a = {"texto": txt, "n": n, "nivel": nivel, "pv": pv, "clave": clave}
+        if destino:
+            a["destino"] = destino
+        alertas.append(a)
 
     def _nombres(xs, maxn=5):
         # Lista legible de nombres: hasta 'maxn' y luego «y N más».
@@ -1818,6 +1838,61 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
               + [v.get("fecha") for v in cfg.get("valoraciones", [])],
               "diasSinActualizar", 90, "sin-actualizar",
               "Hace {dias} días que no actualizas tus activos ni deudas (saldos y movimientos).", "patrimonio")
+
+    # --- Recordatorios de la agenda que se acercan (antelación configurable) ---
+    # Cada aviso salta a la Agenda (calendario) situada en su fecha al pulsarlo.
+    _aa = _conf_av.get("avisoAgendaDias")
+    if _aa is not None and not hasta:
+        ventana = int(_aa)
+        hoy_d = hoy()
+
+        def _prox_agenda(iso, repetir):
+            # Próxima ocurrencia (>= hoy) de un recordatorio; None si ya pasó o no aplica.
+            try:
+                f = d(iso)
+            except (ValueError, TypeError):
+                return None
+            if not repetir or repetir == "no":
+                return f if f >= hoy_d else None
+            if repetir == "mensual":
+                y, m = hoy_d.year, hoy_d.month
+                for _ in range(13):
+                    ultimo = (dt.date(y + (m // 12), (m % 12) + 1, 1) - dt.timedelta(days=1)).day
+                    cand = dt.date(y, m, min(f.day, ultimo))
+                    if cand >= hoy_d:
+                        return cand
+                    m += 1
+                    if m > 12:
+                        m, y = 1, y + 1
+                return None
+            if repetir == "anual":
+                for y in (hoy_d.year, hoy_d.year + 1):
+                    ultimo = (dt.date(y + (f.month // 12), (f.month % 12) + 1, 1) - dt.timedelta(days=1)).day
+                    cand = dt.date(y, f.month, min(f.day, ultimo))
+                    if cand >= hoy_d:
+                        return cand
+                return None
+            return f if f >= hoy_d else None
+
+        for r in (cfg.get("recordatorios") or []):
+            if r.get("hecho") and (r.get("repetir") or "no") == "no":
+                continue
+            fprox = _prox_agenda(r.get("fecha"), r.get("repetir"))
+            if not fprox:
+                continue
+            dias = (fprox - hoy_d).days
+            if dias < 0 or dias > ventana:
+                continue
+            txt_r = (r.get("texto") or "Recordatorio").strip()
+            fes = f"{fprox.day}/{fprox.month}/{fprox.year}"
+            if dias == 0:
+                etq, cuerpo = "Hoy", f"es el día de «{txt_r}»"
+            elif dias == 1:
+                etq, cuerpo = "Mañana", f"«{txt_r}» — {fes}"
+            else:
+                etq, cuerpo = f"{dias} días", f"para «{txt_r}» — {fes}"
+            _al(cuerpo, etq, "info", clave="agenda-proxima",
+                destino={"tab": "notas", "vista": "agenda", "fecha": fprox.isoformat()})
 
     control = {"umbral": r4(umbral), "desviacionMax": r4(desv_max), "diasAviso": dias_aviso,
                "sumaObjetivos": r4(suma_obj)}

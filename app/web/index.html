@@ -516,8 +516,14 @@ body.vistaAmplia .segm button{padding:10px 16px}
 .filtroTitular select{font:inherit;font-size:14px;font-weight:600;padding:6px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--sup);color:var(--tinta);cursor:pointer}
 .bannerAlertas{margin:14px 0 0;display:flex;flex-direction:column;gap:6px}
 .bannerAlertas:empty{display:none}
-.avisoLinea{background:var(--sup);border:1px solid var(--borde);border-radius:9px;padding:9px 12px;font-size:13px}
-.avisoLinea b{display:inline-block;min-width:20px;font-variant-numeric:tabular-nums}
+/* Aviso homogéneo: mismo aspecto en el Panel y en Mis datos (borde redondeado, acento
+   por nivel a la izquierda y un icono de la sección a la que corresponde el aviso). */
+.avisoLinea{display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid var(--borde);
+  border-left:3px solid var(--tinta3);border-radius:10px;padding:9px 13px;font-size:13px;color:var(--tinta2)}
+.avisoLinea .avisoIco{flex:0 0 auto;font-size:15px;line-height:1.2}
+.avisoLinea .avisoCuerpo{flex:1;min-width:0}
+.avisoLinea b{color:var(--tinta);display:inline-block;min-width:20px;font-variant-numeric:tabular-nums}
+.avisoLinea.aviso{border-left-color:var(--mal)}
 .avisoLinea.clicable{cursor:pointer}
 .avisoLinea.clicable:hover{border-color:var(--s1);background:var(--sup2,var(--sup))}
 .avisoIr{color:var(--s1);font-weight:600;white-space:nowrap}
@@ -911,6 +917,35 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 .cfgTab.activa{color:var(--s1);border-bottom-color:var(--s1)}
 .cfgPanel[hidden]{display:none}
 .cfgPanel .secc:first-child{margin-top:16px}
+/* Las 4 pestañas de Configuración en una sola línea (modal algo más ancho). */
+#modal:has(.cfgTabs){width:min(820px,calc(100vw - 24px))}
+.cfgTabs{flex-wrap:nowrap;overflow-x:auto}
+.cfgTab{padding:9px 11px;font-size:13px}
+
+/* Avisos de fechas de la agenda (clicables, en la franja de Mis datos). */
+/* Día del calendario resaltado al llegar desde un aviso. */
+@keyframes calFlash{0%,100%{box-shadow:0 0 0 0 transparent}35%{box-shadow:0 0 0 3px var(--s1)}}
+.calDia.flash{animation:calFlash 1.1s ease-in-out 2;border-color:var(--s1)}
+
+/* Bloque central de Rentabilidad: selector de periodo + KPIs + tabla por activo. */
+#rentCentral .rcSel{height:34px;margin-left:8px;border-radius:9px;padding:0 10px;
+  background:var(--sup2);color:var(--tinta);border:1px solid var(--borde);font:inherit;font-size:13px}
+.rcKpis{margin:12px 0 2px}
+.rcTabla th:not(:first-child),.rcTabla td:not(:first-child){text-align:right}
+.rcTabla tfoot td{font-weight:700;border-top:2px solid var(--borde)}
+.rcTabla tbody tr.rcClic{cursor:pointer}
+.rcTabla tbody tr.rcClic:hover{background:var(--sup2)}
+.rcTabla tbody tr.rcClic td:first-child::after{content:"›";color:var(--tinta3);margin-left:6px;font-weight:700}
+
+/* Fila de acciones (Ver archivados, Archivar, Seleccionar, CSV) a la derecha, debajo de
+   los filtros, para que los filtros puedan crecer sin descolocar los botones. */
+.tablaAcciones{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:8px 0 2px}
+
+/* Selección múltiple para borrar (Ingresos y gastos / Movimientos). */
+.dt th.cSel,.dt td.cSel{width:34px;text-align:center;padding-left:6px;padding-right:0}
+.dt td.cSel input,.dt th.cSel input{cursor:pointer;width:16px;height:16px}
+.btn.selBorrar{color:var(--mal);border-color:color-mix(in srgb,var(--mal) 45%,var(--borde))}
+.btn.selBorrar:not(:disabled):hover{background:color-mix(in srgb,var(--mal) 14%,transparent)}
 
 .secc{display:flex;align-items:center;gap:12px;margin:26px 0 12px;font-size:11px;font-weight:700;
   letter-spacing:.09em;text-transform:uppercase;color:var(--tinta3)}
@@ -1588,6 +1623,7 @@ body.video .tarjetaCanal{display:none}
   <!-- ===== RENTABILIDAD ===== -->
   <div class="pv" id="pv-rentabilidad" hidden>
     <p class="ayudaVista">Cuánto ganan tus inversiones: ganancia, TIR (rentabilidad real de tu dinero), por año y comparado con un indexado.</p>
+    <section class="tarjeta" id="rentCentral" style="margin-top:8px"></section>
     <section class="tarjeta" style="margin-top:8px">
       <header><h2>Rentabilidad por año natural</h2><span class="subt" id="notaAnual"></span></header>
       <div class="envGraf" id="grafAnual"></div>
@@ -1708,6 +1744,7 @@ body.video .tarjetaCanal{display:none}
       <button data-ig="tendencias" aria-selected="false">Tendencias</button>
       <button data-ig="presupuesto" aria-selected="false">Presupuesto</button>
     </nav>
+    <p class="subt" id="igArchivados" hidden style="margin:8px 0 0">📦 <span></span></p>
     <p class="subt" id="igVacio" hidden style="margin-top:12px">Todavía no has anotado ingresos ni gastos. Ve a «Mis datos → Ingresos y gastos», o importa el extracto de tu banco en «Mis datos → Importar → Datos del banco».</p>
     <div class="filtros" id="igFiltros"></div>
 

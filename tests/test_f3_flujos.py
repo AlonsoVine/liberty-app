@@ -193,3 +193,96 @@ def test_motor_sin_flujos_deja_flujos_none(tmp_path):
     d = motor.construir(cartera, str(tmp_path), descargar=False)
     assert d["flujos"] is None
     assert d["total"]["tasaAhorro"] is None
+
+
+# ------------------------------------------------- borrado múltiple y por fecha (v1.14)
+
+def _cfg_con_flujos():
+    cfg = cfg_vacia()
+    for i, f in enumerate(["2023-03-01", "2023-11-15", "2024-02-10", "2024-09-20"]):
+        almacen.guarda_flujo(cfg, {"tipo": "gasto", "fecha": f, "importe": str(10 + i),
+                                   "categoria": "Varios"})
+    return cfg
+
+
+def test_borra_flujos_varios():
+    cfg = _cfg_con_flujos()
+    ids = [cfg["flujos"][0]["id"], cfg["flujos"][2]["id"]]
+    borrados = almacen.borra_flujos(cfg, ids)
+    assert len(borrados) == 2
+    assert len(cfg["flujos"]) == 2
+    assert all(x["id"] not in ids for x in cfg["flujos"])
+
+
+def test_borra_flujos_vacio_falla():
+    cfg = _cfg_con_flujos()
+    with pytest.raises(ErrorValidacion):
+        almacen.borra_flujos(cfg, ["noexiste"])
+
+
+def test_archiva_y_desarchiva_flujos_por_fecha():
+    cfg = _cfg_con_flujos()
+    n = almacen.archiva_flujos(cfg, "2023-12-31", archivar=True)
+    assert n == 2                                   # los dos de 2023
+    arch = [x for x in cfg["flujos"] if x.get("archivado")]
+    assert {x["fecha"] for x in arch} == {"2023-03-01", "2023-11-15"}
+    # Desarchivar vuelve a dejarlos visibles
+    n2 = almacen.archiva_flujos(cfg, "2023-12-31", archivar=False)
+    assert n2 == 2
+    assert not [x for x in cfg["flujos"] if x.get("archivado")]
+
+
+def test_editar_flujo_conserva_archivado():
+    cfg = _cfg_con_flujos()
+    almacen.archiva_flujos(cfg, "2023-12-31", archivar=True)
+    fid = cfg["flujos"][0]["id"]
+    almacen.guarda_flujo(cfg, {"id": fid, "tipo": "gasto", "fecha": "2023-03-01",
+                               "importe": "99", "categoria": "Otra"})
+    guardado = next(x for x in cfg["flujos"] if x["id"] == fid)
+    assert guardado["archivado"] is True and guardado["importe"] == 99.0
+
+
+def test_borra_flujos_hasta_fecha():
+    cfg = _cfg_con_flujos()
+    borrados = almacen.borra_flujos_hasta(cfg, "2023-12-31")
+    assert len(borrados) == 2
+    assert {x["fecha"] for x in cfg["flujos"]} == {"2024-02-10", "2024-09-20"}
+
+
+def test_borra_movimientos_varios():
+    cfg = cfg_vacia()
+    almacen.guarda_producto(cfg, {"nombre": "Fondo", "tipo": "fondo", "fuente": "manual"})
+    pid = cfg["productos"][0]["id"]
+    for f in ("2024-01-01", "2024-02-01", "2024-03-01"):
+        almacen.guarda_movimiento(cfg, {"producto": pid, "tipo": "compra",
+                                        "fecha": f, "importe": "100", "unidades": "1"})
+    ids = [cfg["movimientos"][0]["id"], cfg["movimientos"][1]["id"]]
+    almacen.borra_movimientos(cfg, ids)
+    assert len(cfg["movimientos"]) == 1
+
+
+def _cfg_flujos_con_cuenta():
+    cfg = cfg_vacia()
+    almacen.guarda_producto(cfg, {"nombre": "Cuenta", "tipo": "efectivo", "fuente": "manual"})
+    almacen.guarda_valoracion(cfg, {"producto": cfg["productos"][0]["id"], "fecha": "2024-06-01", "valor": "1000"})
+    almacen.guarda_flujo(cfg, {"tipo": "ingreso", "fecha": "2024-06-30", "importe": "2000", "categoria": "Nómina"})
+    almacen.guarda_flujo(cfg, {"tipo": "gasto", "fecha": "2024-06-15", "importe": "500", "categoria": "Varios"})
+    almacen.archiva_flujos(cfg, "2024-06-20", archivar=True)   # archiva el gasto del 15
+    return cfg
+
+
+def test_archivados_cuentan_en_panel_por_defecto(tmp_path):
+    cfg = _cfg_flujos_con_cuenta()
+    d = motor.construir(cfg, str(tmp_path), descargar=False)
+    assert d["flujos"] is not None
+    assert d["flujos"].get("archivadosFuera") is None     # por defecto cuentan
+
+
+def test_archivados_fuera_del_panel_si_se_desactiva(tmp_path):
+    cfg = _cfg_flujos_con_cuenta()
+    almacen.guarda_config(cfg, {"archivadosEnPanel": False})
+    d = motor.construir(cfg, str(tmp_path), descargar=False)
+    assert d["flujos"]["archivadosFuera"] == 1
+    i = d["flujos"]["meses"].index("2024-06")
+    assert d["flujos"]["gastos"][i] == 0                  # el gasto archivado no cuenta
+    assert d["flujos"]["ingresos"][i] == 2000.0

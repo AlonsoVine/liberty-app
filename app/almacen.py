@@ -524,6 +524,18 @@ def guarda_config(cfg, datos):
         # Qué muestra «Lista de notas»: solo las sueltas o todas (con chip de cuaderno).
         v = texto(datos.get("docNotasMuestra"), 10)
         conf["docNotasMuestra"] = v if v in ("sueltas", "todas") else "sueltas"
+    if "avisoAgendaDias" in datos:
+        # Con cuántos días de antelación avisar de una fecha de la agenda (recordatorios).
+        # Vacío = sin aviso; 0 = avisar solo el mismo día.
+        aa = numero(datos.get("avisoAgendaDias"), "los días de aviso de la agenda", errores, obligatorio=False, minimo=0)
+        if aa is None:
+            conf.pop("avisoAgendaDias", None)
+        else:
+            conf["avisoAgendaDias"] = min(365, int(aa))
+    if "archivadosEnPanel" in datos:
+        # Si los apuntes archivados (ocultos de la lista) cuentan o no en el panel de
+        # Ingresos y gastos. Por defecto sí (archivar solo declutra la lista).
+        conf["archivadosEnPanel"] = bool(datos.get("archivadosEnPanel"))
     if "asistenteOculto" in datos:
         conf["asistenteOculto"] = bool(datos.get("asistenteOculto"))
     if "buscarActualizaciones" in datos:
@@ -745,6 +757,9 @@ def guarda_flujo(cfg, datos):
     _prev_adj = next((x for x in cfg.get("flujos", []) if x.get("id") == datos.get("id")), None) if datos.get("id") else None
     if _prev_adj and _prev_adj.get("adjuntos"):
         fl["adjuntos"] = _prev_adj["adjuntos"]
+    # El estado «archivado» (oculto de la lista) también se conserva al editar el apunte.
+    if _prev_adj and _prev_adj.get("archivado"):
+        fl["archivado"] = True
     # Si escribes una categoría que no está en la lista maestra, se da de alta sola
     # (con el tipo del apunte), para que luego salga en los desplegables y en los
     # informes, igual que la configuras a mano en Configuración.
@@ -971,6 +986,62 @@ def borra_flujo(cfg, fid):
     cfg["flujos"] = [x for x in cfg.get("flujos", []) if x.get("id") != fid]
     if len(cfg["flujos"]) == antes:
         raise ErrorValidacion(["Ese apunte ya no existe."])
+
+
+def borra_flujos(cfg, ids):
+    """Borra varios apuntes de ingreso/gasto a la vez. Devuelve la lista de borrados
+    (para que el servidor conserve sus facturas, igual que en el borrado individual)."""
+    ids = set(ids or [])
+    lista = cfg.get("flujos", [])
+    borrados = [x for x in lista if x.get("id") in ids]
+    if not borrados:
+        raise ErrorValidacion(["No había apuntes que borrar."])
+    cfg["flujos"] = [x for x in lista if x.get("id") not in ids]
+    return borrados
+
+
+def borra_movimientos(cfg, ids):
+    """Borra varios movimientos (compras/ventas/dividendos/comisiones) a la vez."""
+    ids = set(ids or [])
+    lista = cfg.get("movimientos", [])
+    antes = len(lista)
+    cfg["movimientos"] = [x for x in lista if x.get("id") not in ids]
+    if len(cfg["movimientos"]) == antes:
+        raise ErrorValidacion(["No había movimientos que borrar."])
+
+
+def archiva_flujos(cfg, hasta, archivar=True):
+    """Archiva (oculta de la lista, reversible) o desarchiva los apuntes de ingreso/gasto
+    con fecha <= 'hasta'. No los borra ni cambia las cifras. Devuelve cuántos cambió."""
+    errores = []
+    h = fecha(hasta, errores)
+    if errores:
+        raise ErrorValidacion(errores)
+    n = 0
+    for x in cfg.get("flujos", []):
+        if (x.get("fecha") or "") <= h:
+            if archivar and not x.get("archivado"):
+                x["archivado"] = True
+                n += 1
+            elif not archivar and x.get("archivado"):
+                x.pop("archivado", None)
+                n += 1
+    return n
+
+
+def borra_flujos_hasta(cfg, hasta):
+    """Borra TODOS los apuntes de ingreso/gasto con fecha <= 'hasta' (borrar historia
+    antigua). Devuelve la lista de borrados (para conservar sus facturas)."""
+    errores = []
+    h = fecha(hasta, errores)
+    if errores:
+        raise ErrorValidacion(errores)
+    lista = cfg.get("flujos", [])
+    borrados = [x for x in lista if (x.get("fecha") or "") <= h]
+    if not borrados:
+        raise ErrorValidacion(["No hay apuntes anteriores a esa fecha."])
+    cfg["flujos"] = [x for x in lista if (x.get("fecha") or "") > h]
+    return borrados
 
 
 def marca_flujo(cfg, fid, marca):

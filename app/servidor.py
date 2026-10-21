@@ -443,6 +443,61 @@ def _conserva_adjuntos_huerfanos(fl, adjs):
     return {"carpeta": os.path.abspath(adj_dir), "archivos": finales}
 
 
+def _responde_con_huerfanos(resp, flujos_con_adj):
+    """Tras un borrado en masa de apuntes, conserva las facturas de los borrados (igual
+    que el borrado individual) y las añade a la respuesta. 'resp' tuple = error: se pasa tal cual."""
+    if isinstance(resp, tuple):
+        return resp
+    archivos, carpeta_abs = [], None
+    for fl in flujos_con_adj:
+        h = _conserva_adjuntos_huerfanos(fl, fl.get("adjuntos") or [])
+        archivos += h["archivos"]
+        carpeta_abs = h["carpeta"]
+    if archivos:
+        data = resp.get_json()
+        data["adjuntosHuerfanos"] = {"carpeta": carpeta_abs, "archivos": archivos}
+        return jsonify(data)
+    return resp
+
+
+@app.post("/api/flujos-borrar")
+def api_flujos_borrar():
+    """Borra varios apuntes de ingreso/gasto a la vez (selección múltiple)."""
+    d = request.get_json(silent=True) or {}
+    ids = d.get("ids") or []
+    conserva = []
+    if modo() != "demo":
+        porid = {x.get("id"): x for x in cartera().get("flujos", [])}
+        conserva = [porid[i] for i in ids if i in porid and porid[i].get("adjuntos")]
+    resp = cambia(lambda cfg: almacen.borra_flujos(cfg, ids))
+    return _responde_con_huerfanos(resp, conserva)
+
+
+@app.post("/api/movimientos-borrar")
+def api_movimientos_borrar():
+    """Borra varios movimientos a la vez (selección múltiple)."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.borra_movimientos(cfg, d.get("ids") or []))
+
+
+@app.post("/api/flujos-masa")
+def api_flujos_masa():
+    """Acciones en masa sobre ingresos y gastos por fecha: archivar/desarchivar (ocultar
+    de la lista, reversible) o borrar permanentemente todo lo anterior a una fecha."""
+    d = request.get_json(silent=True) or {}
+    accion, hasta = d.get("accion"), d.get("hasta")
+    if accion in ("archivar", "desarchivar"):
+        return cambia(lambda cfg: almacen.archiva_flujos(cfg, hasta, accion == "archivar"))
+    if accion == "borrar":
+        conserva = []
+        if modo() != "demo":
+            conserva = [x for x in cartera().get("flujos", [])
+                        if (x.get("fecha") or "") <= (hasta or "") and x.get("adjuntos")]
+        resp = cambia(lambda cfg: almacen.borra_flujos_hasta(cfg, hasta))
+        return _responde_con_huerfanos(resp, conserva)
+    return jsonify(ok=False, errores=["Acción no válida."]), 400
+
+
 @app.post("/api/config")
 def api_config():
     """Guarda los parámetros del hogar (colchón, titulares)."""
