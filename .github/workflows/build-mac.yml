@@ -1,33 +1,50 @@
 name: Build macOS
 
-# Construye «Liberty.app» en un runner de macOS (no se puede compilar desde Windows) y lo
-# publica como asset «Liberty-macOS.zip».
+# Construye «Liberty.app» en runners de macOS —Apple Silicon (arm64) e Intel (x86_64)— y
+# publica cada uno como un .dmg:
+#     Liberty-macOS-AppleSilicon.dmg   (runner macos-14, arm64)
+#     Liberty-macOS-Intel.dmg          (runner macos-13, x86_64)
+#
+# Un .dmg es la forma estándar y limpia en Mac: doble clic → se monta → aparece Liberty.app
+# y un acceso a «Aplicaciones» para arrastrarlo (nada de carpetas sueltas ni __MACOSX).
+#
+# La app va FIRMADA «ad-hoc» (codesign --sign -): no es una firma de pago de Apple, pero evita
+# el error «la aplicación está dañada». Al no estar notarizada, la primera vez se abre con
+# clic derecho → Abrir (o Ajustes del Sistema → Privacidad y seguridad → «Abrir de todos modos»).
 #
 # OJO: el código vive en este repo (rumboExito) pero las Releases se publican en el repo de
-# distribución (AlonsoVine/liberty). Por eso NO se dispara con «release: published» (sería
-# de otro repo): se lanza A MANO indicando el tag de la release ya creada en liberty.
+# distribución (AlonsoVine/liberty). Se lanza A MANO indicando el tag de la release ya creada.
 #
 # Cómo usarlo:
 #   1. Publica la release en AlonsoVine/liberty con el Liberty.exe (como siempre).
-#   2. Actions -> «Build macOS» -> Run workflow -> escribe el tag (p. ej. v1.12.0).
-#   3. El .app se compila, se comprueba y:
-#        - si existe el secreto LIBERTY_RELEASE_TOKEN (un PAT con permiso de escritura en
-#          AlonsoVine/liberty), se sube solo a esa release como «Liberty-macOS.zip»;
-#        - en cualquier caso, queda como ARTEFACTO del run para subirlo a mano si hiciera falta.
+#   2. Actions -> «Build macOS» -> Run workflow -> escribe el tag (p. ej. v1.14.2).
+#   3. Cada .dmg se compila y:
+#        - si existe el secreto LIBERTY_RELEASE_TOKEN (PAT con escritura en AlonsoVine/liberty),
+#          se sube solo a esa release;
+#        - en cualquier caso, queda como ARTEFACTO del run para subirlo a mano.
 #
-# CONTADOR DE DESCARGAS: el asset se llama SIEMPRE «Liberty-macOS.zip» y NO se re-sube encima
-# de uno ya publicado (se perdería su contador). Cada versión = release nueva.
+# CONTADOR DE DESCARGAS: cada versión = release nueva; nombres de asset EXACTOS
+# «Liberty-macOS-AppleSilicon.dmg» y «Liberty-macOS-Intel.dmg»; NO re-subir encima de uno ya
+# publicado (se perdería su contador). La landing suma también los .zip antiguos.
 
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Tag de la release en AlonsoVine/liberty (p. ej. v1.12.0)"
+        description: "Tag de la release en AlonsoVine/liberty (p. ej. v1.14.2)"
         required: true
 
 jobs:
   build-mac:
-    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-14      # Apple Silicon (arm64)
+            arch: AppleSilicon
+          - runner: macos-13      # Intel (x86_64)
+            arch: Intel
+    runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
 
@@ -59,6 +76,12 @@ jobs:
       - name: Compilar Liberty.app
         run: pyinstaller Liberty-mac.spec --noconfirm --clean
 
+      - name: Firmar ad-hoc (evita el error «app dañada»)
+        run: |
+          xattr -cr dist/Liberty.app || true
+          codesign --force --deep --sign - dist/Liberty.app
+          codesign --verify --deep --strict dist/Liberty.app && echo "firma ad-hoc OK"
+
       - name: Comprobar que arranca (smoke test)
         run: |
           PATRIMONIO_NO_ABRIR=1 PATRIMONIO_PUERTO=8799 ./dist/Liberty.app/Contents/MacOS/Liberty &
@@ -68,24 +91,27 @@ jobs:
           curl -fsS "http://127.0.0.1:8799/api/version" | grep -o '"actual":"[^"]*"'
           kill $PID 2>/dev/null || true
 
-      - name: Empaquetar el .app (preservando el bundle)
+      - name: Empaquetar en .dmg (arrastra a Aplicaciones)
         run: |
-          cd dist
-          ditto -c -k --sequesterRsrc --keepParent Liberty.app Liberty-macOS.zip
-          ls -lh Liberty-macOS.zip
+          mkdir -p dmgroot
+          cp -R dist/Liberty.app dmgroot/
+          ln -s /Applications dmgroot/Applications
+          DMG="Liberty-macOS-${{ matrix.arch }}.dmg"
+          hdiutil create -volname "Liberty" -srcfolder dmgroot -ov -format UDZO "$DMG"
+          ls -lh "$DMG"
 
       - name: Artefacto de respaldo (siempre)
         uses: actions/upload-artifact@v4
         with:
-          name: Liberty-macOS
-          path: dist/Liberty-macOS.zip
+          name: Liberty-macOS-${{ matrix.arch }}
+          path: Liberty-macOS-${{ matrix.arch }}.dmg
 
       - name: Subir a la Release de AlonsoVine/liberty (si hay token)
         env:
           GH_TOKEN: ${{ secrets.LIBERTY_RELEASE_TOKEN }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::No hay secreto LIBERTY_RELEASE_TOKEN. Descarga el artefacto 'Liberty-macOS' y súbelo a la release a mano."
+            echo "::warning::No hay secreto LIBERTY_RELEASE_TOKEN. Descarga el artefacto 'Liberty-macOS-${{ matrix.arch }}' y súbelo a mano a la release."
             exit 0
           fi
-          gh release upload "${{ github.event.inputs.tag }}" dist/Liberty-macOS.zip -R AlonsoVine/liberty
+          gh release upload "${{ github.event.inputs.tag }}" "Liberty-macOS-${{ matrix.arch }}.dmg" -R AlonsoVine/liberty
