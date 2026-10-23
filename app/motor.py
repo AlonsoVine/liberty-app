@@ -535,6 +535,9 @@ REFERENCIAS = {
     "sinriesgo": {"nombre": "Sin riesgo",
                   "detalle": "ETF monetario del euro (XEON): lo que da el dinero aparcado, sin sustos.",
                   "piezas": [("XEON.DE", 1.0)]},
+    "bitcoin": {"nombre": "Bitcoin",
+                "detalle": "Bitcoin en euros (BTC-EUR): el activo más volátil, con subidas y caídas enormes. Lo mismo te multiplica que te hunde.",
+                "piezas": [("BTC-EUR", 1.0)]},
 }
 # Cómo se llama el precio y las unidades de cada tipo de producto en el panel:
 # (precio, unidades, "... lo tuvieras o no").

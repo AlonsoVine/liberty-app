@@ -353,10 +353,55 @@
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
+  function descargaCSV(nombre, filas) {
+    const csv = "﻿" + filas.join("\r\n");            // BOM para que Excel lea los acentos
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = nombre + "_" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  // CSV de Ingresos y gastos a medida: importe como número, la DIVISA en su propia columna
+  // y, en Observaciones y Facturas, el contenido real (el texto / el nombre del archivo),
+  // nunca los iconos; vacío si no hay nada. Respeta el filtro, la búsqueda y el orden.
+  function descargaFlujosCSV(bloque) {
+    const tabla = _tablaDe(bloque);
+    if (!tabla || !tabla.tBodies[0]) { descargaTablaCSV(bloque); return; }
+    const varios = (E.cfg.titulares || []).length > 1;
+    const conEnt = (((E.cfg.config || {}).entidades) || []).length > 0 || (E.cfg.flujos || []).some(x => x.entidad);
+    const cols = ["Fecha", "Tipo", "Categoría"];
+    if (conEnt) cols.push("Entidad");
+    cols.push("Concepto", "Observaciones", "Facturas");
+    if (varios) cols.push("Titular");
+    cols.push("Importe", "Divisa");
+    const comilla = s => '"' + String(s == null ? "" : s).replace(/−/g, "-").replace(/"/g, '""') + '"';
+    const byId = {};
+    (E.cfg.flujos || []).forEach(f => { byId[f.id] = f; });
+    const filas = [cols.map(comilla).join(";")];
+    [...tabla.tBodies[0].rows]
+      .filter(r => r.style.display !== "none" && r.id)
+      .forEach(r => {
+        const x = byId[r.id.replace("fila-flujo-", "")];
+        if (!x) return;
+        const tipoTxt = (E.tiposFlujo && E.tiposFlujo[x.tipo]) || x.tipo;
+        const imp = (x.tipo === "gasto" ? "-" : "") + Math.abs(+x.importe || 0).toLocaleString("es-ES", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const facturas = (x.adjuntos || []).map(a => a.nombre).join(" · ");
+        const fila = [fecha(x.fecha), tipoTxt, x.categoria || ""];
+        if (conEnt) fila.push(x.entidad || "");
+        fila.push(x.nota || "", x.observaciones || "", facturas);
+        if (varios) fila.push(x.titular || "");
+        fila.push(imp, "€");
+        filas.push(fila.map(comilla).join(";"));
+      });
+    descargaCSV("ingresos_y_gastos", filas);
+  }
   document.addEventListener("click", e => {
     const b = e.target.closest("[data-csv]");
     const bloque = b && b.closest("[data-tabla]");
-    if (bloque) descargaTablaCSV(bloque);
+    if (!bloque) return;
+    if (bloque.dataset.tabla === "flujos") descargaFlujosCSV(bloque);
+    else descargaTablaCSV(bloque);
   });
 
   /* ---- Selección múltiple para borrar (opt-in): Ingresos y gastos y Movimientos ----

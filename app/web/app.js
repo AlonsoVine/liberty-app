@@ -1633,7 +1633,9 @@
         ["Plusvalía", t.plusvalia != null ? `${G.fmtEurSigno(t.plusvalia, 0)} · ${G.fmtPctSigno(t.rentabilidad, 1)}` : "—", (t.plusvalia || 0) >= 0 ? "pos" : "neg"],
         ["TIR anualizada", t.tir != null ? G.fmtPctSigno(t.tir, 1) : "—", (t.tir || 0) >= 0 ? "pos" : "neg"],
       ];
-      cols = ["Activo", "Aportado", "Valor hoy", "Plusvalía", "%", "TIR", "TWR"];
+      const expTir = "TIR (Tasa Interna de Retorno), también llamada rentabilidad de TU dinero o «money-weighted» (MWR). Es el interés anual equivalente que ha sacado tu dinero teniendo en cuenta CUÁNDO y CUÁNTO metiste o sacaste. Matemáticamente, es el tipo anual que hace que el valor de hoy de todas tus entradas y salidas de dinero (cada una con su fecha) cuadre con lo que tienes ahora mismo (es el XIRR, el TIR de una hoja de cálculo). Por eso premia o penaliza tu «timing»: si metiste mucho justo antes de una subida, tu TIR sube; si entraste justo antes de una caída, baja. Ejemplo: un fondo que estuvo plano casi todo el año y en el que metiste 10.000 € justo antes de un +10% te dará una TIR alta aunque el fondo apenas se moviera (porque tu dinero sí pilló la subida). Es la medida más honesta de «cómo le ha ido a MI dinero», pero como depende de tus decisiones de entrada y salida, NO sirve para comparar un producto con otro.";
+      const expTwr = "TWR (Time-Weighted Return), o rentabilidad de la inversión en sí misma. Mide cómo se ha comportado el producto independientemente de cuándo metiste o sacaste dinero. Parte el periodo en tramos cada vez que hay una aportación o un reembolso, calcula el rendimiento de cada tramo sobre el capital que había al empezarlo y los encadena multiplicándolos (interés compuesto). Como cada tramo se mide sobre su propio capital inicial, da igual que un día metieras 100 € o 10.000 €: el resultado solo refleja la evolución del precio o del valor liquidativo. Es la cifra que publican los fondos y la ÚNICA justa para comparar productos entre sí o contra un índice, porque todos se miden con la misma vara, sin el ruido de tu calendario de aportaciones. DIFERENCIA CON LA TIR: la TIR responde «¿qué tal lo he hecho YO, incluido mi acierto al elegir el momento?»; la TWR responde «¿qué tal lo ha hecho la INVERSIÓN, al margen de cuándo entré yo?». Si ambas coinciden, tu «timing» no ha influido (p. ej. una sola aportación al principio); si la TIR es mayor que la TWR, tus aportaciones cayeron en buenos momentos; si es menor, en malos.";
+      cols = ["Activo", "Aportado", "Valor hoy", "Plusvalía", "%", "TIR" + info(expTir), "TWR" + info(expTwr)];
       filas = inv.filter(p => p.aportado != null).map(p => `<tr class="rcClic" data-rcficha="${esc(p.id)}" title="Ver la ficha de ${esc(p.corto || p.nombre)}">
           <td><i class="pt" style="background:${color(p)}"></i>${esc(p.corto || p.nombre)}</td>
           <td>${G.fmtEur(p.aportado, 0)}</td><td>${G.fmtEur(p.valor, 0)}</td>
@@ -2849,16 +2851,17 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.14.0",
+    version: "1.14.1",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🧮", "Tabla central de Rentabilidad", "En Rentabilidad, un bloque arriba con el resumen de tu cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio (Total) o acotada a un año o un mes. La TIR mide la rentabilidad de tu dinero; la TWR, la de la inversión en sí."],
+      ["🧮", "Tabla central de Rentabilidad", "En Rentabilidad, un bloque arriba con el resumen de tu cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio (Total) o acotada a un año o un mes. La TIR y la TWR llevan un icono «i» que explica al detalle qué son y en qué se diferencian."],
+      ["🪙", "Compara también con Bitcoin", "El gráfico «¿Y si lo hubiera metido en otro sitio?» (antes «…en un indexado») suma Bitcoin a las alternativas (MSCI World, S&P 500, 60/40, monetario): las mismas aportaciones que tú, pero en ese activo."],
+      ["📄", "CSV de Ingresos y gastos mejorado", "Al exportar, el importe sale como número limpio (con el guion normal en los negativos) y la divisa va en su propia columna, así se importa directo en Excel y en las hojas de cálculo de Android; Observaciones y Facturas muestran su contenido real (el texto o el nombre del archivo), no iconos."],
       ["👉", "De Rentabilidad a la ficha", "Pulsa cualquier fila de esa tabla para abrir la ficha del componente. El botón «← Volver» te devuelve a Rentabilidad, y desde la ficha llegas a la de cualquier otro componente del patrimonio."],
       ["🔔", "Avisos de la agenda", "En Configuración → Documentos eliges con cuántos días de antelación un recordatorio del calendario salta a la franja de avisos del Panel y de Mis datos; al pulsarlo te lleva al calendario situado en esa fecha."],
       ["🔖", "Avisos homogéneos", "Todos los avisos se ven igual en el Panel y en Mis datos: borde redondeado y un icono que te dice a qué sección corresponden (Distribución, Deudas, Agenda…)."],
       ["🗑️", "Borrar mejor en Ingresos y gastos y Movimientos", "Al borrar ya no saltas al principio de la lista. Con «☑ Seleccionar» borras varios de una vez, y «🗄 Archivar / borrar…» archiva (reversible, para «dejar solo este año») o borra lo anterior a una fecha. Puedes elegir si lo archivado cuenta o no en el panel."],
       ["🧭", "Más cómodo y al día", "Las cuatro pestañas de Configuración caben en una línea; en Ingresos y gastos los botones de acción van ordenados a la derecha, bajo los filtros; y la ayuda «i» de cada pantalla (Cuadernos incluida) está al día."],
-      ["📄", "CSV compatible con Excel/Android", "Los importes negativos del CSV salen ya con el guion normal, así se importan directamente en Excel y en las hojas de cálculo de Android."],
     ],
   };
   function quizaNovedades() {
