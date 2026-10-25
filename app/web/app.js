@@ -118,6 +118,9 @@
     document.body.classList.toggle("vistaAmplia", pref("amplia", "0") === "1");
     document.body.classList.toggle("ayudaOff", pref("ayudaBotones", "1") === "0");
     window.OCULTAR_IMPORTES = pref("ocultar", "0") === "1";
+    // Atajos de una sola tecla (1-8, V, L, ?): se pueden desactivar en Ajustes para
+    // quien los pulsa sin querer. Ctrl/⌘+K y Escape van siempre (ver el keydown global).
+    window.ATAJOS = pref("atajos", "1") !== "0";
   }
   aplicaPrefs();
 
@@ -174,6 +177,8 @@
         <button class="btn" id="btnVideo">${enPantallaCompleta() ? "Salir de pantalla completa" : "Pantalla completa"}</button></div>` +
       fila("Botones de ayuda", "La «i» de la esquina que explica cada pantalla. Si ya te manejas, ocúltalos para una pantalla más limpia.", "ayudaBotones",
            [{ v: "1", t: "Mostrar" }, { v: "0", t: "Ocultar" }]) +
+      fila("Atajos de teclado", "Las teclas rápidas de una sola pulsación (1–8 para las vistas, V vídeo, L largo plazo, ? la lista). Si te estorban al pulsarlas sin querer, desactívalas. La paleta Ctrl/⌘+K y Escape siguen funcionando.", "atajos",
+           [{ v: "1", t: "Activados" }, { v: "0", t: "Desactivados" }]) +
       fila("Pantalla de inicio", "Qué se abre al abrir la app.", "inicio",
            [{ v: "ultima", t: "La última que usaste" }, { v: "panel", t: "Siempre el Panel" }]);
     const bv = $("#btnVideo"); if (bv) bv.onclick = alternaVideo;
@@ -935,7 +940,10 @@
       ? D.titulares
       : [...new Set(TODOS().map(p => p.titular).filter(Boolean))];
     estado.filtroDim = estado.filtroDim || {};
-    const dims = D.dimensiones || [];
+    // En Ingresos y gastos las dimensiones de activo (Clase de activo, Geografía…) no aplican a
+    // los apuntes: listaFlujosFiltrada no las lee. Allí solo tiene sentido el filtro por titular.
+    const enIngresos = (estado.pv || "patrimonio") === "ingresos";
+    const dims = enIngresos ? [] : (D.dimensiones || []);
     if (!tits.length && !dims.length) { cont.innerHTML = ""; return; }
     if (tits.length && !["todos", ...tits].includes(estado.titular)) estado.titular = "todos";
 
@@ -956,7 +964,7 @@
         <select data-fil="dim" data-dim="${esc(dm.id)}"><option value="">Todas</option>
         ${vals.map(v => `<option value="${esc(v)}"${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
     });
-    const hayFiltro = filtroTit() || filtroDimAct();
+    const hayFiltro = filtroTit() || (!enIngresos && filtroDimAct());
     cont.innerHTML = `<span class="filtroTitulo">🔎 Filtrar:</span>${campos.join("")}` +
       (hayFiltro ? `<button class="btn mini filtroQuitar" id="btnQuitarFiltros">✕ Quitar filtros</button>` : "");
     cont.querySelectorAll("[data-fil]").forEach(s => {
@@ -3173,6 +3181,7 @@
       ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades: así puedes enseñar la pantalla o compartir una captura sin revelar tu dinero."],
       ["🖥️", "Vista amplia y Modo vídeo", "Vista amplia agranda filas y botones (mejor para tocar). Modo vídeo pone la app a pantalla completa para presentar o grabar (también con la tecla V)."],
       ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (esta misma). Déjalos si estás empezando; ocúltalos cuando ya te manejes."],
+      ["⌨️", "Atajos de teclado", "Activa o desactiva las teclas rápidas de una sola pulsación (1–8 para las vistas, V vídeo, L largo plazo, ? la lista). Si las pulsas sin querer y te estorban, desactívalas; la paleta Ctrl/⌘+K y Escape siguen funcionando."],
       ["🏁", "Pantalla de inicio", "Elige qué se abre al arrancar: la última pantalla que usaste o siempre el Panel."],
       ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios. Si lo activas, mira de vez en cuando si hay versión nueva (nunca envía tus datos)."],
     ] },
@@ -3424,9 +3433,9 @@
       dlg = document.createElement("dialog");
       dlg.id = "dlgAtajos"; dlg.className = "modal";
       dlg.innerHTML = `<div class="atajosCuerpo"><h2 style="margin:0 0 2px">Atajos de teclado</h2>
-        <p class="subt" style="margin:0 0 14px">Funcionan cuando no estás escribiendo en un campo.</p>
+        <p class="subt" style="margin:0 0 14px">Funcionan cuando no estás escribiendo en un campo. Puedes desactivarlos en <b>Ajustes → Atajos de teclado</b>.</p>
         <table class="atajos"><tbody>
-          <tr><td><kbd>1</kbd> … <kbd>7</kbd></td><td>Cambiar de sub-pestaña del Panel</td></tr>
+          <tr><td><kbd>1</kbd> … <kbd>8</kbd></td><td>Cambiar de sub-pestaña del Panel</td></tr>
           <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Paleta de acciones: buscar e ir a cualquier sitio</td></tr>
           <tr><td><kbd>L</kbd></td><td>Ver solo lo de largo plazo (y volver)</td></tr>
           <tr><td><kbd>V</kbd></td><td>Modo vídeo: pantalla completa para presentar o grabar</td></tr>
@@ -3449,7 +3458,7 @@
   const PASOS_TOUR = [
     // --- Panel: entender tus cifras ---
     { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», lo ves a un día concreto, a fin de un mes o en un rango (y cuánto ganaste en ese tramo).", antes: () => { irA("panel"); irVista("patrimonio"); } },
-    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Empiezas en «Inicio», un resumen de todo. Y tienes siete vistas más para analizarlo: Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos e Informe fiscal. Con las teclas 1–8 saltas al instante.", antes: () => irVista("inicio") },
+    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Empiezas en «Inicio», un resumen de todo. Las demás vistas van agrupadas por temática: tu patrimonio (Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos e Informe fiscal) y tu día a día (Ingresos y gastos). Con las teclas 1–8 saltas al instante.", antes: () => irVista("inicio") },
     { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero, por tipo, titular o tus propias dimensiones. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada cosa para volver a tus objetivos.", antes: () => irVista("distribucion") },
     { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo crece tu patrimonio en el tiempo. Enciende y apaga componentes en la leyenda, míralo mes a mes o en reparto %, y compáralo con un indexado. Las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
     { sel: "#igNav", tit: "Ingresos y gastos", txt: "Entiende tu dinero: Resumen (con la cascada y tu tasa de ahorro), Categorías (en qué se va), Tendencias (mes a mes y mapa de calor) y Presupuesto con semáforo.", antes: () => irVista("ingresos") },
@@ -3744,17 +3753,21 @@
     // cualquier boton, que es justo cuando los quieres.
     const t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-    if (e.key === "Escape" && filtrando()) { estado.ocultos.clear(); estado.titular = "todos"; estado.filtroDim = {}; pintaPatrimonio(); }
+    // Escape (limpiar filtro) y la paleta Ctrl/⌘+K van SIEMPRE: no "entorpecen" (Escape es
+    // estándar; Ctrl/⌘+K es una combinación deliberada que no se pulsa sin querer).
+    if (e.key === "Escape" && filtrando()) { estado.ocultos.clear(); estado.titular = "todos"; estado.filtroDim = {}; pintaPatrimonio(); return; }
+    if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); abrePaleta(); return; }
+    // El resto son atajos de una sola tecla: se pueden desactivar en Ajustes → Atajos de teclado.
+    if (!window.ATAJOS) return;
     if (e.key === "v" && !e.metaKey && !e.ctrlKey) alternaVideo();
     if (e.key === "l" && !e.metaKey && !e.ctrlKey && estado.tab === "panel") {
       estado.ocultos = filtrando() ? new Set() : new Set(idsCorto());
       pintaPatrimonio();
     }
     if (e.key === "?") { muestraAtajos(); return; }
-    if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); abrePaleta(); return; }
-    // Teclas 1-8: sub-pestañas del Panel.
+    // Teclas 1-8: sub-pestañas del Panel, en el orden visual (resumen · patrimonio · día a día).
     const n = "12345678".indexOf(e.key);
-    const pv = ["inicio", "patrimonio", "distribucion", "rentabilidad", "evolucion", "ingresos", "deudas", "fiscal"][n];
+    const pv = ["inicio", "patrimonio", "distribucion", "rentabilidad", "evolucion", "deudas", "fiscal", "ingresos"][n];
     if (n >= 0 && pv && document.getElementById("pv-" + pv)) { if (estado.tab !== "panel") irA("panel"); irVista(pv); }
   });
 

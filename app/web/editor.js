@@ -540,11 +540,11 @@
       <div id="edAvisos" class="avisos"></div><div id="edCuerpo"></div>`;
     cont.innerHTML = html;
 
-    // Tres áreas al mismo nivel pero visualmente distintas: lo que tienes,
-    // el día a día (flujos y saldos) y las herramientas.
+    // Tres áreas por las dos «apps» que conviven en Liberty: patrimonio (lo que tienes y sus
+    // saldos/movimientos), el día a día (ingresos y gastos) y lo común (herramientas).
     const grupos = [
-      [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"]],
-      [["saldos", "Saldos y movimientos"], ["flujos", "Ingresos y gastos"], ["facturas", "Facturas"]],
+      [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"], ["saldos", "Saldos y movimientos"]],
+      [["flujos", "Ingresos y gastos"], ["facturas", "Facturas"]],
       [["config", "Configuración"], ["importar", "Importar"], ["copias", "Copias y seguridad"]],
     ];
     const seg = $("#edVistas");

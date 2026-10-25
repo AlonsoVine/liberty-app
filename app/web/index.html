@@ -123,12 +123,13 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 /* Barra superior (secciones grandes): un poco más grande y con más aire. */
 .tabsPrin{gap:4px}
 .tabsPrin button{font-size:15.5px;padding:12px 20px 13px}
-/* Sub-pestañas del Panel: píldoras grandes y claras, con la activa rellena. */
-.subtabs{display:flex;flex-wrap:wrap;gap:8px;margin:18px 0 10px}
-.subtabs button{border:1px solid var(--borde);background:var(--sup);color:var(--tinta2);
-  font:inherit;font-size:14px;font-weight:600;padding:9px 16px;border-radius:999px;cursor:pointer;transition:.13s}
-.subtabs button:hover{color:var(--tinta);border-color:var(--tinta3)}
-.subtabs button[aria-selected="true"]{background:var(--s1);border-color:var(--s1);color:#fff}
+/* Sub-pestañas del Panel: agrupadas por temática en controles segmentados (como «Mis datos»):
+   resumen (Inicio) · patrimonio · día a día. Los grupos usan .segm; aquí solo se ajusta el
+   tamaño (nav principal) y el marcado de la activa por aria-selected. */
+.subtabs{display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center;margin:18px 0 10px}
+.subtabs .pvGrupo{flex-wrap:wrap}
+.subtabs .segm button{font-size:13.5px;font-weight:600;padding:7px 13px}
+.subtabs .segm button[aria-selected="true"]{background:var(--sup);color:var(--tinta);box-shadow:0 1px 3px rgba(0,0,0,.25)}
 .pv[hidden]{display:none}
 /* Sub-navegación de 2º nivel (dentro de Ingresos y gastos) */
 .igNav{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0 0;border-bottom:1px solid var(--borde);padding-bottom:0}
@@ -138,6 +139,9 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .igNav button[aria-selected="true"]{color:var(--s1);border-bottom-color:var(--s1)}
 .ig[hidden]{display:none}
 /* Control de periodo (Este mes · Año · 12 meses · Rango) de Ingresos y gastos */
+/* Periodo y «Filtrar apuntes» comparten una sola línea (se parten solo si no caben). */
+.igControles{display:flex;align-items:center;flex-wrap:wrap;gap:8px 26px;margin:12px 0 15px}
+.igControles>.igPeriodo,.igControles>.filtros{margin:0}
 .igPeriodo{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 0}
 .igPeriodo .filtroTitulo{color:var(--tinta2);font-size:13px;font-weight:600}
 .igPeriodo .igRango{display:flex;align-items:center;gap:6px}
@@ -1547,15 +1551,22 @@ body.video .tarjetaCanal{display:none}
 <!-- ==================================================== PANEL -->
 <div class="panel" id="tab-panel" role="tabpanel">
 
+  <!-- Agrupadas por temática (como «Mis datos»): resumen · patrimonio · día a día. -->
   <nav class="subtabs" id="subtabs" role="tablist">
-    <button data-pv="inicio" aria-selected="true">Inicio</button>
-    <button data-pv="patrimonio" aria-selected="false">Patrimonio</button>
-    <button data-pv="distribucion" aria-selected="false">Distribución</button>
-    <button data-pv="rentabilidad" aria-selected="false">Rentabilidad</button>
-    <button data-pv="evolucion" aria-selected="false">Evolución</button>
-    <button data-pv="ingresos" aria-selected="false">Ingresos y gastos</button>
-    <button data-pv="deudas" aria-selected="false">Deudas y vencimientos</button>
-    <button data-pv="fiscal" aria-selected="false">Informe fiscal</button>
+    <div class="segm pvGrupo">
+      <button data-pv="inicio" aria-selected="true">Inicio</button>
+    </div>
+    <div class="segm pvGrupo">
+      <button data-pv="patrimonio" aria-selected="false">Patrimonio</button>
+      <button data-pv="distribucion" aria-selected="false">Distribución</button>
+      <button data-pv="rentabilidad" aria-selected="false">Rentabilidad</button>
+      <button data-pv="evolucion" aria-selected="false">Evolución</button>
+      <button data-pv="deudas" aria-selected="false">Deudas y vencimientos</button>
+      <button data-pv="fiscal" aria-selected="false">Informe fiscal</button>
+    </div>
+    <div class="segm pvGrupo">
+      <button data-pv="ingresos" aria-selected="false">Ingresos y gastos</button>
+    </div>
     <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button>
   </nav>
 
@@ -1763,10 +1774,12 @@ body.video .tarjetaCanal{display:none}
       <button data-ig="tendencias" aria-selected="false">Tendencias</button>
       <button data-ig="presupuesto" aria-selected="false">Presupuesto</button>
     </nav>
-    <div class="igPeriodo" id="igPeriodo" hidden></div>
+    <div class="igControles">
+      <div class="igPeriodo" id="igPeriodo" hidden></div>
+      <div class="filtros" id="igFiltros"></div>
+    </div>
     <p class="subt" id="igArchivados" hidden style="margin:8px 0 0">📦 <span></span></p>
     <p class="subt" id="igVacio" hidden style="margin-top:12px">Todavía no has anotado ingresos ni gastos. Ve a «Mis datos → Ingresos y gastos», o importa el extracto de tu banco en «Mis datos → Importar → Datos del banco».</p>
-    <div class="filtros" id="igFiltros"></div>
 
     <!-- RESUMEN -->
     <div class="ig" id="ig-resumen">
@@ -2217,7 +2230,7 @@ body.video .tarjetaCanal{display:none}
       el <b>tema</b> (claro, oscuro o automático), la <b>vista amplia</b>, <b>ocultar los importes</b> y el <b>modo vídeo</b>. Todo se recuerda para la próxima vez.</p>
       <p>Atajos de teclado (cuando no estás escribiendo en un campo):</p>
       <ul>
-        <li><b>1…7</b>: cambian de pestaña dentro del Panel (Patrimonio, Distribución, Rentabilidad, Evolución, Ingresos y gastos, Deudas y vencimientos, Informe fiscal).</li>
+        <li><b>1…8</b>: cambian de pestaña dentro del Panel, en orden (Inicio, Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos, Informe fiscal e Ingresos y gastos).</li>
         <li><b>V</b>: modo vídeo. <b>L</b>: ver solo lo de largo plazo. <b>Esc</b>: quitar el filtro.</li>
       </ul></div></details>
 
@@ -2266,8 +2279,9 @@ body.video .tarjetaCanal{display:none}
     <ul>
       <li><b>📊 Panel</b> — la foto de tu patrimonio y los análisis. Abre en <b>Inicio</b>, un resumen
         de un vistazo (tu patrimonio en el tiempo, dónde está tu dinero, ingresos y gastos, tu constancia y
-        accesos directos a todo); y dentro tienes las vistas <i>Patrimonio, Distribución, Rentabilidad,
-        Evolución, Ingresos y gastos, Deudas y vencimientos</i> e <i>Informe fiscal</i>. Arriba puedes incluso
+        accesos directos a todo); las demás vistas van agrupadas por temática: tu patrimonio
+        (<i>Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos</i> e <i>Informe fiscal</i>)
+        y tu día a día (<i>Ingresos y gastos</i>). Arriba puedes incluso
         ver cómo estaba tu patrimonio <i>a fin de un mes pasado</i>.</li>
       <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, reservados, ingresos y gastos,
         saldos y movimientos; también la configuración, importar y las <b>copias de seguridad</b> (que guardan
