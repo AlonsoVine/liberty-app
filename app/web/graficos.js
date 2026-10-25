@@ -465,8 +465,20 @@
       punto.setAttribute("cx", x(i)); punto.setAttribute("cy", y(vals[i]));
       let extra = "";
       (porFecha[fechas[i]] || []).forEach(e => { extra += `<div class="ttEvento">${e.texto}</div>`; });
-      if (cfg.overlay && cfg.overlay.valores[i] != null)
+      if (cfg.rentabilidadTT && cfg.overlay && cfg.overlay.valores[i] != null) {
+        // Tooltip enriquecido de la vista «Total»: aportado, plusvalía (valor − aportado),
+        // rentabilidad % y, si está activada, la línea de inflación.
+        const ap = cfg.overlay.valores[i], pl = vals[i] - ap, pct = ap ? pl / ap * 100 : 0;
+        const col = pl >= 0 ? "var(--bien)" : "var(--mal)", sg = pl >= 0 ? "+" : "";
+        let rows = `<tr><td><i class="raya"></i>${escHtml(cfg.overlay.nombre)}</td><td>${fmtEur(ap)}</td></tr>`;
+        rows += `<tr class="sep"><td>Plusvalía</td><td style="color:${col}">${sg}${fmtEur(pl)}</td></tr>`;
+        rows += `<tr><td>Rentabilidad</td><td style="color:${col}">${sg}${pct.toFixed(1).replace(".", ",")} %</td></tr>`;
+        if (cfg.overlay2 && cfg.overlay2.valores[i] != null)
+          rows += `<tr class="sep"><td><i class="raya" style="border-color:${cfg.overlay2.color || css("--s4")}"></i>${escHtml(cfg.overlay2.nombre)}</td><td>${fmtEur(cfg.overlay2.valores[i])}</td></tr>`;
+        extra += `<table>${rows}</table>`;
+      } else if (cfg.overlay && cfg.overlay.valores[i] != null) {
         extra += `<table><tr><td><i class="raya"></i>${escHtml(cfg.overlay.nombre)}</td><td>${fmtEur(cfg.overlay.valores[i])}</td></tr></table>`;
+      }
       tt.innerHTML = `<b>${fmtFecha(fechas[i])}</b><div class="ttTotal">${cfg.formatoTT ? cfg.formatoTT(vals[i]) : fmtEur(vals[i])}</div>${extra}`;
       tt.classList.add("on");
       colocaTooltip(tt, cont, x(i) * (r.width / W), ev.clientY - r.top);

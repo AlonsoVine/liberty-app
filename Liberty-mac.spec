@@ -43,6 +43,11 @@ exe = EXE(
     upx=False,
     console=False,          # app de ventana: aparece en el Dock y se sale con «Salir»
     icon=_icono,
+    # universal2 = un solo binario con las dos arquitecturas (Apple Silicon + Intel).
+    # Requiere un Python universal2 (el del instalador de python.org) y que toda
+    # extensión C (aquí solo markupsafe._speedups) sea también universal2: lo asegura
+    # el workflow build-mac.yml. En un Mac de una sola arquitectura, deja target_arch=None.
+    target_arch=os.environ.get("LIBERTY_TARGET_ARCH") or None,
 )
 coll = COLLECT(
     exe,

@@ -137,6 +137,13 @@ code{background:var(--sup2);padding:1px 6px;border-radius:5px;font-size:.9em}
 .igNav button:hover{color:var(--tinta)}
 .igNav button[aria-selected="true"]{color:var(--s1);border-bottom-color:var(--s1)}
 .ig[hidden]{display:none}
+/* Control de periodo (Este mes · Año · 12 meses · Rango) de Ingresos y gastos */
+.igPeriodo{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:12px 0 0}
+.igPeriodo .filtroTitulo{color:var(--tinta2);font-size:13px;font-weight:600}
+.igPeriodo .igRango{display:flex;align-items:center;gap:6px}
+.igPeriodo .igRangoSep{color:var(--tinta3)}
+.igPeriodo input[type=date]{font:inherit;font-size:13px;padding:5px 9px;border:1px solid var(--borde);
+  border-radius:8px;background:var(--sup2);color:var(--tinta)}
 /* Anotar rápido (bucle del día a día) */
 .anotarBar{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:12px 0 4px;padding:12px 14px;
   background:var(--sup2);border:1px solid var(--borde);border-radius:14px}
@@ -236,7 +243,7 @@ table.dt tr.filaClic:hover>td{background:color-mix(in srgb,var(--s1) 9%,transpar
 .celLink:hover{color:var(--s1);text-decoration-color:var(--s1)}
 /* Inputs dentro de los filtros (importe, fechas) */
 .filtroCampo .fImp{width:66px;border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:13px;border-left:1px solid var(--borde);padding:2px 4px}
-.filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:dark light}
+.filtroCampo .fFecha{border:0;background:var(--sup);color:var(--tinta);font:inherit;font-size:12.5px;color-scheme:light}
 .filtroCampo .fSep{color:var(--tinta3)}
 /* Notas: lista de notas y tablero tipo Trello */
 .notasNav{margin:4px 0 14px}
@@ -246,6 +253,18 @@ table.dt tr.filaClic:hover>td{background:color-mix(in srgb,var(--s1) 9%,transpar
   height:34px;padding:0 32px 0 11px;cursor:pointer}
 #tab-notas input[type="date"]{font:inherit;font-size:13px;color:var(--tinta);background:var(--sup2);
   border:1px solid var(--borde);border-radius:9px;height:34px;padding:0 10px;cursor:pointer}
+/* Icono del calendario de los <input type=date/time…>: el glifo nativo es oscuro
+   y en tema oscuro se perdía (parecía que no estaba). Forzamos el control a esquema
+   claro (glifo siempre oscuro y nítido) y lo invertimos a blanco cuando el tema es
+   oscuro, para que se vea en cualquier sitio donde haya selector de fecha. */
+input[type="date"],input[type="datetime-local"],input[type="month"],
+input[type="time"],input[type="week"]{color-scheme:light}
+:root[data-tema="oscuro"] input[type="date"]::-webkit-calendar-picker-indicator,
+:root[data-tema="oscuro"] input[type="datetime-local"]::-webkit-calendar-picker-indicator,
+:root[data-tema="oscuro"] input[type="month"]::-webkit-calendar-picker-indicator,
+:root[data-tema="oscuro"] input[type="time"]::-webkit-calendar-picker-indicator,
+:root[data-tema="oscuro"] input[type="week"]::-webkit-calendar-picker-indicator{
+  filter:invert(1) brightness(1.75);cursor:pointer}
 .notasGrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px;margin-top:12px}
 .notaCard{background:var(--sup2);border:1px solid var(--borde);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
 .notaTit{font-weight:650}
@@ -1744,6 +1763,7 @@ body.video .tarjetaCanal{display:none}
       <button data-ig="tendencias" aria-selected="false">Tendencias</button>
       <button data-ig="presupuesto" aria-selected="false">Presupuesto</button>
     </nav>
+    <div class="igPeriodo" id="igPeriodo" hidden></div>
     <p class="subt" id="igArchivados" hidden style="margin:8px 0 0">📦 <span></span></p>
     <p class="subt" id="igVacio" hidden style="margin-top:12px">Todavía no has anotado ingresos ni gastos. Ve a «Mis datos → Ingresos y gastos», o importa el extracto de tu banco en «Mis datos → Importar → Datos del banco».</p>
     <div class="filtros" id="igFiltros"></div>
@@ -1775,7 +1795,6 @@ body.video .tarjetaCanal{display:none}
         <header style="flex-wrap:wrap;gap:10px">
           <h2>¿En qué se va el dinero?</h2><div class="sep"></div>
           <div class="segm" id="segCatTipo"></div>
-          <div class="segm" id="segCatPeriodo"></div>
         </header>
         <div class="rejilla2">
           <div class="envGraf" id="grafCatDonut"></div>

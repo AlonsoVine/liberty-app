@@ -261,7 +261,8 @@
     distModo: "anillo",
     ig: recuerda.lee("patrimonio.ig") || "resumen",
     catTipo: "gasto",
-    catPeriodo: "total12",
+    // Periodo del panel de Ingresos y gastos (Resumen + Categorías): mes | anio | 12m | rango.
+    igPeriodo: { modo: recuerda.lee("patrimonio.igPeriodo") || "mes", desde: "", hasta: "" },
     tendTipo: "gasto",
     inflacionOn: false,
     inflacionTasa: D.inflacion != null ? D.inflacion : 0.025,
@@ -860,19 +861,23 @@
       ["#flujosTabla", "#flujosCatEnv", "#flujosSub"].forEach(s => { const e = $(s); if (e) e.innerHTML = ""; });
       return;
     }
-    const em = f.esteMes, m12 = f.media12;
-    $("#flujosSub").textContent = "Últimos 12 meses hasta " + G.fmtFechaCorta(D.fechaExtracto);
+    const m12 = f.media12;
+    // Cifras del periodo activo (Este mes · Año · 12 meses · Rango). Fallback: este mes.
+    const per = datosPeriodo() || f.esteMes;
+    $("#flujosSub").textContent = per.etiqueta
+      ? per.etiqueta.charAt(0).toUpperCase() + per.etiqueta.slice(1)
+      : "Últimos 12 meses hasta " + G.fmtFechaCorta(D.fechaExtracto);
     const pct = v => v != null ? G.fmtPct(v, 0) : "—";
     const tiles = [
-      { e: "Ingresos (mes)", v: G.fmtEur(em.ingresos, 0), n: "media 12m " + G.fmtEur(m12.ingresos, 0) },
-      { e: "Gastos (mes)", v: G.fmtEur(em.gastos, 0), n: "media 12m " + G.fmtEur(m12.gastos, 0) },
+      { e: "Ingresos", v: G.fmtEur(per.ingresos, 0), n: "media 12m " + G.fmtEur(m12.ingresos, 0) },
+      { e: "Gastos", v: G.fmtEur(per.gastos, 0), n: "media 12m " + G.fmtEur(m12.gastos, 0) },
       {
-        e: "Ahorro (mes)", v: G.fmtEur(em.ahorro, 0), n: "media 12m " + G.fmtEur(m12.ahorro, 0),
-        cl: em.ahorro >= 0 ? "pos" : "neg"
+        e: "Ahorro", v: G.fmtEur(per.ahorro, 0), n: "media 12m " + G.fmtEur(m12.ahorro, 0),
+        cl: per.ahorro >= 0 ? "pos" : "neg"
       },
       {
-        e: "Tasa de ahorro" + info("Qué parte de tus ingresos ahorras: (ingresos − gastos) / ingresos."), v: pct(em.tasaAhorro), n: "media 12m " + pct(m12.tasaAhorro),
-        cl: (em.tasaAhorro || 0) >= 0 ? "pos" : "neg"
+        e: "Tasa de ahorro" + info("Qué parte de tus ingresos ahorras: (ingresos − gastos) / ingresos."), v: pct(per.tasaAhorro), n: "media 12m " + pct(m12.tasaAhorro),
+        cl: (per.tasaAhorro || 0) >= 0 ? "pos" : "neg"
       },
     ];
     $("#flujosKpis").innerHTML = tiles.map(k =>
@@ -1056,6 +1061,86 @@
     return agregaFlujos(lista, D.flujos.meses);
   }
 
+  /* ---- Periodo del panel (Este mes · Año · 12 meses · Rango personalizado) ----
+     Afecta solo a Resumen (KPIs + cascada) y Categorías. Las cifras del periodo se
+     calculan en el front desde D.flujosLista (los apuntes crudos ya filtrados por
+     titular/entidad/marca/dimensión), así que admite cualquier rango de fechas. */
+  function finDeMesISO(ym) {                 // "YYYY-MM" -> último día "YYYY-MM-DD"
+    const [a, m] = ym.split("-").map(Number);
+    return ym + "-" + String(new Date(a, m, 0).getDate()).padStart(2, "0");
+  }
+  function ventanaPeriodo() {
+    const meses = (D.flujos && D.flujos.meses) || [];
+    const p = estado.igPeriodo || (estado.igPeriodo = { modo: "mes", desde: "", hasta: "" });
+    if (!meses.length) return { modo: p.modo, desde: p.desde || "", hasta: p.hasta || "", etiqueta: "" };
+    const mesRef = meses[meses.length - 1], anioRef = mesRef.slice(0, 4), finRef = finDeMesISO(mesRef);
+    if (p.modo === "anio") return { modo: "anio", desde: anioRef + "-01-01", hasta: finRef, etiqueta: "año " + anioRef };
+    if (p.modo === "12m") return { modo: "12m", desde: meses[0] + "-01", hasta: finRef, etiqueta: "últimos 12 meses" };
+    if (p.modo === "rango") {
+      const d = p.desde || (meses[0] + "-01"), h = p.hasta || finRef;
+      const de = d <= h ? d : h, ha = d <= h ? h : d;   // por si se introducen al revés
+      return { modo: "rango", desde: de, hasta: ha, etiqueta: "del " + G.fmtFechaCorta(de) + " al " + G.fmtFechaCorta(ha) };
+    }
+    return { modo: "mes", desde: mesRef + "-01", hasta: finRef, etiqueta: G.fmtMes(mesRef) };
+  }
+  function listaFlujosFiltrada() {
+    if (!D.flujosLista) return [];
+    const tit = estado.titular, ent = estado.igEntidad, mar = estado.igMarca;
+    const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
+    const porTit = tit && tit !== "todos";
+    return D.flujosLista.filter(f =>
+      (!porTit || (f.titular || "") === tit)
+      && (!ent || (f.entidad || "Sin entidad") === ent)
+      && (!mar || (mar === "__con__" ? !!f.marca : mar === "__sin__" ? !f.marca : f.marca === mar))
+      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
+  }
+  function agregaRango(lista, desde, hasta) {
+    let ing = 0, gas = 0; const cat = new Map();
+    lista.forEach(f => {
+      const fe = f.fecha || "";
+      if ((desde && fe < desde) || (hasta && fe > hasta)) return;
+      const imp = +f.importe || 0, t = f.tipo;
+      if (t === "ingreso") ing += imp; else gas += imp;
+      const key = (f.categoria || "Sin categoría") + "|" + t;
+      cat.set(key, (cat.get(key) || 0) + imp);
+    });
+    const r2 = v => Math.round(v * 100) / 100;
+    const cats = [...cat.entries()].map(([k, v]) => {
+      const i = k.lastIndexOf("|");
+      return { categoria: k.slice(0, i), tipo: k.slice(i + 1), importe: r2(v) };
+    });
+    return { ingresos: r2(ing), gastos: r2(gas), ahorro: r2(ing - gas),
+      tasaAhorro: ing ? Math.round((ing - gas) / ing * 1e4) / 1e4 : null, cats };
+  }
+  // Ventana + cifras agregadas del periodo activo. null si la cartera no trae flujosLista.
+  function datosPeriodo() {
+    if (!D.flujosLista) return null;
+    const w = ventanaPeriodo();
+    return Object.assign(w, agregaRango(listaFlujosFiltrada(), w.desde, w.hasta));
+  }
+  // Barra del control de periodo (solo en Resumen y Categorías).
+  function pintaIgPeriodo() {
+    const cont = $("#igPeriodo"); if (!cont) return;
+    const ig = estado.ig || "resumen";
+    if (!D.flujosLista || (ig !== "resumen" && ig !== "categorias")) { cont.hidden = true; return; }
+    cont.hidden = false;
+    const p = estado.igPeriodo;
+    cont.innerHTML = `<span class="filtroTitulo">📅 Periodo:</span><span class="segm" id="segIgPeriodo"></span>`
+      + (p.modo === "rango"
+        ? `<span class="igRango"><input type="date" id="igDesde" value="${esc(p.desde || "")}" aria-label="Desde"><span class="igRangoSep">–</span><input type="date" id="igHasta" value="${esc(p.hasta || "")}" aria-label="Hasta"></span>`
+        : "");
+    pintaSegm($("#segIgPeriodo"),
+      [{ id: "mes", et: "Este mes" }, { id: "anio", et: "Año" }, { id: "12m", et: "12 meses" }, { id: "rango", et: "Rango…" }],
+      p.modo, id => { estado.igPeriodo.modo = id; recuerda.guarda("patrimonio.igPeriodo", id); refrescaIg(); });
+    if (p.modo === "rango") {
+      const de = $("#igDesde"), ha = $("#igHasta");
+      const upd = () => { estado.igPeriodo.desde = de.value; estado.igPeriodo.hasta = ha.value; refrescaIg(); };
+      if (de) de.onchange = upd;
+      if (ha) ha.onchange = upd;
+    }
+  }
+  function refrescaIg() { pintaFlujos(); pintaIngresos(); }
+
   // Filtros propios de Ingresos y gastos: por entidad/banco y por dimensiones de flujos.
   function pintaIgFiltros() {
     const cont = $("#igFiltros"); if (!cont) return;
@@ -1113,6 +1198,7 @@
       if (n) arch.querySelector("span").textContent = `Este panel no incluye ${n} apunte${n > 1 ? "s" : ""} archivado${n > 1 ? "s" : ""} (lo cambias en Configuración → Ingresos y gastos).`;
     }
     pintaIgFiltros();
+    pintaIgPeriodo();
     document.querySelectorAll(".ig").forEach(el => { el.hidden = true; });
     if (!hay) return;
     const ig = estado.ig || "resumen";
@@ -1128,51 +1214,67 @@
   function pintaCascada() {
     const cont = $("#grafCascada"); if (!cont) return;
     const f = flujosSel(); if (!f) { cont.innerHTML = ""; return; }
-    const em = f.esteMes;
-    const gastos = f.porCategoria.filter(c => c.tipo === "gasto" && c.mes > 0).sort((a, b) => b.mes - a.mes);
-    const sub = $("#cascSub");
-    if (!em.ingresos && !gastos.length) {
-      cont.innerHTML = '<p class="vacio" style="padding:24px 0">Sin ingresos ni gastos este mes.</p>';
+    const sub = $("#cascSub"), per = datosPeriodo();
+    let ingresos, ahorro, gastos, etq;
+    if (per) {
+      ingresos = per.ingresos; ahorro = per.ahorro;
+      gastos = per.cats.filter(c => c.tipo === "gasto" && c.importe > 0)
+        .sort((a, b) => b.importe - a.importe).map(c => ({ categoria: c.categoria, val: c.importe }));
+      etq = per.etiqueta;
+    } else {
+      const em = f.esteMes;
+      ingresos = em.ingresos; ahorro = em.ahorro;
+      gastos = f.porCategoria.filter(c => c.tipo === "gasto" && c.mes > 0)
+        .sort((a, b) => b.mes - a.mes).map(c => ({ categoria: c.categoria, val: c.mes }));
+      etq = G.fmtMes(f.meses[f.meses.length - 1]);
+    }
+    if (!ingresos && !gastos.length) {
+      cont.innerHTML = '<p class="vacio" style="padding:24px 0">Sin ingresos ni gastos en este periodo.</p>';
       if (sub) sub.textContent = ""; return;
     }
     const TOP = 7, top = gastos.slice(0, TOP), resto = gastos.slice(TOP);
-    const items = [{ nombre: "Ingresos", valor: em.ingresos, tipo: "inicio" }];
-    top.forEach(c => items.push({ nombre: c.categoria, valor: -c.mes, tipo: "gasto" }));
-    const otros = resto.reduce((a, c) => a + c.mes, 0);
+    const items = [{ nombre: "Ingresos", valor: ingresos, tipo: "inicio" }];
+    top.forEach(c => items.push({ nombre: c.categoria, valor: -c.val, tipo: "gasto" }));
+    const otros = resto.reduce((a, c) => a + c.val, 0);
     if (otros > 0) items.push({ nombre: "Otros", valor: -otros, tipo: "gasto" });
-    items.push({ nombre: "Ahorro", valor: em.ahorro, tipo: "fin" });
+    items.push({ nombre: "Ahorro", valor: ahorro, tipo: "fin" });
     G.cascada(cont, { items, alto: 300 });
-    if (sub) sub.textContent = G.fmtMes(f.meses[f.meses.length - 1]) + " · de los ingresos a lo que queda";
+    if (sub) sub.textContent = etq + " · de los ingresos a lo que queda";
   }
 
   function pintaCategorias() {
     pintaSegm($("#segCatTipo"), [{ id: "gasto", et: "Gastos" }, { id: "ingreso", et: "Ingresos" }],
       estado.catTipo || "gasto", id => { estado.catTipo = id; pintaCategorias(); });
-    pintaSegm($("#segCatPeriodo"), [{ id: "mes", et: "Este mes" }, { id: "anio", et: "Año" }, { id: "total12", et: "12 meses" }],
-      estado.catPeriodo || "total12", id => { estado.catPeriodo = id; pintaCategorias(); });
     const f = flujosSel(); if (!f) return;
-    const tipo = estado.catTipo || "gasto", per = estado.catPeriodo || "total12";
-    const campo = { mes: "mes", anio: "anio", total12: "total12" }[per];
-    const cats = f.porCategoria.filter(c => c.tipo === tipo && c[campo] > 0).sort((a, b) => b[campo] - a[campo]);
-    const total = cats.reduce((a, c) => a + c[campo], 0);
+    const tipo = estado.catTipo || "gasto", per = datosPeriodo();
+    let cats, etqPer;
+    if (per) {
+      cats = per.cats.filter(c => c.tipo === tipo && c.importe > 0)
+        .sort((a, b) => b.importe - a.importe).map(c => ({ categoria: c.categoria, valor: c.importe }));
+      etqPer = per.etiqueta;
+    } else {
+      cats = f.porCategoria.filter(c => c.tipo === tipo && c.total12 > 0)
+        .sort((a, b) => b.total12 - a.total12).map(c => ({ categoria: c.categoria, valor: c.total12 }));
+      etqPer = "últimos 12 meses";
+    }
+    const total = cats.reduce((a, c) => a + c.valor, 0);
     const puedeVerCat = D.modo === "propio" && window.Editor && window.Editor.verFlujosCategoria;
     G.donut($("#grafCatDonut"), {
-      datos: cats.map(c => ({ nombre: c.categoria, valor: c[campo], color: colorCat(c.categoria) })),
+      datos: cats.map(c => ({ nombre: c.categoria, valor: c.valor, color: colorCat(c.categoria) })),
       alto: 236, tituloCentro: tipo === "gasto" ? "Gastos" : "Ingresos", valorCentro: G.fmtEurCorto(total),
       onClick: puedeVerCat ? (d => window.Editor.verFlujosCategoria(d.nombre, tipo)) : null,
     });
-    const max = cats.length ? cats[0][campo] : 1;
+    const max = cats.length ? cats[0].valor : 1;
     $("#rankCat").innerHTML = cats.map(c => {
       const col = colorCat(c.categoria);
       return `<div class="rankFila">
         <div class="nm"><i style="background:${col}"></i><span>${esc(c.categoria)}</span></div>
-        <div class="vl">${G.fmtEur(c[campo], 0)} <span class="pc">${G.fmtPct(c[campo] / total, 1)}</span></div>
-        <div class="barra"><i style="width:${Math.max(3, (c[campo] / max) * 100)}%;background:${col}"></i></div>
+        <div class="vl">${G.fmtEur(c.valor, 0)} <span class="pc">${G.fmtPct(c.valor / total, 1)}</span></div>
+        <div class="barra"><i style="width:${Math.max(3, (c.valor / max) * 100)}%;background:${col}"></i></div>
       </div>`;
     }).join("") || '<p class="subt">Sin datos en este periodo.</p>';
-    const etqPer = { mes: "este mes", anio: "en lo que va de año", total12: "en los últimos 12 meses" }[per];
     $("#catNota").textContent = cats.length
-      ? `${cats.length} ${cats.length === 1 ? "categoría" : "categorías"} · ${G.fmtEur(total, 0)} ${tipo === "gasto" ? "gastados" : "ingresados"} ${etqPer}.` : "";
+      ? `${cats.length} ${cats.length === 1 ? "categoría" : "categorías"} · ${G.fmtEur(total, 0)} ${tipo === "gasto" ? "gastados" : "ingresados"} · ${etqPer}.` : "";
   }
 
   function pintaTitular() {
@@ -1408,6 +1510,7 @@
       const cfgL = {
         fechas, valores: corta(m.serie), color: G.css("--s1"), alto: 330,
         overlay: { nombre: "Aportado", valores: corta(m.serieAportado) },
+        rentabilidadTT: true,   // tooltip con aportado + plusvalía + rentabilidad % (+ inflación)
       };
       if (estado.inflacionOn) {
         const infl = serieInflacion(m.serieAportado, estado.inflacionTasa);
@@ -2231,11 +2334,16 @@
     const pv = estado.pv || "patrimonio";
     // En «Inicio» (foto fija del conjunto) no se puede filtrar: ocultamos los filtros de
     // titular/dimensión, el indicador de periodo y el resultado del periodo para ganar
-    // espacio. No se borran: siguen activos en el resto de pestañas del panel.
+    // espacio. En «Ingresos y gastos» el periodo lo manda el control propio del panel
+    // (igPeriodo), así que ahí también ocultamos el periodo global y su tarjeta de tramo
+    // para no mostrar dos selectores de periodo. No se borran: siguen activos en el resto.
     const enInicio = pv === "inicio";
-    ["filtroTitular", "mesReferencia", "resultadoPeriodo"].forEach(id => {
+    const ocultaPeriodo = enInicio || pv === "ingresos";
+    const fTit = document.getElementById("filtroTitular");
+    if (fTit) fTit.classList.toggle("ocultoInicio", enInicio);
+    ["mesReferencia", "resultadoPeriodo"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.classList.toggle("ocultoInicio", enInicio);
+      if (el) el.classList.toggle("ocultoInicio", ocultaPeriodo);
     });
     // Cifras y tablas (baratas): se rellenan siempre, aunque su vista esté oculta.
     pintaFiltros();
@@ -2851,17 +2959,12 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.14.1",
+    version: "1.15.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🧮", "Tabla central de Rentabilidad", "En Rentabilidad, un bloque arriba con el resumen de tu cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio (Total) o acotada a un año o un mes. La TIR y la TWR llevan un icono «i» que explica al detalle qué son y en qué se diferencian."],
-      ["🪙", "Compara también con Bitcoin", "El gráfico «¿Y si lo hubiera metido en otro sitio?» (antes «…en un indexado») suma Bitcoin a las alternativas (MSCI World, S&P 500, 60/40, monetario): las mismas aportaciones que tú, pero en ese activo."],
-      ["📄", "CSV de Ingresos y gastos mejorado", "Al exportar, el importe sale como número limpio (con el guion normal en los negativos) y la divisa va en su propia columna, así se importa directo en Excel y en las hojas de cálculo de Android; Observaciones y Facturas muestran su contenido real (el texto o el nombre del archivo), no iconos."],
-      ["👉", "De Rentabilidad a la ficha", "Pulsa cualquier fila de esa tabla para abrir la ficha del componente. El botón «← Volver» te devuelve a Rentabilidad, y desde la ficha llegas a la de cualquier otro componente del patrimonio."],
-      ["🔔", "Avisos de la agenda", "En Configuración → Documentos eliges con cuántos días de antelación un recordatorio del calendario salta a la franja de avisos del Panel y de Mis datos; al pulsarlo te lleva al calendario situado en esa fecha."],
-      ["🔖", "Avisos homogéneos", "Todos los avisos se ven igual en el Panel y en Mis datos: borde redondeado y un icono que te dice a qué sección corresponden (Distribución, Deudas, Agenda…)."],
-      ["🗑️", "Borrar mejor en Ingresos y gastos y Movimientos", "Al borrar ya no saltas al principio de la lista. Con «☑ Seleccionar» borras varios de una vez, y «🗄 Archivar / borrar…» archiva (reversible, para «dejar solo este año») o borra lo anterior a una fecha. Puedes elegir si lo archivado cuenta o no en el panel."],
-      ["🧭", "Más cómodo y al día", "Las cuatro pestañas de Configuración caben en una línea; en Ingresos y gastos los botones de acción van ordenados a la derecha, bajo los filtros; y la ayuda «i» de cada pantalla (Cuadernos incluida) está al día."],
+      ["📅", "Elige el periodo en Ingresos y gastos", "En el panel de Ingresos y gastos tienes un nuevo selector «Periodo» que recalcula el Resumen y las Categorías para este mes, el año en curso, los últimos 12 meses o un rango de fechas a tu medida (desde → hasta). Así ves a dónde fue tu dinero en el tramo que quieras, no solo este mes."],
+      ["📈", "La evolución «Total», con todo el detalle", "Al pasar el ratón por la vista «Total» de la evolución, el detalle ya no muestra solo lo aportado: añade la plusvalía, la rentabilidad % y, si la activas, la línea de inflación de ese día."],
+      ["🌙", "Calendario visible en modo oscuro", "El icono de calendario de los campos de fecha apenas se distinguía sobre el fondo oscuro; ahora resalta y se ve bien en cualquier tema."],
     ],
   };
   function quizaNovedades() {
@@ -2936,14 +3039,15 @@
     "panel.evolucion": { t: "Evolución", sub: "Tu patrimonio día a día, con todo el detalle.", p: [
       ["📈", "La curva en el tiempo", "La serie completa, con los eventos importantes (aportaciones) marcados. Pasa el ratón para ver el valor de cada día."],
       ["🧱", "Reparto apilado", "Cambia a áreas apiladas para ver cómo crece cada componente (o cada dimensión) a lo largo del tiempo, no solo el total."],
-      ["💶", "Aportado vs valor", "Separa lo que has metido tú de lo que ha crecido (o caído) por el mercado. Así ves si subes por ahorrar o por rentabilidad."],
+      ["💶", "Aportado vs valor", "Separa lo que has metido tú de lo que ha crecido (o caído) por el mercado. Así ves si subes por ahorrar o por rentabilidad. En la vista «Total», al pasar el ratón el detalle muestra lo aportado, la plusvalía, la rentabilidad % y, si la activas, la línea de inflación de ese día."],
       ["📉", "Inflación", "Si fijas una inflación de referencia en Configuración, aparece una línea con lo que «debería valer» tu dinero solo por la inflación: si tu curva va por encima, le estás ganando."],
       ["🎚️", "Ver todo / Quitar todo", "Muestra u oculta componentes con los chips o los botones. Útil para comparar solo dos fondos, o para quitar el ruido."],
       ["📅", "Periodo", "Ajusta el rango con los presets (1M, 3M, 1 año, YTD, Todo) o con un rango exacto de fechas."],
     ] },
     "panel.ingresos": { t: "Ingresos y gastos", sub: "A dónde va tu dinero cada mes (el flujo de caja del hogar).", p: [
-      ["➕", "Resumen", "Ingresos y gastos del mes y su tendencia en los últimos 12 meses, con tu tasa de ahorro (qué parte de lo que ingresas te queda)."],
-      ["🗂️", "Categorías (pulsa para ver los apuntes)", "En qué se te va el dinero, por categoría. Pulsa un trozo del gráfico y vas a «Mis datos → Ingresos y gastos» con esa categoría ya filtrada."],
+      ["📅", "El periodo que miras", "Con el selector «Periodo» eliges sobre qué ventana se calculan el Resumen y las Categorías: este mes, el año en curso, los últimos 12 meses o un rango de fechas a tu medida (desde → hasta)."],
+      ["➕", "Resumen", "Ingresos y gastos del periodo elegido y su tendencia en los últimos 12 meses, con tu tasa de ahorro (qué parte de lo que ingresas te queda)."],
+      ["🗂️", "Categorías (pulsa para ver los apuntes)", "En qué se te va el dinero, por categoría, en el periodo elegido. Pulsa un trozo del gráfico y vas a «Mis datos → Ingresos y gastos» con esa categoría ya filtrada."],
       ["📊", "Tendencias y presupuesto", "La evolución de cada categoría y, si les pones presupuesto en Configuración, cuánto te desvías del plan cada mes."],
       ["👥", "Por titular", "Quién ingresa y quién gasta en el hogar, si hay varios titulares."],
       ["✍️", "De dónde salen los datos", "Los apuntes se crean en «Mis datos → Ingresos y gastos»: a mano, con plantillas recurrentes o importándolos del banco."],
