@@ -2973,6 +2973,7 @@
       ["📅", "Elige el periodo en Ingresos y gastos", "En el panel de Ingresos y gastos tienes un nuevo selector «Periodo» que recalcula el Resumen y las Categorías para este mes, el año en curso, los últimos 12 meses o un rango de fechas a tu medida (desde → hasta). Así ves a dónde fue tu dinero en el tramo que quieras, no solo este mes."],
       ["📈", "La evolución «Total», con todo el detalle", "Al pasar el ratón por la vista «Total» de la evolución, el detalle ya no muestra solo lo aportado: añade la plusvalía, la rentabilidad % y, si la activas, la línea de inflación de ese día."],
       ["🌙", "Calendario visible en modo oscuro", "El icono de calendario de los campos de fecha apenas se distinguía sobre el fondo oscuro; ahora resalta y se ve bien en cualquier tema."],
+      ["🗂️", "Pestañas del panel más ordenadas", "Las pestañas del panel se agrupan por tema (Inicio · tu patrimonio e inversiones · Ingresos y gastos), igual que Mis datos, para encontrar cada vista de un vistazo. Y en Ajustes puedes desactivar los atajos de teclado de una pulsación si prefieres que no actúen al tocarlos sin querer."],
     ],
   };
   function quizaNovedades() {
