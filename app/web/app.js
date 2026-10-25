@@ -1365,10 +1365,29 @@
     return (a && a.nivel === "info") ? "ℹ️" : "⚠️";
   };
 
-  /* Banner de alertas del cuadro de control (F4). */
+  /* Banner de alertas del cuadro de control (F4). Los avisos van dentro de una caja
+     discreta que se puede plegar: una vez vistos los que uno está posponiendo a
+     conciencia, se contraen y se mantienen así (se recuerda) para no hacer scroll en
+     cada pestaña. Si aparece un aviso nuevo que no se había visto, la cabecera muestra
+     un indicador «nuevo» aunque esté plegada. */
+  function firmaAviso(a) {
+    return (a.pv || (a.destino && a.destino.tab) || "") + "|" + (a.texto || "");
+  }
   function pintaAlertas() {
     const cont = $("#bannerAlertas"), al = D.alertas || [];
-    cont.innerHTML = al.map(a => {
+    if (!al.length) { cont.innerHTML = ""; return; }   // :empty la oculta
+
+    const actuales = al.map(firmaAviso);
+    let vistos;
+    try { vistos = new Set(JSON.parse(recuerda.lee("patrimonio.avisosVistos") || "[]")); }
+    catch (e) { vistos = new Set(); }
+    const hayNuevo = actuales.some(f => !vistos.has(f));
+    const abierto = recuerda.lee("patrimonio.avisosPlegado") !== "1";   // por defecto, abierto
+    // Si está abierta, el usuario los ve → quedan marcados como vistos.
+    if (abierto) recuerda.guarda("patrimonio.avisosVistos", JSON.stringify(actuales));
+
+    const n = al.length;
+    const lineas = al.map(a => {
       const dest = a.destino && a.destino.tab === "notas";
       const clic = dest || (a.pv && document.getElementById("pv-" + a.pv));
       const attrs = dest
@@ -1379,6 +1398,31 @@
         <span class="avisoIco">${window.avisoIco(a)}</span>
         <span class="avisoCuerpo"><b>${a.n}</b> ${esc(a.texto)}</span>${clic ? `<span class="avisoIr">${dest ? "Ver en la agenda →" : "Ver →"}</span>` : ""}</div>`;
     }).join("");
+
+    cont.innerHTML = `<div class="avisosCaja" data-abierto="${abierto ? "1" : "0"}">
+      <button type="button" class="avisosCab" aria-expanded="${abierto ? "true" : "false"}" title="${abierto ? "Plegar los avisos" : "Mostrar los avisos"}">
+        <span class="avisosCabIco">🔔</span>
+        <span class="avisosCabTit">${n} ${n === 1 ? "aviso" : "avisos"}</span>
+        <span class="avisosNuevo" title="Hay un aviso nuevo que no has visto"${(!abierto && hayNuevo) ? "" : " hidden"}>nuevo</span>
+        <span class="avisosChevron" aria-hidden="true">⌄</span>
+      </button>
+      <div class="avisosLista">${lineas}</div>
+    </div>`;
+
+    const caja = cont.querySelector(".avisosCaja");
+    const cab = cont.querySelector(".avisosCab");
+    cab.onclick = () => {
+      const nuevoAbierto = caja.dataset.abierto !== "1";
+      caja.dataset.abierto = nuevoAbierto ? "1" : "0";
+      cab.setAttribute("aria-expanded", nuevoAbierto ? "true" : "false");
+      cab.title = nuevoAbierto ? "Plegar los avisos" : "Mostrar los avisos";
+      recuerda.guarda("patrimonio.avisosPlegado", nuevoAbierto ? "0" : "1");
+      if (nuevoAbierto) {
+        recuerda.guarda("patrimonio.avisosVistos", JSON.stringify(actuales));
+        const badge = cab.querySelector(".avisosNuevo"); if (badge) badge.hidden = true;
+      }
+    };
+
     cont.querySelectorAll("[data-pv]").forEach(el => {
       const ir = () => irVista(el.dataset.pv);
       el.onclick = ir;
@@ -3022,6 +3066,7 @@
       ["📈", "Patrimonio, reparto e ingresos", "Tres mini-gráficos: tu evolución reciente, en qué está repartido tu dinero (el anillo) y tus ingresos/gastos de los últimos meses. Pulsa el anillo para ir a Distribución."],
       ["🏅", "Tu constancia", "Tu disciplina medida: racha de meses aportando sin fallar, ritmo medio mensual, meses con apuntes y cuánto tiempo llevas siguiéndote. Pensado para motivar el hábito, no para juzgarte."],
       ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos próximos. Cada tarjeta es un atajo: púlsala para ir directo a esa sección."],
+      ["🔔", "Caja de avisos", "Los avisos del panel van en una caja que puedes plegar pulsando su cabecera. Una vez has visto los que estás posponiendo a conciencia, contráela y se mantiene así en todas las pestañas, sin obligarte a hacer scroll. Si aparece un aviso nuevo que no habías visto, la cabecera lo marca con «nuevo» aunque esté plegada."],
     ] },
     "panel.patrimonio": { t: "Patrimonio", sub: "La foto completa de lo que tienes, lo que debes y lo que te queda libre.", p: [
       ["💰", "Patrimonio neto", "La cifra grande: todo lo que tienes menos lo que debes (patrimonio bruto − deudas). Es la referencia principal de toda la app."],

@@ -537,8 +537,27 @@ body.vistaAmplia .segm button{padding:10px 16px}
 .filtroTitular:empty{display:none}
 .filtroTitular label{font-size:13px;color:var(--tinta2);margin-right:8px}
 .filtroTitular select{font:inherit;font-size:14px;font-weight:600;padding:6px 10px;border:1px solid var(--borde);border-radius:8px;background:var(--sup);color:var(--tinta);cursor:pointer}
-.bannerAlertas{margin:14px 0 0;display:flex;flex-direction:column;gap:6px}
+.bannerAlertas{margin:14px 0 0}
 .bannerAlertas:empty{display:none}
+/* Caja discreta y plegable que agrupa los avisos del panel. Plegada ocupa solo la
+   cabecera (una línea), para no obligar a hacer scroll en cada pestaña; el estado se
+   recuerda. Si hay un aviso nuevo sin ver, la cabecera lo señala con «nuevo». */
+.avisosCaja{display:flex;flex-direction:column}
+.avisosCab{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;
+  background:transparent;border:0;border-radius:8px;padding:5px 6px;margin:0;cursor:pointer;
+  font:inherit;font-size:12.5px;font-weight:600;color:var(--tinta2);text-align:left;
+  transition:color .15s,background .15s}
+.avisosCab:hover{color:var(--tinta);background:var(--sup2,var(--sup))}
+.avisosCab:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
+.avisosCabIco{font-size:14px;line-height:1}
+.avisosChevron{margin-left:auto;font-size:14px;line-height:1;transition:transform .2s ease}
+.avisosCaja[data-abierto="0"] .avisosChevron{transform:rotate(-90deg)}
+.avisosCaja[data-abierto="0"] .avisosLista{display:none}
+.avisosLista{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.avisosNuevo{font-size:10.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+  color:#fff;background:var(--mal);border-radius:99px;padding:1px 7px;line-height:1.6;
+  box-shadow:0 0 0 3px color-mix(in srgb,var(--mal) 28%,transparent)}
+.avisosNuevo[hidden]{display:none}
 /* Aviso homogéneo: mismo aspecto en el Panel y en Mis datos (borde redondeado, acento
    por nivel a la izquierda y un icono de la sección a la que corresponde el aviso). */
 .avisoLinea{display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid var(--borde);
