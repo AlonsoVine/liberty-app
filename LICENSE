@@ -1,24 +1,100 @@
+Liberty — Licencia
+
+===============================================================================
+RESUMEN (en lenguaje llano; no sustituye al texto legal de abajo)
+===============================================================================
+
+Liberty es una obra derivada de «Rumbo», un programa original de Dani Dominguez
+Quant publicado bajo licencia MIT. Esta licencia tiene, por tanto, DOS partes:
+
+  1. La parte ORIGINAL de «Rumbo» (de Dani) sigue bajo licencia MIT: no se puede
+     revocar, y cualquiera puede seguir usándola según los términos MIT.
+
+  2. Todas las MODIFICACIONES, AÑADIDOS y OBRA NUEVA desarrollados por Alonso
+     (github.com/AlonsoVine) para Liberty son material PROPIETARIO. Se reservan
+     todos los derechos: NO se concede permiso para copiarlos, modificarlos,
+     redistribuirlos, sublicenciarlos ni usarlos con fines comerciales sin
+     autorización ESCRITA y previa del titular.
+
+En la práctica: puedes usar Liberty para tu uso personal. No puedes republicar
+Liberty (ni una versión modificada de él) ni comercializarlo sin permiso de
+Alonso. Lo único que terceros pueden reutilizar libremente es el código original
+de «Rumbo» obtenido de su fuente original bajo MIT, no las aportaciones de
+Liberty.
+
+Nota: este archivo describe la intención de licencia del autor y no constituye
+asesoramiento jurídico.
+
+===============================================================================
+1. OBRA ORIGINAL — «Rumbo» (licencia MIT)
+===============================================================================
+
 MIT License
 
 Copyright (c) 2026 Dani Dominguez Quant (obra original «Rumbo»)
-Copyright (c) 2026 Alonso (github.com/AlonsoVine) — modificaciones: gestor de
-patrimonio de hogar (titulares, deudas, apartados, ingresos y gastos,
-asignación y control, multidivisa e interfaz reorganizada)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
+of the original "Rumbo" software and associated documentation files (the
+"Original Work"), to deal in the Original Work without restriction, including
+without limitation the rights to use, copy, modify, merge, publish, distribute,
+sublicense, and/or sell copies of the Original Work, and to permit persons to
+whom the Original Work is furnished to do so, subject to the following
+conditions:
 
 The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
+copies or substantial portions of the Original Work.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+THE ORIGINAL WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+OUT OF OR IN CONNECTION WITH THE ORIGINAL WORK OR THE USE OR OTHER DEALINGS IN
+THE ORIGINAL WORK.
+
+===============================================================================
+2. MODIFICACIONES Y OBRA NUEVA — Liberty (propietario, todos los derechos
+   reservados)
+===============================================================================
+
+Copyright (c) 2026 Alonso (github.com/AlonsoVine). Todos los derechos
+reservados.
+
+«Liberty» es una obra derivada de «Rumbo» que incorpora modificaciones
+sustanciales y funcionalidad nueva, entre otras: gestor de patrimonio de hogar
+(titulares, deudas, reservados, ingresos y gastos, presupuestos y categorías,
+asignación y control, multidivisa), rentabilidad (TIR/TWR) y comparación con
+referencias, evolución del patrimonio, informe fiscal, avisos automáticos,
+sección de Notas (lista, tablero y agenda/calendario), biblioteca de documentos
+y facturas adjuntas, importación de extractos, copias de seguridad en .zip,
+empaquetado de escritorio e interfaz reorganizada (en adelante, las
+«Contribuciones de Liberty»).
+
+Todas las Contribuciones de Liberty son propiedad de su autor y están protegidas
+por derechos de autor. Salvo autorización expresa y por escrito del titular, NO
+se concede ningún derecho ni licencia sobre las Contribuciones de Liberty. En
+particular, queda PROHIBIDO sin dicha autorización:
+
+  (a) copiar, reproducir o almacenar las Contribuciones de Liberty salvo la
+      copia necesaria para el uso personal del programa;
+  (b) modificar, adaptar, traducir o crear obras derivadas de ellas;
+  (c) distribuir, publicar, sublicenciar, prestar, alquilar o poner a
+      disposición de terceros, por cualquier medio, el programa o versiones
+      modificadas del mismo;
+  (d) explotarlas comercialmente o incorporarlas a productos o servicios de
+      terceros;
+  (e) retirar u ocultar los avisos de autoría o de licencia.
+
+Se permite al usuario final descargar y ejecutar Liberty para su propio uso
+personal y privado, incluida la copia de seguridad razonable de su instalación.
+
+Esta reserva de derechos se aplica ÚNICAMENTE a las Contribuciones de Liberty y
+no restringe los derechos que la licencia MIT de la sección 1 concede sobre la
+Obra Original «Rumbo» obtenida de su fuente original.
+
+EL PROGRAMA SE PROPORCIONA «TAL CUAL», SIN GARANTÍA DE NINGÚN TIPO. EN NINGÚN
+CASO EL AUTOR SERÁ RESPONSABLE DE RECLAMACIÓN, DAÑO U OTRA RESPONSABILIDAD
+DERIVADA DEL PROGRAMA O DE SU USO.
+
+Para solicitar permisos o licencias de uso distintas del uso personal, contacta
+con el autor en github.com/AlonsoVine.
