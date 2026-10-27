@@ -16,10 +16,12 @@ import os
 import re
 import secrets
 import shutil
+import signal
 import sys
 import tempfile
 import threading
 import time
+import urllib.parse
 import urllib.request
 import webbrowser
 import zipfile
@@ -27,37 +29,21 @@ import zipfile
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.serving import make_server
 
-from . import almacen, buscar, exportar, importar, motor, plantilla
+from . import almacen, buscar, entorno, exportar, importar, motor, plantilla
 
+# Dónde y cómo se ejecuta la app (recursos, datos, host, puerto, hosts permitidos, Docker) se
+# decide en un único punto: app/entorno.py. Aquí se exponen con los mismos nombres de siempre
+# para el resto del módulo (y para que las pruebas puedan sustituirlos con monkeypatch).
+_base_recursos = entorno._base_recursos   # aliases por retrocompatibilidad: hay pruebas que
+_base_datos = entorno._base_datos         # llaman a servidor._base_datos().
 
-def _base_recursos():
-    """Dónde viven los recursos de solo lectura (web, demo, VERSION). Al empaquetar
-    con PyInstaller están en sys._MEIPASS; si no, en la carpeta del proyecto."""
-    return getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
-
-def _base_datos():
-    """Dónde van los datos del usuario (mis_datos). Empaquetado:
-      - Windows: JUNTO al ejecutable (portable, como siempre).
-      - macOS: un .app es de solo lectura (más aún en /Aplicaciones o en cuarentena de
-        Gatekeeper), así que van a la carpeta de datos del usuario, que persiste aunque
-        muevas o reinstales la app: ~/Library/Application Support/Liberty.
-    Sin empaquetar: la carpeta del proyecto."""
-    if getattr(sys, "frozen", False):
-        if sys.platform == "darwin":
-            d = os.path.join(os.path.expanduser("~/Library/Application Support"), "Liberty")
-            os.makedirs(d, exist_ok=True)
-            return d
-        return os.path.dirname(sys.executable)
-    return os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-
-RAIZ = _base_recursos()
+RAIZ = entorno.RAIZ
 WEB = os.path.join(RAIZ, "app", "web")
 DEMO = os.path.join(RAIZ, "demo", "cartera.json")
-# Otra carpeta de datos, solo para pruebas o capturas: PATRIMONIO_DATOS=ruta
-DATOS = os.environ.get("PATRIMONIO_DATOS") or os.path.join(_base_datos(), "mis_datos")
-PUERTO = int(os.environ.get("PATRIMONIO_PUERTO") or 8765)
+DATOS = entorno.DATOS            # LIBERTY_DATOS / PATRIMONIO_DATOS, o «mis_datos» por defecto
+HOST = entorno.HOST              # 127.0.0.1 en escritorio; 0.0.0.0 dentro del contenedor
+PUERTO = entorno.PUERTO          # LIBERTY_PUERTO / PATRIMONIO_PUERTO, o 8765
+HOSTS_PERMITIDOS = entorno.HOSTS_PERMITIDOS   # localhost + los configurados (VPN/proxy)
 HORAS_PRECIOS = 6          # al arrancar, se actualizan si tienen más de esto
 
 app = Flask(__name__, static_folder=None)
@@ -97,12 +83,23 @@ CSP = ("default-src 'self'; "
 
 @app.before_request
 def _solo_local():
-    # 100% local: solo atendemos peticiones de este ordenador. Así una web externa
-    # abierta en el navegador no puede provocar efectos (borrar, reiniciar…) contra
-    # 127.0.0.1, ni valdría un ataque de DNS-rebinding (no se valida solo por IP).
+    # Por defecto, 100% local: solo atendemos peticiones de este ordenador. Así una web externa
+    # abierta en el navegador no puede provocar efectos (borrar, reiniciar…) contra 127.0.0.1,
+    # ni valdría un ataque de DNS-rebinding (no se valida solo por IP). En Docker se pueden
+    # añadir nombres CONCRETOS (p. ej. el de «tailscale serve») con LIBERTY_HOSTS_PERMITIDOS,
+    # por coincidencia EXACTA (sin comodines), para no reabrir el DNS-rebinding.
     host = (request.host or "").rsplit(":", 1)[0].strip("[]").lower()
-    if host and host not in ("127.0.0.1", "localhost", "::1"):
+    if host and host not in HOSTS_PERMITIDOS:
         return jsonify(ok=False, error="Esta aplicación solo responde en tu propio ordenador."), 403
+    # Defensa CSRF en profundidad: en los métodos que MODIFICAN datos, si la petición trae un
+    # Origin/Referer de OTRO sitio (una web externa), se rechaza. Las peticiones del propio
+    # front (mismo origen) traen un Origin permitido o ninguno, así que no se ven afectadas.
+    if request.method in ("POST", "PUT", "PATCH", "DELETE"):
+        origen = request.headers.get("Origin") or request.headers.get("Referer")
+        if origen:
+            oh = (urllib.parse.urlsplit(origen).hostname or "").lower()
+            if oh and oh not in HOSTS_PERMITIDOS:
+                return jsonify(ok=False, error="Petición rechazada por seguridad (origen no permitido)."), 403
     return None
 
 
@@ -1656,7 +1653,10 @@ def api_reiniciar():
 
 @app.get("/api/ping")
 def api_ping():
-    return jsonify(app="patrimonio")
+    # Señal de vida: la usa el arranque para detectar otra ventana ya abierta y el HEALTHCHECK
+    # de Docker. Mantiene la clave «app» de siempre y añade la versión y el modo de ejecución.
+    return jsonify(app="patrimonio", version=version_actual(), modo=modo(),
+                   docker=entorno.ES_DOCKER)
 
 
 @app.get("/<path:archivo>")
@@ -1682,9 +1682,9 @@ def main():
     logging.getLogger("werkzeug").setLevel(logging.ERROR)
 
     # Si la app ya está abierta (otra ventana), basta con enseñarla.
-    if ya_abierta(PUERTO):
+    if not entorno.ES_DOCKER and ya_abierta(PUERTO):
         print("La app ya estaba abierta: te la enseño en el navegador.")
-        if not os.environ.get("PATRIMONIO_NO_ABRIR"):
+        if not entorno.NO_ABRIR:
             webbrowser.open(f"http://127.0.0.1:{PUERTO}/")
         return
 
@@ -1704,18 +1704,34 @@ def main():
         print(f"\n  [!] No he podido actualizar los precios: {e}")
         print("      Abro la app con los últimos datos guardados.")
 
+    # En Docker se sirve con waitress (un solo proceso, pool de hilos, cierre limpio ante
+    # SIGTERM): puerto fijo y sin navegador. En escritorio, el servidor de desarrollo de
+    # Werkzeug de siempre, buscando un puerto libre y abriendo el navegador.
+    if entorno.ES_DOCKER:
+        url = f"http://{HOST}:{PUERTO}/"
+        print(f"\n  Liberty (Docker) escuchando en {url}")
+        print("  Accede solo por tu red privada (VPN) o tras un proxy con autenticación.\n")
+        from waitress import serve as _serve  # solo se requiere dentro de la imagen
+        _serve(app, host=HOST, port=PUERTO, threads=8, ident="Liberty")
+        return
+
     srv = None
     for puerto in range(PUERTO, PUERTO + 10):
         try:
-            srv = make_server("127.0.0.1", puerto, app, threaded=True)
+            srv = make_server(HOST, puerto, app, threaded=True)
             break
         except OSError:
             continue
     if srv is None:
         print("  [!] No encuentro ningún puerto libre para abrir la app.")
         return
+    # Cierre limpio también ante SIGTERM (apagado del sistema, etc.), además de Ctrl-C.
+    try:
+        signal.signal(signal.SIGTERM, lambda *_: srv.shutdown())
+    except (ValueError, OSError, AttributeError):
+        pass   # en algunos entornos (hilo secundario, Windows) SIGTERM no está disponible
     url = f"http://127.0.0.1:{srv.server_port}/"
-    if not os.environ.get("PATRIMONIO_NO_ABRIR"):   # para pruebas: no abre el navegador
+    if not entorno.NO_ABRIR:   # para pruebas: no abre el navegador
         threading.Timer(0.8, webbrowser.open, [url]).start()
     print(f"\n  App abierta en {url}")
     print("  Deja esta ventana abierta mientras la uses. Para salir, ciérrala.\n")
