@@ -11,6 +11,21 @@ Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual
 
 ## [No publicado] — próxima v1.16.0
 
+- **Liberty en Docker (nueva forma de ejecutarlo).** Además del `.exe` y el `.dmg`, ahora se
+  publica una **imagen Docker multiarquitectura** (`ghcr.io/alonsovine/liberty`, `amd64` y
+  `arm64`) para tener una **sola instancia en casa** —p. ej. en una Raspberry Pi— a la que
+  acceder desde varios dispositivos por una red privada (VPN/Tailscale). Es el **mismo
+  código** que el escritorio; lo que cambia entre vías (carpeta de datos, host, puerto, modo)
+  se centraliza en `app/entorno.py`. En el contenedor sirve con **waitress** y cierra limpio
+  ante `docker stop`. Guía y `docker-compose.yml` de ejemplo (endurecido) en el README.
+- **Más seguridad de acceso.** El servidor acepta, además de `localhost`, los nombres de
+  equipo que indiques (`LIBERTY_HOSTS_PERMITIDOS`, coincidencia exacta) para funcionar tras
+  Tailscale o un proxy, y rechaza peticiones con `Origin`/`Referer` ajeno (defensa CSRF).
+- **Acceso desde varios dispositivos sin pisarse.** Si alguien cambia de cartera en otro
+  dispositivo mientras tú editas, Liberty no escribe en la cartera equivocada: avisa y te
+  pide recargar.
+- **La carpeta de datos, visible en Ajustes** (solo lectura). En Docker, el aviso de versión
+  nueva explica cómo actualizar la imagen en vez de descargar un binario.
 - **Avisos del panel en una caja discreta y plegable.** Los avisos se agrupan bajo una
   cabecera slim («🔔 N avisos»); al plegarla ocupa una sola línea y el estado se recuerda
   y se mantiene al cambiar de pestaña, para no hacer scroll en cada vista. Si aparece un
