@@ -202,6 +202,51 @@ def migra_layout():
         pass   # si algo está bloqueado, se intentará en el próximo arranque
 
 
+def prepara_datos_docker():
+    """Primer arranque en Docker: prepara /data, avisa si parece vacío (p. ej. el volumen no se
+    montó) y deja un marcador. NO borra nada. Guarda también la versión con la que se escribió,
+    para avisar en el log cuando cambia (las migraciones actuales solo reordenan, no destruyen)."""
+    try:
+        os.makedirs(DATOS, exist_ok=True)
+    except OSError as e:
+        logging.error("No puedo usar la carpeta de datos %s: %s", DATOS, e)
+        return
+    tiene_datos = (os.path.isdir(_carteras_dir())
+                   or os.path.exists(os.path.join(DATOS, "cartera.json"))
+                   or os.path.isdir(_app_dir()))
+    centinela = os.path.join(DATOS, ".liberty")
+    if not os.path.exists(centinela) and not tiene_datos:
+        logging.warning(
+            "La carpeta de datos (%s) está vacía: es un primer arranque, o el volumen/disco no "
+            "está montado. Si esperabas encontrar tus datos aquí, DETÉN el contenedor y comprueba "
+            "el volumen antes de usar la app (no se borra nada).", DATOS)
+    try:
+        with open(centinela, "a", encoding="utf-8"):
+            pass   # marcador: esta carpeta la gestiona Liberty (fichero vacío, no destructivo)
+    except OSError:
+        pass
+    # Sello de versión: deja constancia y avisa si cambió respecto al último arranque. Volver a
+    # una imagen anterior es seguro porque las migraciones solo reordenan ficheros, no los cambian.
+    sello = os.path.join(_app_dir(), "datos_version")
+    anterior = None
+    if os.path.exists(sello):
+        try:
+            with open(sello, encoding="utf-8") as f:
+                anterior = f.read().strip()
+        except OSError:
+            anterior = None
+    ver = version_actual()
+    if anterior and anterior != ver:
+        logging.info("Datos escritos por la versión %s; ahora corre la %s. Tus copias automáticas "
+                     "están dentro de cada cartera (copias/).", anterior, ver)
+    try:
+        os.makedirs(_app_dir(), exist_ok=True)
+        with open(sello, "w", encoding="utf-8") as f:
+            f.write(ver)
+    except OSError:
+        pass
+
+
 def _migra_demo_a_app():
     """Mueve a app/demo/ los archivos de trabajo de la demo que las versiones anteriores
     dejaban sueltos en la raíz de mis_datos (cálculo, estado, histórico y caché). Solo
@@ -1713,6 +1758,8 @@ def main():
             webbrowser.open(f"http://127.0.0.1:{PUERTO}/")
         return
 
+    if entorno.ES_DOCKER:
+        prepara_datos_docker()   # prepara /data, avisa si está vacío y sella la versión
     migra_layout()   # reordena mis_datos al layout nuevo si viene de una versión vieja
     print("\n  RUMBO  ·  tu patrimonio neto")
     print("  " + "-" * 40)
@@ -1736,8 +1783,31 @@ def main():
         url = f"http://{HOST}:{PUERTO}/"
         print(f"\n  Liberty (Docker) escuchando en {url}")
         print("  Accede solo por tu red privada (VPN) o tras un proxy con autenticación.\n")
-        from waitress import serve as _serve  # solo se requiere dentro de la imagen
-        _serve(app, host=HOST, port=PUERTO, threads=8, ident="Liberty")
+        # waitress (un proceso, pool de hilos) sirve dentro de la imagen. No instala manejador
+        # de SIGTERM por su cuenta y Python como PID 1 lo ignoraría, así que lo registramos:
+        # cerramos el servidor y el bucle termina en cuanto acaban las peticiones en curso, para
+        # que «docker stop» salga limpio y rápido en vez de esperar 10 s y matar el proceso.
+        from waitress import create_server as _crear  # solo se requiere dentro de la imagen
+        servidor_wsgi = _crear(app, host=HOST, port=PUERTO, threads=8, ident="Liberty")
+        apagando = {"si": False}
+
+        def _para(*_):
+            apagando["si"] = True
+            servidor_wsgi.close()
+        for sig in (signal.SIGTERM, signal.SIGINT):
+            try:
+                signal.signal(sig, _para)
+            except (ValueError, OSError, AttributeError):
+                pass
+        try:
+            servidor_wsgi.run()
+        except (KeyboardInterrupt, SystemExit):
+            pass
+        except Exception:
+            # Cerrar el socket desde el manejador puede hacer que el bucle de E/S lance al
+            # despertar; si ya estamos apagando a propósito, es una salida limpia.
+            if not apagando["si"]:
+                raise
         return
 
     srv = None

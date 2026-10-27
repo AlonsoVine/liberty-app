@@ -1,0 +1,48 @@
+# docker-compose.yml de EJEMPLO para Liberty en Docker. Endurecido y pensado para una red
+# privada (p. ej. una Raspberry Pi con Tailscale). Ajusta las líneas marcadas con «CAMBIA».
+# Arranca con:  docker compose up -d     ·     Actualiza con:  docker compose pull && docker compose up -d
+services:
+  liberty:
+    # Tag de versión FIJO (no «latest»): así sabes exactamente qué corres y volver atrás es
+    # trivial. «latest» también se publica (para Watchtower), pero este ejemplo no lo usa.
+    image: ghcr.io/alonsovine/liberty:1.16.0           # CAMBIA a la última versión publicada
+    container_name: liberty
+    restart: unless-stopped
+
+    # El puerto se publica SOLO en este equipo (127.0.0.1). El acceso del resto de la familia
+    # va por Tailscale (`tailscale serve https / 127.0.0.1:8765`), nunca por internet.
+    ports:
+      - "127.0.0.1:8765:8765"
+
+    volumes:
+      - /mnt/datos/liberty:/data                       # CAMBIA a tu carpeta de datos real
+
+    environment:
+      - TZ=Europe/Madrid
+      # Nombre COMPLETO con el que accedes por Tailscale (coincidencia exacta, sin comodines).
+      - LIBERTY_HOSTS_PERMITIDOS=tu-pi.tu-tailnet.ts.net   # CAMBIA
+
+    # Usuario sin privilegios. Debe coincidir con el dueño de la carpeta de datos del anfitrión:
+    #   id -u   (tu uid)   y luego   chown -R 1000:1000 /mnt/datos/liberty
+    user: "1000:1000"                                  # CAMBIA si tu uid no es 1000
+
+    # Endurecimiento: raíz de solo lectura salvo /data (volumen) y /tmp (tmpfs), sin
+    # capacidades de más, sin escalada de privilegios, y reaper de zombis + reenvío de señales.
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true
+
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8765/api/ping',timeout=4).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    # Límite de memoria opcional (descoméntalo para acotarlo, p. ej. en una Pi):
+    # mem_limit: 512m

@@ -1,0 +1,92 @@
+name: Build Docker
+
+# Construye y publica la imagen Docker de Liberty en GHCR (GitHub Container Registry) como
+# imagen MULTIARCH (linux/amd64 + linux/arm64). El destino principal es una Raspberry Pi
+# (arm64); amd64 se incluye para PCs/servidores normales.
+#
+# SE LANZA A MANO (workflow_dispatch), igual que «Build macOS». NO usa «on: release» a
+# propósito: las Releases viven en el repo de distribución (AlonsoVine/liberty), no en este,
+# y «on: release» solo escucharía releases de ESTE repo (no se dispararía). Dispararlo entre
+# repos exigiría un PAT y no compensa.
+#
+# ORDEN al publicar una versión: (1) sube app/VERSION; (2) Release en AlonsoVine/liberty con
+# el Liberty.exe; (3) «Build macOS» (dmg); (4) este workflow (imagen a GHCR), ya al final y
+# tras verificar, para que «latest» apunte a algo validado.
+#
+# SEGURIDAD/REPRODUCIBILIDAD: las acciones de terceros van fijadas por SHA de commit (no por
+# tag móvil); la imagen base del Dockerfile va fijada por digest. Se publica con el
+# GITHUB_TOKEN del propio repo (no hace falta ningún secreto nuevo para GHCR del mismo dueño).
+#
+# Tras el PRIMER push: GitHub -> Packages -> liberty -> Package settings -> visibilidad Public.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Versión a publicar (vacío = usa app/VERSION). Ej: v1.16.0 o 1.16.0"
+        required: false
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGEN: ghcr.io/alonsovine/liberty
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262   # v4
+
+      - name: Resolver la versión (del input o de app/VERSION)
+        id: ver
+        run: |
+          set -euo pipefail
+          IN="${{ github.event.inputs.tag }}"
+          if [ -n "$IN" ]; then V="${IN#v}"; else V="$(tr -d '[:space:]' < app/VERSION)"; fi
+          echo "version=$V" >> "$GITHUB_OUTPUT"
+          echo "Publicaré ${IMAGEN}:${V}  (+ latest)"
+
+      - name: QEMU (emulación para construir y probar arm64)
+        uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1   # v4
+
+      - name: Buildx
+        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069   # v4
+
+      # Prueba de humo en AMBAS arquitecturas ANTES de publicar: construye cada una por
+      # separado (--load), arranca el contenedor y comprueba /api/ping. arm64 corre bajo QEMU.
+      - name: Smoke test (amd64 + arm64)
+        run: |
+          set -euxo pipefail
+          for PLAT in linux/amd64 linux/arm64; do
+            ARCH="${PLAT##*/}"
+            docker buildx build --platform "$PLAT" --load -t "liberty:smoke-$ARCH" .
+            CID=$(docker run -d "liberty:smoke-$ARCH")
+            ok=""
+            for _ in $(seq 1 30); do
+              if docker exec "$CID" python -c "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8765/api/ping',timeout=3).read()" 2>/dev/null; then ok=1; break; fi
+              sleep 2
+            done
+            docker logs "$CID" 2>&1 | tail -20 || true
+            docker rm -f "$CID" >/dev/null
+            [ -n "$ok" ] || { echo "::error::$PLAT no respondió a /api/ping"; exit 1; }
+            echo "$ARCH OK"
+          done
+
+      - name: Login en GHCR
+        uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6   # v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Construir y publicar (multiarch) en GHCR
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc   # v7
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ${{ env.IMAGEN }}:${{ steps.ver.outputs.version }}
+            ${{ env.IMAGEN }}:latest

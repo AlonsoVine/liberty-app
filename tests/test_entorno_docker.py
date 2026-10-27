@@ -132,3 +132,22 @@ def test_api_entorno(tmp_path, monkeypatch):
     assert j["docker"] is True
     assert j["puedeCambiarRuta"] is False
     assert os.path.basename(j["rutaDatos"]) == os.path.basename(str(tmp_path))
+
+
+def test_prepara_datos_docker_marca_y_sella_sin_borrar(tmp_path, monkeypatch, caplog):
+    import logging as _log
+
+    from app import servidor
+    vacio = tmp_path / "data"
+    monkeypatch.setattr(servidor, "DATOS", str(vacio))
+    # Carpeta inexistente/vacía: avisa (posible volumen sin montar) y no revienta.
+    with caplog.at_level(_log.WARNING):
+        servidor.prepara_datos_docker()
+    assert os.path.isfile(os.path.join(str(vacio), ".liberty"))        # marcador creado
+    assert os.path.isfile(os.path.join(str(vacio), "app", "datos_version"))  # sello de versión
+    assert any("vacía" in r.getMessage() for r in caplog.records)
+    # Segunda llamada: ya hay marcador, no vuelve a avisar de carpeta vacía.
+    caplog.clear()
+    with caplog.at_level(_log.WARNING):
+        servidor.prepara_datos_docker()
+    assert not any("vacía" in r.getMessage() for r in caplog.records)

@@ -30,6 +30,7 @@ Inversiones (fondos, ETF, acciones, cripto, oro, planes de pensiones, bonos…),
 - [Copias de seguridad y cambiar de ordenador](#copias-de-seguridad-y-cambiar-de-ordenador)
 - [Publicar tu panel como web](#publicar-tu-panel-como-web)
 - [Actualizar a una versión nueva](#actualizar-a-una-versión-nueva)
+- [Ejecutar en Docker (Raspberry Pi, NAS…)](#ejecutar-en-docker-raspberry-pi-nas)
 - [Privacidad](#privacidad)
 - [Limitaciones conocidas](#limitaciones-conocidas)
 - [Para desarrolladores: cómo está hecho](#para-desarrolladores-cómo-está-hecho)
@@ -256,13 +257,71 @@ Con la opción **«Ocultar importes»**, las cantidades en euros **no van dentro
 
 Cuando haya una versión nueva, Liberty te avisa con un mensaje arriba. Como tus datos viven aparte de la aplicación, actualizar **no borra nada**: descarga el nuevo `Liberty.exe` (o el `.dmg`) desde la [página de descargas](https://alonsovine.github.io/liberty/) y ábrelo. En Windows, el botón de aviso puede incluso descargártelo y dejarlo junto al actual.
 
+Si lo ejecutas en **Docker**, el aviso no descarga nada: te recuerda que actualices la imagen con `docker compose pull && docker compose up -d` (tus datos del volumen no se tocan). Ver abajo.
+
+---
+
+## Ejecutar en Docker (Raspberry Pi, NAS…)
+
+Además del `.exe` y el `.dmg`, Liberty se publica como **imagen Docker multiarquitectura** (`linux/amd64` y `linux/arm64`). Sirve para tener **una sola instancia en casa** —por ejemplo en una Raspberry Pi— a la que acceder desde varios dispositivos de la familia. **Es el mismo código que el .exe y el .dmg**, solo cambia la forma de arrancarlo.
+
+> **⚠️ Seguridad — léelo.** Liberty **no tiene usuarios ni contraseña**: quien llega a la página, entra. En Docker el puerto se publica **solo en el propio equipo** (`127.0.0.1`). Para que el resto de la casa acceda, ponlo detrás de una **VPN privada** (lo recomendado: [Tailscale](https://tailscale.com/) con `tailscale serve`) o de un **proxy con autenticación**. **Nunca lo expongas a internet.**
+
+Imagen: **`ghcr.io/alonsovine/liberty`** (usa un tag de versión fijo, p. ej. `:1.16.0`, no `latest`).
+
+`docker-compose.yml` de ejemplo (tienes uno completo y endurecido en el [repositorio](docker-compose.yml)):
+
+```yaml
+services:
+  liberty:
+    image: ghcr.io/alonsovine/liberty:1.16.0        # la última versión publicada
+    container_name: liberty
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8765:8765"                        # solo este equipo; el resto, por VPN
+    volumes:
+      - /mnt/datos/liberty:/data                     # tu carpeta de datos (haz copias de ella)
+    environment:
+      - TZ=Europe/Madrid
+      - LIBERTY_HOSTS_PERMITIDOS=tu-pi.tu-tailnet.ts.net   # tu nombre completo de Tailscale
+    user: "1000:1000"                                # = dueño de la carpeta de datos (id -u)
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    init: true
+```
+
+Pasos en la Raspberry (o cualquier máquina con Docker):
+
+```bash
+sudo mkdir -p /mnt/datos/liberty
+sudo chown -R 1000:1000 /mnt/datos/liberty      # el uid del compose debe ser el dueño
+docker compose up -d                            # arranca; los datos quedan en /mnt/datos/liberty
+tailscale serve --bg 8765                       # publícalo por tu red privada Tailscale (HTTPS)
+```
+
+- **Datos y copias:** todo vive en el volumen (`/data` → tu carpeta). Haz copias de esa carpeta; dentro, cada cartera guarda además copias automáticas en `copias/`.
+- **Si la carpeta aparece vacía** al arrancar (p. ej. un disco externo que no se montó), Liberty lo **avisa en el log y no borra nada**: detén el contenedor y revisa el volumen.
+- **Verificar la imagen (opcional):** `docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/alonsovine/liberty:1.16.0` te da el digest exacto que estás ejecutando.
+
+### Actualizar en Docker
+
+```bash
+docker compose pull        # baja la nueva imagen del tag que tengas fijado
+docker compose up -d        # recrea el contenedor con la nueva; los datos del volumen no se tocan
+docker image prune -f       # (opcional) borra imágenes viejas que ya no se usan
+```
+
+Volver a una versión anterior es seguro: pon el tag antiguo en el `compose` y `up -d`. Las migraciones al arrancar solo **reordenan** ficheros (no cambian su formato), así que una imagen anterior lee los mismos datos sin problema.
+
 ---
 
 ## Privacidad
 
-- Tus datos se guardan **solo en tu ordenador**. No hay cuentas, ni servidores, ni nadie más que los vea.
-- Liberty solo sale a internet para **descargar precios** (Morningstar, Yahoo Finance, CoinGecko) y para **comprobar si hay una versión nueva** en GitHub. En esas consultas no va ningún dato tuyo.
-- El servidor de la app solo escucha en tu propio ordenador (`127.0.0.1`): nadie de tu red puede entrar.
+- Tus datos se guardan **solo en tu ordenador** (o en tu servidor, si usas Docker). No hay cuentas en la nube, ni servidores ajenos, ni nadie más que los vea.
+- Liberty solo sale a internet para **descargar precios** (Morningstar, Yahoo Finance, CoinGecko) y, si lo activas, para **comprobar si hay una versión nueva** en GitHub. En esas consultas no va ningún dato tuyo.
+- En escritorio, el servidor solo escucha en tu propio ordenador (`127.0.0.1`): nadie de tu red puede entrar. En Docker escucha dentro del contenedor, pero el puerto se publica **solo en `127.0.0.1`** del anfitrión y el acceso del resto de la casa va por tu VPN o proxy; además solo acepta los nombres de equipo que indiques en `LIBERTY_HOSTS_PERMITIDOS`.
 
 ---
 
@@ -279,7 +338,7 @@ Cuando haya una versión nueva, Liberty te avisa con un mensaje arriba. Como tus
 
 - **Python + Flask** para el servidor local; el panel es HTML, CSS y JavaScript **sin librerías externas** (gráficos SVG propios). Sin Node en tiempo de ejecución.
 - Los datos están en `mis_datos/` (una carpeta por cartera): productos, movimientos, valores anotados, flujos, notas, adjuntos…
-- Se empaqueta con **PyInstaller** en `Liberty.exe` (Windows) y en `Liberty.app` → `.dmg` (macOS, vía GitHub Actions).
+- Se empaqueta con **PyInstaller** en `Liberty.exe` (Windows) y en `Liberty.app` → `.dmg` (macOS, vía GitHub Actions), y como **imagen Docker** multiarch (`Dockerfile`, vía GitHub Actions a GHCR). En Docker sirve con **waitress** (un proceso); en escritorio, con el servidor de Werkzeug. Lo que cambia entre las tres formas (carpeta de datos, host, puerto, modo) está centralizado en `app/entorno.py`.
 
 ```
 app/

@@ -1,0 +1,41 @@
+# Lo que NO entra en la imagen. La imagen lleva SOLO código y recursos de solo lectura;
+# nunca datos del usuario ni secretos. Todo lo de aquí se queda fuera del contexto de build.
+
+# Datos del usuario y de pruebas (jamás en la imagen)
+mis_datos/
+datos_*/
+scratchpad/
+
+# Git y metadatos
+.git/
+.gitignore
+.github/
+
+# Entornos y dependencias locales
+.venv/
+venv/
+node_modules/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+
+# Empaquetado de escritorio (no aplica a Docker)
+build/
+dist/
+*.spec
+*.exe
+Iniciar.bat
+Iniciar.command
+
+# Pruebas y desarrollo
+tests/
+package.json
+package-lock.json
+requirements.txt
+
+# Documentación y material que no necesita la app en ejecución
+docs/
+capturas/
+*.md
+LICENSE

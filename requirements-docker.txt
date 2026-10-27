@@ -1,0 +1,6 @@
+# Dependencias DENTRO de la imagen Docker. El escritorio y la web usan requirements.txt;
+# aquí se añade waitress: el servidor WSGI (un solo proceso, pool de hilos, cierre limpio
+# ante SIGTERM) con el que Liberty sirve en el contenedor. Hay ruedas para amd64 y arm64.
+flask>=3.0
+openpyxl>=3.1
+waitress>=3.0
