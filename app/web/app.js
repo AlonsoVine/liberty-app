@@ -3436,6 +3436,9 @@
     let j;
     try { j = await (await fetch("api/carteras")).json(); } catch (e) { return; }
     if (j.modo !== "propio" || !(j.carteras || []).length) return;   // demo: se queda el texto
+    // Cartera que este dispositivo cree activa: se envía al escribir (cabecera X-Cartera) para
+    // no pisar la cartera equivocada si otro dispositivo la cambió mientras tanto.
+    window.CARTERA_ACTIVA = j.activa;
     if (txt) txt.hidden = true;
     sel.hidden = false;
     sel.innerHTML = j.carteras.map(c =>

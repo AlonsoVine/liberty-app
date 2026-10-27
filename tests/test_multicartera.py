@@ -60,6 +60,28 @@ def test_activar_y_borrar(tmp_path, monkeypatch):
     assert {c["nombre"] for c in cli.get("/api/carteras").get_json()["carteras"]} == {"Uno"}
 
 
+def test_guard_cartera_activa_evita_escribir_en_la_equivocada(tmp_path, monkeypatch):
+    # Si otro dispositivo cambió la cartera activa, un POST con la cabecera X-Cartera de la
+    # anterior no debe escribir: responde 409 y pide recargar. Sin cabecera, sigue como siempre.
+    servidor = _base(tmp_path, monkeypatch)
+    cli = servidor.app.test_client()
+    cli.post("/api/cartera/nueva", json={"nombre": "Dos"})   # multi: Uno, Dos → activa "Dos"
+    ids = {c["nombre"]: c["id"] for c in cli.get("/api/carteras").get_json()["carteras"]}
+
+    # X-Cartera apunta a la que YA no está activa (Uno) → 409, no escribe.
+    r = cli.post("/api/config", json={"colchon": "999"}, headers={"X-Cartera": ids["Uno"]})
+    assert r.status_code == 409
+    j = r.get_json()
+    assert j["ok"] is False and j["motivo"] == "cartera-cambiada" and j["activa"] == ids["Dos"]
+
+    # X-Cartera coincide con la activa (Dos) → escribe.
+    r2 = cli.post("/api/config", json={"colchon": "999"}, headers={"X-Cartera": ids["Dos"]})
+    assert r2.get_json()["ok"] is True
+
+    # Sin cabecera → se comporta como hasta ahora (compatibilidad).
+    assert cli.post("/api/config", json={"colchon": "1000"}).get_json()["ok"] is True
+
+
 def test_nueva_sin_nombre_falla(tmp_path, monkeypatch):
     servidor = _base(tmp_path, monkeypatch)
     r = servidor.app.test_client().post("/api/cartera/nueva", json={"nombre": "  "})

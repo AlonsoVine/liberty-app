@@ -38,12 +38,21 @@
   if (!["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "config", "importar", "copias"].includes(E.vista)) E.vista = "activos";
 
   async function api(metodo, url, cuerpo) {
+    const cab = { "Content-Type": "application/json" };
+    // En los métodos que escriben avisamos de qué cartera creemos activa: si otro dispositivo
+    // la cambió entretanto, el servidor responde 409 y no escribe en la equivocada.
+    if (metodo !== "GET" && window.CARTERA_ACTIVA) cab["X-Cartera"] = window.CARTERA_ACTIVA;
     const r = await fetch(url, {
-      method: metodo, headers: { "Content-Type": "application/json" },
+      method: metodo, headers: cab,
       body: cuerpo ? JSON.stringify(cuerpo) : undefined,
     });
     let j = {};
     try { j = await r.json(); } catch (e) { /* respuesta vacía */ }
+    if (r.status === 409 && j.motivo === "cartera-cambiada") {
+      alert((j.errores || ["La cartera activa cambió en otro dispositivo."]).join("\n"));
+      location.reload();
+      throw new Error("cartera cambiada");
+    }
     if (!r.ok || j.ok === false) throw new Error((j.errores || [j.error || "Algo ha fallado. ¿Sigue abierta la ventana negra de la app?"]).join("\n"));
     return j;
   }

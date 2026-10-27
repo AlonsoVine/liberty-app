@@ -365,7 +365,16 @@ def cambia(fn, recalc=True):
     no afectan a las cifras del panel y así van más ágiles."""
     if modo() == "demo":
         return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    # La cartera activa es estado compartido: si otro dispositivo la cambió mientras este
+    # editaba, escribir aquí iría a la cartera EQUIVOCADA. El front manda en la cabecera la
+    # cartera que cree activa; si ya no coincide, no escribimos y pedimos recargar (409).
+    esperada = request.headers.get("X-Cartera")
     with cerrojo:
+        activa = id_activa()
+        if esperada and activa and esperada != activa:
+            return jsonify(ok=False, motivo="cartera-cambiada", activa=activa,
+                           errores=["La cartera activa cambió en otro dispositivo. Recarga la "
+                                    "página para no escribir en la cartera equivocada."]), 409
         ruta = os.path.join(carpeta(), "cartera.json")
         try:
             cfg = almacen.carga(ruta)
