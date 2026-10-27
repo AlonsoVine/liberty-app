@@ -156,6 +156,17 @@
 
   let _repinta = null;   // se asigna a pintar() cuando hay datos; refresca al cambiar un ajuste
 
+  // Entorno de ejecución (carpeta de datos, si corre en Docker). Se pide una vez al servidor
+  // y se cachea; en la web exportada (sin servidor) no existe, así que queda en null.
+  let _entorno;
+  async function cargaEntorno() {
+    if (_entorno !== undefined) return _entorno;
+    if (window.ESTATICO) { _entorno = null; return _entorno; }
+    try { _entorno = await (await fetch("api/entorno")).json(); }
+    catch (e) { _entorno = null; }
+    return _entorno;
+  }
+
   // Construye y cablea la pestaña ⚙️ Ajustes (preferencias de pantalla).
   function pintaAjustes() {
     const cont = $("#ajustesCont");
@@ -193,6 +204,23 @@
         };
       });
     });
+    pintaRutaDatos(cont);
+  }
+
+  // Fila de solo lectura con la carpeta donde se guardan los datos. Útil siempre, y necesaria en
+  // Docker: ahí la ubicación la fija el contenedor y no se puede cambiar desde la app.
+  async function pintaRutaDatos(cont) {
+    const env = await cargaEntorno();
+    if (!env || !env.rutaDatos || !cont.isConnected) return;
+    const nota = env.docker
+      ? "La ubicación la define el contenedor. Para moverla: para el contenedor, mueve la carpeta y cambia el volumen del docker-compose."
+      : "Aquí se guardan tus carteras, copias y documentos.";
+    const fila = document.createElement("div");
+    fila.className = "ajusteFila";
+    fila.innerHTML =
+      `<div class="ajusteTxt"><b>Carpeta de datos</b><small>${esc(nota)}</small></div>
+        <code class="rutaDatos" title="${esc(env.rutaDatos)}">${esc(env.rutaDatos)}</code>`;
+    cont.appendChild(fila);
   }
 
   // Card de bienvenida: se muestra la primera vez (y se puede reabrir desde Ayuda).
@@ -2939,8 +2967,17 @@
   let VERINFO = null;
   // Descarga la última versión y la deja JUNTO a la actual (nombre con versión, p. ej.
   // «Liberty 1.8.2.exe»). No ejecuta ni sobrescribe nada: solo descarga + escribe un archivo.
+  // En Docker no se descarga un binario: se actualiza la imagen y se reinicia el contenedor.
+  function avisaDocker(ev) {
+    if (ev) ev.preventDefault();
+    const ult = (VERINFO && VERINFO.ultima) || "";
+    alert(`Hay una versión nueva${ult ? ` (${ult})` : ""}.\n\nEstás ejecutando Liberty en Docker: `
+      + `actualiza la imagen y reinicia el contenedor con\n\n  docker compose pull && docker compose up -d\n\n`
+      + `Tus datos del volumen no se tocan.`);
+  }
   function actualizaDesdePie(ev) {
     if (ev) ev.preventDefault();
+    if (VERINFO && VERINFO.docker) return avisaDocker(ev);
     const ult = (VERINFO && VERINFO.ultima) || "";
     if (!confirm(`¿Descargar la última versión (${ult})? No se cierra, abre ni borra nada automáticamente: `
       + `tú decides cuándo cambiar a la nueva.`)) return;
@@ -2966,7 +3003,8 @@
     if (!el || !VERINFO) return;
     let estado = "";
     if (VERINFO.hayNueva) {
-      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="#" id="pieActualizar">descargar e instalar</a></span>`;
+      const accion = VERINFO.docker ? "cómo actualizar" : "descargar e instalar";
+      estado = ` · <span class="pieNueva">⬆ hay una versión nueva (${esc(VERINFO.ultima)}) · <a href="#" id="pieActualizar">${accion}</a></span>`;
     } else if (VERINFO.error) {
       estado = ` · <span class="subt">no he podido comprobar · <a href="#" id="pieComprobar">reintentar</a></span>`;
     } else if (VERINFO.desactivado) {
@@ -3229,7 +3267,8 @@
       ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (esta misma). Déjalos si estás empezando; ocúltalos cuando ya te manejes."],
       ["⌨️", "Atajos de teclado", "Activa o desactiva las teclas rápidas de una sola pulsación (1–8 para las vistas, V vídeo, L largo plazo, ? la lista). Si las pulsas sin querer y te estorban, desactívalas; la paleta Ctrl/⌘+K y Escape siguen funcionando."],
       ["🏁", "Pantalla de inicio", "Elige qué se abre al arrancar: la última pantalla que usaste o siempre el Panel."],
-      ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios. Si lo activas, mira de vez en cuando si hay versión nueva (nunca envía tus datos)."],
+      ["📂", "Carpeta de datos", "Dónde se guardan tus carteras, copias y documentos. Se muestra para que sepas qué respaldar. En Docker la ubicación la fija el contenedor (el volumen del docker-compose) y no se cambia desde aquí."],
+      ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios. Si lo activas, mira de vez en cuando si hay versión nueva (nunca envía tus datos). En Docker no descarga nada: te dice que actualices la imagen con «docker compose pull && docker compose up -d»."],
     ] },
   };
 

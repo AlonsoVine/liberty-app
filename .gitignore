@@ -29,3 +29,6 @@ dist/
 
 # Carpeta de datos de pruebas local (no versionar)
 datos_*/
+
+# Área de trabajo temporal de Claude Code (no versionar)
+scratchpad/

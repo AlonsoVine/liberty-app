@@ -2553,12 +2553,19 @@
       <a href="${esc(v.repo)}" target="_blank" rel="noopener">página del proyecto en GitHub</a>.`;
     if (!v.hayNueva) return;
     const t = $("#bannerVersionTexto");
-    t.innerHTML = `<b>Hay una versión nueva (${esc(v.ultima)}).</b>
-      Puedo descargártela y dejarla junto a la actual (se llamará <code>Liberty ${esc(v.ultima)}.exe</code>), para que solo tengas que abrirla.
-      <button type="button" class="btn mini" id="btnActualizar">⬇ Descargar la nueva versión</button>
-      <span class="subt"> · o a mano en <a href="${esc(v.descarga || v.repo)}" target="_blank" rel="noopener">la web</a></span>`;
-    const btn = $("#btnActualizar");
-    if (btn) btn.onclick = () => actualizaLiberty(btn, html => { t.innerHTML = html; });
+    if (v.docker) {
+      // En Docker no se descarga un binario: se actualiza la imagen y se reinicia el contenedor.
+      t.innerHTML = `<b>Hay una versión nueva (${esc(v.ultima)}).</b>
+        Estás ejecutando Liberty en Docker: actualiza la imagen y reinicia el contenedor con
+        <code>docker compose pull &amp;&amp; docker compose up -d</code>. Tus datos del volumen no se tocan.`;
+    } else {
+      t.innerHTML = `<b>Hay una versión nueva (${esc(v.ultima)}).</b>
+        Puedo descargártela y dejarla junto a la actual (se llamará <code>Liberty ${esc(v.ultima)}.exe</code>), para que solo tengas que abrirla.
+        <button type="button" class="btn mini" id="btnActualizar">⬇ Descargar la nueva versión</button>
+        <span class="subt"> · o a mano en <a href="${esc(v.descarga || v.repo)}" target="_blank" rel="noopener">la web</a></span>`;
+      const btn = $("#btnActualizar");
+      if (btn) btn.onclick = () => actualizaLiberty(btn, html => { t.innerHTML = html; });
+    }
     $("#bannerVersion").hidden = false;
   }).catch(() => { /* sin internet: no pasa nada */ });
 

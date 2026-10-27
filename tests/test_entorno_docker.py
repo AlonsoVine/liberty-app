@@ -115,3 +115,20 @@ def test_ping_incluye_version_y_modo(tmp_path, monkeypatch):
     assert j["version"] == servidor.version_actual()
     assert j["modo"] in ("propio", "demo")
     assert "docker" in j
+
+
+def test_descargar_version_en_docker_avisa_de_imagen(tmp_path, monkeypatch):
+    servidor = _servidor_tmp(tmp_path, monkeypatch)
+    monkeypatch.setattr(servidor.entorno, "ES_DOCKER", True)
+    j = servidor.app.test_client().post("/api/descargar-version").get_json()
+    assert j["ok"] is False and j["motivo"] == "docker"
+    assert "docker compose pull" in j["mensaje"]
+
+
+def test_api_entorno(tmp_path, monkeypatch):
+    servidor = _servidor_tmp(tmp_path, monkeypatch)
+    monkeypatch.setattr(servidor.entorno, "ES_DOCKER", True)
+    j = servidor.app.test_client().get("/api/entorno").get_json()
+    assert j["docker"] is True
+    assert j["puedeCambiarRuta"] is False
+    assert os.path.basename(j["rutaDatos"]) == os.path.basename(str(tmp_path))

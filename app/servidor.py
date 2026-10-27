@@ -1539,7 +1539,7 @@ def api_version():
     manual = request.args.get("manual") == "1"
     if not activado and not manual:
         return jsonify(actual=actual, ultima=None, repo=REPO, descarga=DESCARGA,
-                       hayNueva=False, desactivado=True)
+                       hayNueva=False, desactivado=True, docker=entorno.ES_DOCKER)
     # Normalmente se consulta como mucho una vez al día; con ?forzar=1 (p. ej. al pulsar
     # «Actualizar precios») o ?manual=1 se salta esa caché y se comprueba al momento.
     forzar = manual or request.args.get("forzar") == "1"
@@ -1557,7 +1557,7 @@ def api_version():
     def como_tupla(v):
         return tuple(int(x) for x in re.findall(r"\d+", v or "0"))
     return jsonify(actual=actual, ultima=ultima, repo=REPO, descarga=DESCARGA, manual=manual,
-                   error=error,
+                   error=error, docker=entorno.ES_DOCKER,
                    hayNueva=bool(ultima) and como_tupla(ultima) > como_tupla(actual))
 
 
@@ -1580,6 +1580,13 @@ def api_descargar_version():
     (un .exe en marcha está bloqueado por Windows): solo es una descarga —un GET a
     GitHub— y escribir un archivo nuevo. El usuario abre el nuevo y borra el viejo
     cuando quiera. La app sigue siendo 100 % local. Lo lanza el usuario con un botón."""
+    if entorno.ES_DOCKER:
+        # En Docker no se descarga un binario: se actualiza la imagen y se reinicia el
+        # contenedor. Los datos viven en el volumen, así que no se tocan.
+        return jsonify(ok=False, motivo="docker", descarga=DESCARGA,
+                       mensaje="Hay una versión nueva. Actualiza la imagen y reinicia el "
+                               "contenedor:  docker compose pull && docker compose up -d. "
+                               "Tus datos del volumen no se tocan."), 200
     if not getattr(sys, "frozen", False):
         return jsonify(ok=False, motivo="dev", descarga=DESCARGA,
                        mensaje="En modo desarrollo no hay ejecutable que actualizar. "
@@ -1657,6 +1664,15 @@ def api_ping():
     # de Docker. Mantiene la clave «app» de siempre y añade la versión y el modo de ejecución.
     return jsonify(app="patrimonio", version=version_actual(), modo=modo(),
                    docker=entorno.ES_DOCKER)
+
+
+@app.get("/api/entorno")
+def api_entorno():
+    """Datos del entorno de ejecución para la interfaz: si corre en Docker, dónde están los
+    datos y si la ruta puede cambiarse desde la app. En Docker la ubicación la fija el
+    contenedor (un volumen), así que la ruta se muestra en solo lectura."""
+    return jsonify(docker=entorno.ES_DOCKER, rutaDatos=os.path.abspath(DATOS),
+                   puedeCambiarRuta=False)
 
 
 @app.get("/<path:archivo>")
