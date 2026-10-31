@@ -1,8 +1,8 @@
 name: Build macOS
 
 # Construye «Liberty.app» como un ÚNICO binario UNIVERSAL2 (Apple Silicon arm64 + Intel
-# x86_64 en el mismo ejecutable) en el runner macos-14 (que sí tiene disponibilidad, al
-# contrario que los macos-13 de Intel) y lo publica como un solo .dmg:
+# x86_64 en el mismo ejecutable) en el runner macos-15 (Apple Silicon; macos-14 se retiró
+# el 2026-11-02 y macos-13 Intel ya no tiene disponibilidad) y lo publica como un solo .dmg:
 #     Liberty-macOS.dmg      (universal2: funciona nativo en M1/M2/M3… y en Intel)
 #
 # Un .dmg es la forma estándar y limpia en Mac: doble clic → se monta → aparece Liberty.app
@@ -46,7 +46,7 @@ env:
 
 jobs:
   build-mac:
-    runs-on: macos-14                   # Apple Silicon, con Python universal2 de python.org
+    runs-on: macos-15                   # Apple Silicon, con Python universal2 de python.org
     steps:
       - uses: actions/checkout@v4
 
