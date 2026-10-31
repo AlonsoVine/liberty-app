@@ -12,7 +12,17 @@ import os
 import re
 import unicodedata
 
-from .motor import AVISOS_CLAVES, FUENTES, MARCAS_DEFECTO, TIPOS, num_es, tipos_todos
+from .motor import (
+    AVISOS_CLAVES,
+    ESTADOS_INMUEBLE,
+    FUENTES,
+    MARCAS_DEFECTO,
+    TIPOS,
+    TIPOS_INMUEBLE,
+    USOS_INMUEBLE,
+    num_es,
+    tipos_todos,
+)
 
 COPIAS_MAX = 20
 TIPOS_MOV = {"compra": "Compra", "venta": "Venta", "dividendo": "Dividendo o cupón",
@@ -30,7 +40,7 @@ CARTERA_VACIA = {
     # Siempre hay al menos un titular. Por defecto «Yo»: se puede renombrar (el cambio
     # se propaga a todo) y añadir más. Con uno solo, la app oculta los filtros/vistas
     # por titular para no meter ruido.
-    "titulares": ["Yo"], "apartados": [], "flujos": [],
+    "titulares": ["Yo"], "apartados": [], "flujos": [], "inmuebles": [],
     "config": {"colchon": 0, "categorias": [], "objetivos": {}, "monedas": [],
                "umbralConcentracion": 0.4, "desviacionMax": 0.05, "diasAviso": 90,
                "diasSinAnotar": 30, "diasSinActualizar": 90, "papeleraMax": 5},
@@ -267,6 +277,11 @@ def borra_producto(cfg, pid):
         if c.get("pesos"):
             c["pesos"].pop(pid, None)
     cfg["comparador"] = [c for c in cfg.get("comparador", []) if c.get("real") or c.get("pesos")]
+    # Si era la deuda enlazada a la hipoteca de un inmueble, el enlace se suelta (la
+    # hipoteca sigue en el inmueble con sus propios datos; solo deja de señalarla).
+    for im in cfg.get("inmuebles", []) or []:
+        if (im.get("hipoteca") or {}).get("deudaRef") == pid:
+            im["hipoteca"].pop("deudaRef", None)
 
 
 # ---------------------------------------------------------------- movimientos
@@ -424,6 +439,195 @@ def fecha_suave(valor):
         return dt.date.fromisoformat(str(valor or "")[:10]).isoformat()
     except ValueError:
         return ""
+
+
+# ---------------------------------------------------------------- inmuebles
+# La zona de Inmuebles va APARTE de la cartera: un piso no es un activo más (su valor
+# aplastaría los gráficos de tus inversiones) y arrastra su propia gestión. Su valor es
+# una estimación manual y su hipoteca vive dentro del propio inmueble; `deudaRef` solo
+# SEÑALA la deuda de Patrimonio que le corresponde (para saltar a ella), sin mover cifras.
+# Los catálogos (TIPOS_/USOS_/ESTADOS_INMUEBLE) viven en motor.py, que también los usa.
+
+# Lo que no se edita desde la ficha (los contratos, en una próxima iteración) se conserva
+# tal cual al guardarla. Las categorías también, salvo que el formulario las mande.
+INMUEBLE_CONSERVA = ("contratos", "categorias")
+
+
+def _categorias_inmueble(cfg, iid, valor, errores, ya=None):
+    """Categorías de ingresos y gastos asociadas a un inmueble: sus apuntes forman el libro
+    del inmueble. Sin repetir y hasta 30. Una categoría pertenece como mucho a UN inmueble
+    (si no, un mismo apunte contaría dos veces). `ya` = {categoría en minúsculas: nombre
+    del inmueble} de las ya repartidas en esta misma operación."""
+    if not isinstance(valor, list):
+        valor = [valor] if valor else []
+    ocupadas = dict(ya or {})
+    if ya is None:
+        for x in cfg.get("inmuebles", []) or []:
+            if x.get("id") != iid:
+                for c in x.get("categorias") or []:
+                    ocupadas[str(c).lower()] = x.get("nombre") or x.get("id")
+    out, vistas = [], set()
+    for c in valor[:60]:
+        nombre = texto(c, 40)
+        if not nombre or nombre.lower() in vistas:
+            continue
+        if nombre.lower() in ocupadas:
+            errores.append(f"La categoría «{nombre}» ya va con «{ocupadas[nombre.lower()]}»: una "
+                           "categoría solo puede ir con un inmueble.")
+            continue
+        vistas.add(nombre.lower())
+        out.append(nombre)
+    if len(out) > 30:
+        errores.append("Como mucho 30 categorías por inmueble.")
+    return out[:30]
+
+
+def asigna_categorias_inmuebles(cfg, asignacion):
+    """Reparto de categorías entre inmuebles desde Configuración → Inmuebles:
+    {id del inmueble: [categorías]}. Los inmuebles que no vienen se quedan sin ninguna."""
+    if not isinstance(asignacion, dict):
+        raise ErrorValidacion(["El reparto de categorías no es válido."])
+    lista = cfg.get("inmuebles", []) or []
+    ids = {x.get("id") for x in lista}
+    errores, ya, nuevas = [], {}, {}
+    for iid, cats in asignacion.items():
+        if iid not in ids:
+            errores.append("Uno de los inmuebles ya no existe: recarga la página.")
+            continue
+        nom = next(x.get("nombre") for x in lista if x.get("id") == iid)
+        nuevas[iid] = _categorias_inmueble(cfg, iid, cats, errores, ya)
+        ya.update({c.lower(): nom for c in nuevas[iid]})
+    if errores:
+        raise ErrorValidacion(errores)
+    for x in lista:
+        cats = nuevas.get(x.get("id")) or []
+        if cats:
+            x["categorias"] = cats
+        else:
+            x.pop("categorias", None)
+
+
+def guarda_inmueble(cfg, datos):
+    """Crea o edita un inmueble. El formulario manda los campos planos (compraPrecio,
+    hipCuota…) y aquí se agrupan en compra / valor / hipoteca."""
+    errores = []
+    nombre = texto(datos.get("nombre"), 80)
+    if not nombre:
+        errores.append("Ponle un nombre al inmueble (p. ej. «Piso de la calle Mayor»).")
+    tipo = datos.get("tipo") or "piso"
+    if tipo not in TIPOS_INMUEBLE:
+        errores.append("Elige un tipo de inmueble válido.")
+    uso = datos.get("uso") or "inversion"
+    if uso not in USOS_INMUEBLE:
+        errores.append("Elige si es una inversión o tu vivienda habitual.")
+    estado = None
+    if uso == "inversion":
+        estado = datos.get("estado") or "vacio"
+        if estado not in ESTADOS_INMUEBLE:
+            errores.append("Elige el estado del inmueble (alquilado, vacío…).")
+    lista = cfg.setdefault("inmuebles", [])
+    iid = datos.get("id") or None
+    if uso == "habitual":
+        otra = next((x for x in lista if x.get("uso") == "habitual" and x.get("id") != iid), None)
+        if otra:
+            errores.append(f"«{otra.get('nombre')}» ya es tu vivienda habitual. Solo puede haber "
+                           "una: cámbiala antes a inversión.")
+
+    m2 = numero(datos.get("m2"), "la superficie", errores, obligatorio=False, minimo=0)
+    hab = numero(datos.get("habitaciones"), "las habitaciones", errores, obligatorio=False, minimo=0)
+    v_cat = numero(datos.get("valorCatastral"), "el valor catastral", errores, obligatorio=False, minimo=0)
+
+    # Compra: la fecha, si se da, no puede ser futura (igual que cualquier apunte).
+    f_compra = fecha(datos.get("compraFecha"), errores) if str(datos.get("compraFecha") or "").strip() else ""
+    precio = numero(datos.get("compraPrecio"), "el precio de compra", errores, obligatorio=False, minimo=0)
+    gastos = numero(datos.get("compraGastos"), "los gastos de compra", errores, obligatorio=False, minimo=0)
+
+    valor = numero(datos.get("valorImporte"), "el valor estimado", errores, obligatorio=False, minimo=0)
+    f_valor = fecha(datos.get("valorFecha"), errores) if str(datos.get("valorFecha") or "").strip() else ""
+    if valor is not None and not f_valor:
+        f_valor = dt.date.today().isoformat()   # una estimación sin fecha es «de hoy»
+
+    # Hipoteca: el tipo de interés se escribe en % (como la TAE de una deuda) y se
+    # guarda como fracción; la fecha de fin es futura por naturaleza (fecha_suave).
+    cap = numero(datos.get("hipCapital"), "el capital pendiente", errores, obligatorio=False, minimo=0)
+    cuota = numero(datos.get("hipCuota"), "la cuota de la hipoteca", errores, obligatorio=False, minimo=0)
+    interes = numero(datos.get("hipInteres"), "el tipo de interés", errores, obligatorio=False, minimo=0)
+    f_fin = fecha_suave(datos.get("hipFin"))
+    deuda_ref = texto(datos.get("hipDeuda"), 60)
+    if deuda_ref:
+        p = producto(cfg, deuda_ref)
+        if not p or p.get("tipo") != "deuda":
+            errores.append("La deuda a la que enlazas la hipoteca ya no existe.")
+        else:
+            otro = next((x for x in lista if x.get("id") != iid
+                         and (x.get("hipoteca") or {}).get("deudaRef") == deuda_ref), None)
+            if otro:
+                errores.append(f"La deuda «{p.get('corto') or p.get('nombre')}» ya está enlazada a "
+                               f"«{otro.get('nombre')}».")
+    manda_cats = "categorias" in datos
+    cats = _categorias_inmueble(cfg, iid, datos.get("categorias"), errores) if manda_cats else None
+    if errores:
+        raise ErrorValidacion(errores)
+
+    def limpio(d):
+        return {k: v for k, v in d.items() if v not in ("", None)}
+    compra = limpio({"fecha": f_compra,
+                     "precio": round(precio, 2) if precio is not None else None,
+                     "gastos": round(gastos, 2) if gastos is not None else None})
+    val = limpio({"importe": round(valor, 2) if valor is not None else None,
+                  "fecha": f_valor if valor is not None else ""})
+    hip = limpio({"capitalPendiente": round(cap, 2) if cap is not None else None,
+                  "cuota": round(cuota, 2) if cuota is not None else None,
+                  "tipoInteres": round(interes / 100, 6) if interes is not None else None,
+                  "fechaFin": f_fin, "deudaRef": deuda_ref})
+    im = limpio({"nombre": nombre, "tipo": tipo, "uso": uso, "estado": estado,
+                 "titular": texto(datos.get("titular")),
+                 "direccion": texto(datos.get("direccion")),
+                 "refCatastral": texto(datos.get("refCatastral"), 30).upper().replace(" ", ""),
+                 "m2": round(m2, 2) if m2 is not None else None,
+                 "habitaciones": int(hab) if hab is not None else None,
+                 "valorCatastral": round(v_cat, 2) if v_cat is not None else None,
+                 "nota": texto(datos.get("nota"), 2000)})
+    for k, v in (("compra", compra), ("valor", val), ("hipoteca", hip)):
+        if v:
+            im[k] = v
+
+    existente = next((x for x in lista if x.get("id") == iid), None) if iid else None
+    if existente:
+        conserva = {k: existente[k] for k in INMUEBLE_CONSERVA if k in existente}
+        if manda_cats:
+            conserva.pop("categorias", None)
+        existente.clear()
+        existente.update(id=iid, **im, **conserva)
+        if cats:
+            existente["categorias"] = cats
+        return existente
+    im = {"id": siguiente_id(lista, "i"), **im}
+    if cats:
+        im["categorias"] = cats
+    lista.append(im)
+    return im
+
+
+def borra_inmueble(cfg, iid):
+    antes = len(cfg.get("inmuebles", []) or [])
+    cfg["inmuebles"] = [x for x in cfg.get("inmuebles", []) or [] if x.get("id") != iid]
+    if len(cfg["inmuebles"]) == antes:
+        raise ErrorValidacion(["Ese inmueble ya no existe."])
+    # Las notas y recordatorios que lo señalaban dejan de hacerlo (la nota sigue). Si no,
+    # un inmueble nuevo que reutilizara el id heredaría documentos que no son suyos.
+    for n in cfg.get("notas", []) or []:
+        vincs = [v for v in n.get("vinculos") or [] if not (v.get("tipo") == "inmueble" and v.get("ref") == iid)]
+        if vincs:
+            n["vinculos"] = vincs
+            n["vinculo"] = vincs[0]
+        elif n.get("vinculos") or (n.get("vinculo") or {}).get("tipo") == "inmueble":
+            n.pop("vinculos", None)
+            n.pop("vinculo", None)
+    for r in cfg.get("recordatorios", []) or []:
+        v = r.get("vinculo") or {}
+        if v.get("tipo") == "inmueble" and v.get("ref") == iid:
+            r.pop("vinculo", None)
 
 
 # ---------------------------------------------------------------- configuración
@@ -590,7 +794,7 @@ def guarda_config(cfg, datos):
         conf["avisosOff"] = off
     if "renombresTitular" in datos:
         # Renombrar un titular propaga el nombre nuevo a todos sus activos, apuntes,
-        # apartados y plantillas recurrentes, para que nada quede «huérfano».
+        # apartados, inmuebles y plantillas recurrentes, para que nada quede «huérfano».
         for r in (datos.get("renombresTitular") or []):
             de, a = texto((r or {}).get("de"), 60), texto((r or {}).get("a"), 60)
             if not de or not a or de == a:
@@ -598,7 +802,7 @@ def guarda_config(cfg, datos):
             for p in cfg.get("productos", []):
                 if texto(p.get("titular"), 60) == de:
                     p["titular"] = a
-            for col in ("flujos", "apartados"):
+            for col in ("flujos", "apartados", "inmuebles"):
                 for x in cfg.get(col, []) or []:
                     if texto(x.get("titular"), 60) == de:
                         x["titular"] = a
@@ -671,6 +875,13 @@ def guarda_config(cfg, datos):
                 vistos.add(palabra)
                 reglas.append({"palabra": palabra, "categoria": categoria})
         conf["reglasCategoria"] = reglas
+    if "inmueblesCategorias" in datos:
+        # Configuración → Inmuebles: qué categorías forman el libro de cada inmueble. Se
+        # guarda en el propio inmueble (`categorias`), no en `config`.
+        try:
+            asigna_categorias_inmuebles(cfg, datos.get("inmueblesCategorias"))
+        except ErrorValidacion as e:
+            errores.extend(e.errores)
     if "recurrentes" in datos:
         conf["recurrentes"] = [r for r in
                                (sanea_recurrente(x) for x in (datos.get("recurrentes") or [])[:100]) if r]
@@ -800,11 +1011,11 @@ def _etiquetas(valor):
 # Tipos con los que se puede enlazar una nota o recordatorio. «categoria» ya no se
 # ofrece al crear (ver ADR 0008), pero se sigue aceptando para no perder vínculos
 # guardados antes.
-VINCULO_TIPOS = ("activo", "deuda", "reservado", "categoria")
+VINCULO_TIPOS = ("activo", "deuda", "reservado", "inmueble", "categoria")
 
 
 def _vinculo(valor):
-    """Enlace opcional a un activo/deuda/reservado (o categoría, legado): {tipo, ref}."""
+    """Enlace opcional a un activo/deuda/reservado/inmueble (o categoría, legado): {tipo, ref}."""
     v = valor or {}
     tipo = texto(v.get("tipo"), 20)
     ref = texto(v.get("ref"), 120)

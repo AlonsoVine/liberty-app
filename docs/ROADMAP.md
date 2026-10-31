@@ -29,6 +29,7 @@ hogar completo** (superconjunto del Excel), manteniéndose **100 % local**. Ver
 | **F3 · Ingresos/gastos (ligero)** | Flujo de caja del hogar. | Registro de ingresos y gastos por categoría; tasa de ahorro; evolución mensual (sin presupuestos completos). |
 | **F4 · Asignación y control** | Cuadro de mando. | Objetivos de asignación (%); desviación y rebalanceo; concentración por tipo y entidad; panel de alertas de calidad de datos. |
 | **F5 · Multidivisa + pulido** | Cierre. | Tipo de cambio manual; refactor de `motor.py` si procede; interfaz final. |
+| **F6 · Inmuebles** *(en curso, rama `inmuebles`)* | Tercera «app» de Liberty, aparte de la cartera. | Fichas de inmueble (compra, valor, hipoteca con enlace a deuda, vivienda habitual); contratos e inquilinos; libro de ingresos y gastos por categorías; patrimonio total del hogar en Inicio; documentos y avisos. Ver [diseño](diseno-inmuebles.md). |
 
 Cada fase es una rama (`feat/gestor-patrimonial-fN`) con sus **tests** y su documentación.
 

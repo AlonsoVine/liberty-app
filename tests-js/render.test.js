@@ -202,6 +202,164 @@ test("Distribución: el toggle Anillo/Mapa no rompe", () => {
   assert.strictEqual(errores.length, 0, "errores en el toggle de distribución: " + errores.join(" | "));
 });
 
+test("Inmuebles: sin inmuebles se ve el estado vacío", () => {
+  const { window, errores } = montaPanel();
+  window.document.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  assert.strictEqual(window.document.getElementById("inmVacio").hidden, false, "debería verse el estado vacío");
+  assert.strictEqual(window.document.getElementById("tarjetaInmuebles").hidden, true);
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("Inmuebles: KPIs y una tarjeta por inmueble, con su estado y el enlace a la deuda", () => {
+  const datos = JSON.parse(DATOS);
+  datos.inmuebles = {
+    lista: [
+      { id: "i1", nombre: "Piso <img src=x onerror=alert(1)>", tipo: "piso", tipoNombre: "Piso", uso: "inversion",
+        estado: "alquilado", estadoNombre: "Alquilado", direccion: "C/ Mayor 1", m2: 80, habitaciones: 3,
+        compraFecha: "2019-05-10", coste: 165000, valor: 185000, valorFecha: "2026-10-01", valorDeCompra: false,
+        plusvalia: 20000, plusvaliaPct: 0.1212, anios: 7.5, neto: 95000,
+        hipoteca: { capitalPendiente: 90000, cuota: 650, deudaRef: "hipoteca", deudaNombre: "Hipoteca" } },
+      { id: "i2", nombre: "Nuestra casa", tipo: "casa", tipoNombre: "Casa", uso: "habitual", estado: null,
+        coste: null, valor: 250000, valorFecha: "2026-09-30", valorDeCompra: false, plusvalia: null,
+        hipoteca: null, neto: 250000 },
+    ],
+    total: { n: 2, nInversion: 1, nHabitual: 1, alquilados: 1, valor: 435000, coste: 165000,
+             plusvalia: 20000, plusvaliaPct: 0.1212, hipotecas: 90000, cuotaHipotecas: 650, neto: 345000 },
+  };
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  assert.strictEqual(doc.getElementById("tarjetaInmuebles").hidden, false);
+  assert.strictEqual(doc.getElementById("inmVacio").hidden, true);
+  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 4, "deberían verse los 4 KPIs");
+  const tarjetas = doc.querySelectorAll("#inmTarjetas .inmCard");
+  assert.strictEqual(tarjetas.length, 2, "una tarjeta por inmueble");
+  assert.match(tarjetas[0].textContent, /Alquilado/);
+  assert.match(tarjetas[1].textContent, /Vivienda habitual/);
+  assert.ok(tarjetas[0].querySelector('[data-deuda="hipoteca"]'), "la hipoteca enlazada lleva a su deuda");
+  assert.ok(!tarjetas[1].querySelector("[data-deuda]"), "sin hipoteca no hay enlace");
+  // El nombre se escapa: no se inyecta ninguna imagen.
+  assert.strictEqual(doc.querySelector("#inmTarjetas img"), null, "el nombre debería ir escapado");
+  // Es una foto fija: el periodo del panel no se muestra.
+  assert.ok(doc.getElementById("mesReferencia").classList.contains("ocultoInicio"));
+});
+
+// Datos de inmuebles con libro (para la ficha ampliada e Inicio).
+function datosConLibro() {
+  const datos = JSON.parse(DATOS);
+  const meses = ["2025-11", "2025-12", "2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07", "2026-08", "2026-09", "2026-10"];
+  const cero = meses.map(() => 0);
+  datos.inmuebles = {
+    lista: [
+      { id: "i1", nombre: "Piso <b>Mayor</b>", tipo: "piso", tipoNombre: "Piso", uso: "inversion", usoNombre: "Inversión",
+        estado: "alquilado", estadoNombre: "Alquilado", titular: "Yo", direccion: "C/ Mayor 1", refCatastral: "123ABC",
+        valorCatastral: 60000, m2: 80, habitaciones: 3, nota: "Contrato LAU", compraFecha: "2019-05-10", precio: 150000,
+        gastosCompra: 15000, coste: 165000, valor: 185000, valorFecha: "2026-10-01", valorDeCompra: false,
+        plusvalia: 20000, plusvaliaPct: 0.1212, anios: 7.5, neto: 95000, categorias: ["Alquiler Mayor", "Gastos Mayor"],
+        hipoteca: { capitalPendiente: 90000, cuota: 650, tipoInteres: 0.025, fechaFin: "2044-05-10", deudaRef: null },
+        rentabilidadNeta: 0.05,
+        libro: { categorias: ["Alquiler Mayor", "Gastos Mayor"], n: 2, ingresos12: 900, gastos12: 100, neto12: 800,
+          ingresosTotal: 900, gastosTotal: 100, netoTotal: 800, meses,
+          serieIngresos: cero.slice(0, 11).concat([900]), serieGastos: cero.slice(0, 11).concat([100]),
+          porCategoria: [{ categoria: "Alquiler Mayor", tipo: "ingreso", total: 900, ultimos12: 900, n: 1 },
+                         { categoria: "Gastos Mayor", tipo: "gasto", total: 100, ultimos12: 100, n: 1 }],
+          apuntes: [{ id: "f2", fecha: "2026-10-05", tipo: "ingreso", importe: 900, categoria: "Alquiler Mayor" },
+                    { id: "f3", fecha: "2026-10-02", tipo: "gasto", importe: 100, categoria: "Gastos Mayor" }] } },
+    ],
+    total: { n: 1, nInversion: 1, nHabitual: 0, alquilados: 1, valor: 185000, coste: 165000, plusvalia: 20000,
+             plusvaliaPct: 0.1212, hipotecas: 90000, hipotecasSinEnlace: 90000, cuotaHipotecas: 650, neto: 95000,
+             conLibro: 1, ingresos12: 900, gastos12: 100, neto12: 800, costeHabitual12: null,
+             patrimonioCartera: 50000, patrimonioHogar: 145000 },
+  };
+  return datos;
+}
+
+test("Inmuebles: la ficha ampliada muestra datos, hipoteca y libro, y vuelve a la lista", () => {
+  const { window, errores } = montaPanel(JSON.stringify(datosConLibro()));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 5, "con libro se añade el cash-flow");
+  doc.querySelector("#inmTarjetas .inmCard").click();
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  const ficha = doc.getElementById("inmFicha");
+  assert.strictEqual(ficha.hidden, false);
+  assert.strictEqual(doc.getElementById("inmLista").hidden, true);
+  assert.strictEqual(ficha.querySelector("h2").textContent, "Piso <b>Mayor</b>", "el nombre va escapado");
+  assert.strictEqual(ficha.querySelector("h2 b"), null);
+  for (const txt of ["123ABC", "Contrato LAU", "Gastos de compra", "Capital pendiente", "Alquiler Mayor", "Rentabilidad neta"])
+    assert.ok(ficha.textContent.includes(txt), "la ficha debería mostrar " + txt);
+  assert.ok(ficha.querySelector("#inmFichaBarras svg"), "gráfica del libro");
+  assert.strictEqual(ficha.querySelectorAll("table")[1].tBodies[0].rows.length, 2, "últimos apuntes");
+  // Sin «Mis datos» detrás (como en la web exportada) no hay botón de editar ni documentos.
+  assert.strictEqual(ficha.querySelector('[data-f="editar"]'), null);
+  assert.strictEqual(doc.getElementById("inmDocs"), null);
+  ficha.querySelector('[data-f="volver"]').click();
+  assert.strictEqual(doc.getElementById("inmLista").hidden, false);
+  assert.strictEqual(ficha.hidden, true);
+});
+
+test("Inmuebles: el libro de la ficha se filtra por periodo, también de una fecha a otra", async () => {
+  const datos = datosConLibro();
+  const lb = datos.inmuebles.lista[0].libro;
+  lb.apuntes.push({ id: "f1", fecha: "2024-03-10", tipo: "gasto", importe: 300, categoria: "Gastos Mayor" });
+  lb.n = 3;
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  doc.querySelector("#inmTarjetas .inmCard").click();
+  const kpi = i => doc.querySelectorAll("#inmLibroCuerpo .kpi .v")[i].textContent;
+  const boton = et => [...doc.querySelectorAll("#segInmPeriodo button")].find(b => b.textContent === et);
+  assert.ok(kpi(1).includes("100"), "12 meses: el gasto viejo no cuenta (" + kpi(1) + ")");
+  assert.strictEqual(kpi(3), "2");
+  boton("Todo").click();
+  assert.ok(kpi(1).includes("400"), "todo: " + kpi(1));
+  assert.strictEqual(kpi(3), "3");
+  boton("Rango…").click();
+  const de = doc.getElementById("inmDesde"), ha = doc.getElementById("inmHasta");
+  assert.ok(de && ha, "rango con dos fechas");
+  de.value = "2024-01-01"; ha.value = "2024-12-31";
+  de.dispatchEvent(new window.Event("change"));
+  await new Promise(r => setTimeout(r, 450));
+  assert.strictEqual(kpi(3), "1");
+  assert.ok(kpi(1).includes("300"), "rango: " + kpi(1));
+  assert.strictEqual(doc.getElementById("inmDesde"), de, "los campos de fecha no se rehacen (no se pierde el foco)");
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("Inicio: bloque de inmuebles con el patrimonio del hogar; sin inmuebles, una invitación", () => {
+  let { window, errores } = montaPanel(JSON.stringify(datosConLibro()));
+  window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  const bloque = window.document.querySelector(".megaInm");
+  assert.ok(bloque && /Patrimonio del hogar/.test(bloque.textContent));
+  assert.ok(bloque.textContent.includes("145.000"), "patrimonio del hogar: " + bloque.textContent);
+  assert.strictEqual(bloque.querySelectorAll(".iiFila").length, 1);
+  ({ window, errores } = montaPanel());
+  window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
+  assert.ok(window.document.querySelector(".megaInm.vacia"), "sin inmuebles: invitación a la zona");
+});
+
+test("web exportada con «ocultar importes»: ninguna preferencia vuelve a mostrar cantidades", () => {
+  const datos = JSON.parse(DATOS);
+  const errores = [];
+  const vc = new VirtualConsole();
+  vc.on("jsdomError", e => errores.push(e.detail || e));
+  const dom = new JSDOM(HTML, { runScripts: "dangerously", virtualConsole: vc, pretendToBeVisual: true, url: "http://localhost/" });
+  const { window } = dom;
+  window.fetch = () => Promise.resolve({ ok: false, json: () => Promise.resolve({}) });
+  window.scrollTo = () => {};
+  if (!window.matchMedia) window.matchMedia = () => ({ matches: false, addEventListener() {}, addListener() {} });
+  window.localStorage.setItem("patrimonio.ocultar", "0");   // quien la abre tenía «mostrar importes»
+  const s = c => { const e = window.document.createElement("script"); e.textContent = c; window.document.body.appendChild(e); };
+  s("window.ESTATICO = true; window.OCULTAR_IMPORTES = true;");
+  s(GRAFICOS);
+  s("window.DATOS = " + JSON.stringify(datos) + ";");
+  s(APP);
+  assert.strictEqual(window.OCULTAR_IMPORTES, true);
+  assert.strictEqual(window.document.getElementById("heroCifra").textContent.trim(), "•••");
+});
+
 test("los modos de los gráficos (segmentos) no rompen", () => {
   const { window, errores } = montaPanel();
   // Evolución: modos del gráfico principal (incluye «Reparto %») y mes/año.

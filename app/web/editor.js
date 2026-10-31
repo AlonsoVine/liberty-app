@@ -34,8 +34,11 @@
     lee(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
     guarda(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* da igual */ } },
   };
+  // Secciones de «Mis datos» (las mismas que pintan los grupos de la barra).
+  const VISTAS = ["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "inmuebles",
+    "config", "importar", "copias"];
   E.vista = new URLSearchParams(location.search).get("vista") || recuerda.lee("patrimonio.editor") || "activos";
-  if (!["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "config", "importar", "copias"].includes(E.vista)) E.vista = "activos";
+  if (!VISTAS.includes(E.vista)) E.vista = "activos";
 
   async function api(metodo, url, cuerpo) {
     const cab = { "Content-Type": "application/json" };
@@ -58,7 +61,7 @@
   }
   async function carga() {
     const j = await api("GET", "api/cartera");
-    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, avisosCatalogo: j.avisosCatalogo || [], marcas: j.marcas || [], fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo });
+    Object.assign(E, { cfg: j.cartera, modo: j.modo, tipos: j.tipos, tiposBase: j.tiposBase || {}, avisosCatalogo: j.avisosCatalogo || [], marcas: j.marcas || [], fuentes: j.fuentes, tiposMov: j.tiposMovimiento, tiposFlujo: j.tiposFlujo, inm: j.inmueble || { tipos: {}, usos: {}, estados: {} } });
   }
   async function guarda(coleccion, datos) {
     const j = await api("POST", "api/" + coleccion, datos);
@@ -549,11 +552,13 @@
       <div id="edAvisos" class="avisos"></div><div id="edCuerpo"></div>`;
     cont.innerHTML = html;
 
-    // Tres áreas por las dos «apps» que conviven en Liberty: patrimonio (lo que tienes y sus
-    // saldos/movimientos), el día a día (ingresos y gastos) y lo común (herramientas).
+    // Un área por cada «app» que convive en Liberty —patrimonio (lo que tienes y sus
+    // saldos/movimientos), el día a día (ingresos y gastos) e inmuebles— y lo común
+    // (herramientas).
     const grupos = [
       [["activos", "Activos"], ["deudas", "Deudas"], ["apartados", "Reservados"], ["saldos", "Saldos y movimientos"]],
       [["flujos", "Ingresos y gastos"], ["facturas", "Facturas"]],
+      [["inmuebles", "Inmuebles"]],
       [["config", "Configuración"], ["importar", "Importar"], ["copias", "Copias y seguridad"]],
     ];
     const seg = $("#edVistas");
@@ -579,7 +584,7 @@
     // Al final de la BARRA (tras el separador flexible), no pegada al último grupo.
     (seg.closest(".edBarra") || seg).appendChild(ayB);
     $("#edCuerpo").innerHTML = ({ activos: vistaActivos, deudas: vistaDeudas, apartados: vistaApartados,
-      flujos: vistaFlujos, saldos: vistaSaldosMov, facturas: vistaFacturas, config: vistaConfig,
+      flujos: vistaFlujos, saldos: vistaSaldosMov, facturas: vistaFacturas, inmuebles: vistaInmuebles, config: vistaConfig,
       importar: vistaImportar, copias: vistaCopias }[E.vista] || vistaActivos)();
     if (E.vista === "importar" || E.vista === "copias") conectaImportar();
     if (E.vista === "flujos") { montaAnotarRapido(); montaFiltrosFlujos(); }
@@ -605,7 +610,10 @@
     const n = soloSaldo(p) || manual(p)
       ? E.cfg.valoraciones.filter(v => v.producto === p.id).length + " valores"
       : E.cfg.movimientos.filter(m => m.producto === p.id).length + " movs.";
-    return `<tr id="fila-prod-${esc(p.id)}"${p.id === E.resaltaProd ? ' class="resaltado"' : ""}><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}${indicadorNota(p.id)}
+    // Una deuda que un inmueble señala como su hipoteca: enlace para saltar a ese inmueble.
+    const inm = p.tipo === "deuda" ? (E.cfg.inmuebles || []).find(x => (x.hipoteca || {}).deudaRef === p.id) : null;
+    const deInm = inm ? ` <button class="celLink" type="button" data-acc="irInmueble" data-id="${esc(inm.id)}" title="Es la hipoteca de este inmueble: ir a él">${ICO_INM[inm.tipo] || "🏠"} ${esc(inm.nombre)}</button>` : "";
+    return `<tr id="fila-prod-${esc(p.id)}"${p.id === E.resaltaProd ? ' class="resaltado"' : ""}><td><i class="pt" style="background:var(--s${p.slot || 1})"></i>${esc(nombre(p))}${indicadorNota(p.id)}${deInm}
         ${p.identificador ? `<small class="idp">${esc(p.identificador)}</small>` : ""}</td>
       <td>${esc(E.tipos[p.tipo] || p.tipo)}</td><td>${precioDe(p)}</td>
       <td>${esc(E.fuentes[p.fuente] || "")}${p.codigo ? ` <small>${esc(p.codigo)}</small>` : ""}</td>
@@ -617,7 +625,7 @@
     const lista = E.cfg.productos.filter(p => p.tipo !== "deuda");
     const filas = lista.map(filaProducto).join("");
     return `<section class="tarjeta"><header><h2>Activos</h2>
-        <span class="subt">Todo lo que suma: fondos, acciones, cripto, cuentas, planes, inmuebles… Desde la ficha de cada uno anotas sus compras o su saldo.</span>
+        <span class="subt">Todo lo que suma: fondos, acciones, cripto, cuentas, planes… Desde la ficha de cada uno anotas sus compras o su saldo. Tus pisos y locales, mejor en «Inmuebles».</span>
         <span class="sp"></span>${lista.length > 1 ? '<button class="btn" data-acc="repartirColores" title="Da a cada activo un color distinto">Repartir colores</button>' : ""}
         <button class="btn prim" data-acc="nuevoProducto">+ Añadir activo</button></header>
       ${filas ? envTabla("activos", `<tr><th>Activo</th><th>Tipo</th><th>Último precio</th>
@@ -968,6 +976,173 @@
     try { await borra("apartados", id); pinta(); } catch (x) { alert(x.message); }
   }
 
+  /* ---------------------------------------------- inmuebles (zona aparte de la cartera) */
+  // Un inmueble no es un activo más: va en su propia zona para que su valor no aplaste los
+  // gráficos de las inversiones. Su hipoteca vive en la ficha; enlazarla a una deuda de
+  // Patrimonio solo la SEÑALA (para saltar de una a otra), no mueve ninguna cifra.
+  const ICO_INM = { piso: "🏢", casa: "🏡", local: "🏪", garaje: "🚗", trastero: "📦", terreno: "🌳", otro: "🏠" };
+  const inmueble = id => (E.cfg.inmuebles || []).find(x => x.id === id);
+
+  function vistaInmuebles() {
+    const ls = E.cfg.inmuebles || [];
+    const I = E.inm;
+    const filas = ls.map(x => {
+      const c = x.compra || {}, v = x.valor || {}, h = x.hipoteca || {};
+      const deuda = h.deudaRef ? prod(h.deudaRef) : null;
+      const uso = x.uso === "habitual" ? '<span class="pos">Vivienda habitual</span>' : esc(I.estados[x.estado] || "");
+      const hip = h.capitalPendiente != null ? eur(h.capitalPendiente) : h.cuota != null ? `<small>${eur(h.cuota)}/mes</small>` : "";
+      const cats = x.categorias || [];
+      return `<tr id="fila-inm-${esc(x.id)}"${x.id === E.resaltaInmueble ? ' class="resaltado"' : ""}>
+        <td>${ICO_INM[x.tipo] || "🏠"} <button class="celLink" type="button" data-acc="verInmueble" data-id="${esc(x.id)}" title="Ver su ficha completa en el Panel (con su libro y sus documentos)">${esc(x.nombre)}</button>${indicadorNota(x.id)}${x.direccion ? `<small class="idp">${esc(x.direccion)}</small>` : ""}
+          ${cats.length ? `<small class="idp" title="${esc(cats.join(", "))}">📒 ${cats.length} categoría${cats.length === 1 ? "" : "s"}</small>` : ""}</td>
+        <td>${esc(I.tipos[x.tipo] || x.tipo || "")}</td><td>${uso}</td><td>${esc(x.titular || "")}</td>
+        <td>${v.importe != null ? `${eur(v.importe)} <small>${fecha(v.fecha)}</small>` : "<small>sin estimar</small>"}</td>
+        <td>${c.precio != null ? eur(c.precio) + (c.fecha ? ` <small>${fecha(c.fecha)}</small>` : "") : ""}</td>
+        <td>${hip}${deuda ? ` <button class="celLink" type="button" data-acc="irDeuda" data-id="${esc(deuda.id)}" title="Ir a esta deuda en «Deudas»">↗ ${esc(nombre(deuda))}</button>` : ""}</td>
+        ${celdaAcc(x.id, { editar: "editarInmueble", borrar: "borrarInmueble" })}</tr>`;
+    }).join("");
+    return `<section class="tarjeta"><header><h2>Inmuebles</h2>
+        <span class="subt">Pisos, casas, locales, garajes… aparte de tu cartera: no suman en el patrimonio de tus inversiones ni en sus gráficos. Pulsa el nombre para ver su ficha completa</span>
+        <span class="sp"></span><button class="btn prim" data-acc="nuevoInmueble">+ Añadir inmueble</button></header>
+      ${filas ? envTabla("inmuebles", `<tr><th>Inmueble</th><th>Tipo</th><th>Uso</th><th>Titular</th>
+        <th>Valor estimado</th><th>Compra</th><th>Hipoteca</th><th class="nosort"></th></tr>`, filas)
+        : '<p class="subt">Todavía no has añadido ningún inmueble.</p>'}</section>`;
+  }
+
+  // La ficha se guarda agrupada (compra / valor / hipoteca) y el formulario es plano.
+  // Los números van con coma decimal: «2.125» lo leería el servidor como dos mil ciento
+  // veinticinco (en castellano el punto separa miles).
+  function inmuebleAForm(x) {
+    const c = x.compra || {}, v = x.valor || {}, h = x.hipoteca || {};
+    const n = val => val == null ? "" : String(val).replace(".", ",");
+    return {
+      nombre: x.nombre, tipo: x.tipo || "piso", uso: x.uso || "inversion", estado: x.estado || "alquilado",
+      titular: x.titular || "", direccion: x.direccion || "", refCatastral: x.refCatastral || "",
+      m2: n(x.m2), habitaciones: n(x.habitaciones), valorCatastral: n(x.valorCatastral),
+      compraFecha: c.fecha || "", compraPrecio: n(c.precio), compraGastos: n(c.gastos),
+      valorImporte: n(v.importe), valorFecha: v.fecha || "",
+      hipCapital: n(h.capitalPendiente), hipCuota: n(h.cuota),
+      hipInteres: h.tipoInteres != null ? n(+(h.tipoInteres * 100).toFixed(4)) : "",
+      hipFin: h.fechaFin || "", hipDeuda: h.deudaRef || "", nota: x.nota || "",
+    };
+  }
+
+  // Categorías que se pueden asociar a un inmueble: las de Configuración más las que ya
+  // usan tus apuntes (por si alguna no está en la lista), sin repetir.
+  function categoriasTodas() {
+    const out = [], vistas = new Set();
+    const mete = (nombre, tipo) => {
+      const k = String(nombre || "").trim().toLowerCase();
+      if (!k || k === "sin categoría" || vistas.has(k)) return;
+      vistas.add(k); out.push({ nombre: String(nombre).trim(), tipo });
+    };
+    ((E.cfg.config || {}).categorias || []).forEach(c => mete(c.nombre, c.tipo));
+    (E.cfg.flujos || []).forEach(f => { if (f.tipo === "ingreso" || f.tipo === "gasto") mete(f.categoria, f.tipo); });
+    return out;
+  }
+  // {categoría en minúsculas: inmueble} de las ya asociadas (salvo las de `exceptoId`).
+  function categoriasOcupadas(exceptoId) {
+    const m = {};
+    (E.cfg.inmuebles || []).forEach(i => { if (i.id !== exceptoId) (i.categorias || []).forEach(c => { m[String(c).toLowerCase()] = i; }); });
+    return m;
+  }
+  // Casillas de categorías (ingresos y gastos) para la ficha del inmueble.
+  function casillasCategorias(x) {
+    const mias = new Set(((x && x.categorias) || []).map(c => c.toLowerCase()));
+    const ocup = categoriasOcupadas(x && x.id);
+    const cats = categoriasTodas();
+    const grupo = (tipo, etq) => {
+      const ls = cats.filter(c => c.tipo === tipo);
+      if (!ls.length) return "";
+      return `<div class="campo ancho"><span class="et">${etq}</span><div class="inmCatsForm">${ls.map(c => {
+        const o = ocup[c.nombre.toLowerCase()];
+        return `<label${o ? ` class="ocupada" title="Ya va con «${esc(o.nombre)}»"` : ""}><input type="checkbox" data-inmcat value="${esc(c.nombre)}"${mias.has(c.nombre.toLowerCase()) ? " checked" : ""}${o ? " disabled" : ""}> ${esc(c.nombre)}${o ? ` <small>(${esc(o.nombre)})</small>` : ""}</label>`;
+      }).join("")}</div></div>`;
+    };
+    // Las que tenía asociadas y ya no están en ninguna lista: se ven (y se conservan) igual.
+    const sueltas = ((x && x.categorias) || []).filter(c => !cats.some(k => k.nombre.toLowerCase() === c.toLowerCase()));
+    const otras = sueltas.length ? `<div class="campo ancho"><span class="et">Otras <em>ya no están en tus categorías</em></span><div class="inmCatsForm">${sueltas.map(c =>
+      `<label><input type="checkbox" data-inmcat value="${esc(c)}" checked> ${esc(c)}</label>`).join("")}</div></div>` : "";
+    const h = grupo("ingreso", "De ingresos") + grupo("gasto", "De gastos") + otras;
+    return h || '<p class="subt">Aún no tienes categorías de ingresos y gastos: créalas en Configuración → Ingresos y gastos.</p>';
+  }
+
+  // opts.recargar: tras guardar, recargar la página (cuando se edita desde la ficha del
+  // Panel, que se calcula en el servidor y si no se quedaría con las cifras de antes).
+  function formInmueble(x, opts) {
+    opts = opts || {};
+    const nuevo = !x;
+    const tits = E.cfg.titulares || [];
+    const I = E.inm;
+    const otros = (E.cfg.inmuebles || []).filter(o => nuevo || o.id !== x.id);
+    const habitual = otros.find(o => o.uso === "habitual");
+    // Deudas que se pueden enlazar: las que no señala ya otro inmueble.
+    const enlazadas = new Set(otros.map(o => (o.hipoteca || {}).deudaRef).filter(Boolean));
+    const deudas = E.cfg.productos.filter(p => p.tipo === "deuda" && !enlazadas.has(p.id));
+    const f = abreModal(nuevo ? "Añadir inmueble" : "Editar " + esc(x.nombre || "inmueble"), `
+      ${seccion("El inmueble")}
+      <div class="rejilla">
+        ${campo("Nombre", '<input name="nombre" required placeholder="Piso de la calle Mayor">', "", "ancho")}
+        ${campo("Tipo", `<select name="tipo">${opciones(I.tipos, "piso")}</select>`)}
+        ${campo("Uso", `<select name="uso">${opciones(I.usos, "inversion")}</select>`)}
+        ${campo("Estado", `<select name="estado">${opciones(I.estados, "alquilado")}</select>`, "", "inmEstado")}
+        ${tits.length > 1 ? campo("Titular", `<input name="titular" list="inmTitulares" value="${esc(nuevo ? tits[0] || "" : "")}" placeholder="Común…">
+          <datalist id="inmTitulares">${tits.map(t => `<option value="${esc(t)}">`).join("")}</datalist>`, "opcional") : ""}
+        ${campo("Dirección", '<input name="direccion">', "opcional", "ancho")}
+        ${campo("Referencia catastral", '<input name="refCatastral" maxlength="30">', "opcional")}
+        ${campo("Valor catastral", '<input name="valorCatastral" inputmode="decimal">', "€, opcional")}
+        ${campo("Superficie", '<input name="m2" inputmode="decimal">', "m²")}
+        ${campo("Habitaciones", '<input name="habitaciones" inputmode="numeric">', "opcional")}
+      </div>
+      ${habitual ? `<p class="ayuda">Tu vivienda habitual es «${esc(habitual.nombre)}»: solo puede haber una.</p>` : ""}
+      ${seccion("Compra")}
+      <div class="rejilla">
+        ${campo("Fecha de compra", '<input name="compraFecha" type="date">', "opcional")}
+        ${campo("Precio de compra", '<input name="compraPrecio" inputmode="decimal">', "€")}
+        ${campo("Gastos de compra", '<input name="compraGastos" inputmode="decimal">', "€")}
+      </div>
+      <p class="ayuda">Los gastos de compra son los impuestos (ITP o IVA y AJD), notaría, registro, gestoría e inmobiliaria: suman a lo que te costó.</p>
+      ${seccion("Valor actual")}
+      <div class="rejilla">
+        ${campo("Valor estimado", '<input name="valorImporte" inputmode="decimal">', "€")}
+        ${campo("Fecha de la estimación", '<input name="valorFecha" type="date">', "vacía = hoy")}
+      </div>
+      <p class="ayuda">Lo que crees que vale hoy (por una tasación, portales inmobiliarios o pisos parecidos). Actualízalo cuando quieras: con él se calcula la revalorización.</p>
+      ${seccion("Hipoteca (opcional)")}
+      <div class="rejilla">
+        ${campo("Capital pendiente", '<input name="hipCapital" inputmode="decimal">', "€")}
+        ${campo("Cuota mensual", '<input name="hipCuota" inputmode="decimal">', "€")}
+        ${campo("Tipo de interés", '<input name="hipInteres" inputmode="decimal">', "%")}
+        ${campo("Fecha de fin", '<input name="hipFin" type="date">')}
+        ${deudas.length ? campo("Es esta deuda de Patrimonio", `<select name="hipDeuda"><option value="">— ninguna —</option>${deudas.map(p => `<option value="${esc(p.id)}">${esc(nombre(p))}</option>`).join("")}</select>`, "opcional", "ancho") : ""}
+      </div>
+      ${deudas.length ? '<p class="ayuda">Enlazarla con una deuda que ya tienes en Patrimonio solo la señala, para saltar de una a otra: no cambia ninguna cifra.</p>' : ""}
+      ${seccion("Ingresos y gastos del inmueble")}
+      <div class="rejilla">${casillasCategorias(x)}</div>
+      <p class="ayuda">Marca las categorías que son de este inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes de Ingresos y gastos, los de antes y los que importes del banco, formarán su libro. Una categoría solo puede ir con un inmueble. También puedes repartirlas todas de una vez en Configuración → 🏢 Inmuebles.</p>
+      <div class="rejilla">${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}</div>`,
+    async f => {
+      const d = campos(f);
+      if (!nuevo) d.id = x.id;
+      d.categorias = [...f.querySelectorAll("[data-inmcat]:checked")].map(c => c.value);
+      await guarda("inmuebles", d);
+      if (opts.recargar) return () => location.reload();
+    }, nuevo ? "Guardar inmueble" : "Guardar cambios");
+    if (!nuevo) rellena(f, inmuebleAForm(x));
+    // El estado (alquilado, vacío…) solo tiene sentido en un inmueble de inversión.
+    const est = f.querySelector(".inmEstado"), uso = f.elements.uso;
+    const muestraEstado = () => { if (est) est.hidden = uso.value !== "inversion"; };
+    uso.addEventListener("change", muestraEstado);
+    muestraEstado();
+    return f;
+  }
+
+  async function borrarInmueble(id) {
+    const x = inmueble(id);
+    if (!confirm(`¿Borrar el inmueble «${x ? x.nombre : ""}»?\n\nHay copias automáticas en mis_datos/copias.`)) return;
+    try { await borra("inmuebles", id); pinta(); } catch (e) { alert(e.message); }
+  }
+
   async function guardaConfig(datos) {
     const j = await api("POST", "api/config", datos);
     E.cfg = j.cartera;
@@ -978,7 +1153,29 @@
   }
 
   const UMBRAL_NOMBRE = { umbralConcentracion: "Umbral de concentración", desviacionMax: "Desviación máxima", diasAviso: "Días de aviso", diasSinAnotar: "Recordatorio sin anotar", diasSinActualizar: "Recordatorio sin actualizar" };
-  function formHogar() {
+  // Configuración → Inmuebles: una fila por categoría con el inmueble al que pertenece.
+  // Un selector por categoría hace imposible ponerla en dos inmuebles a la vez.
+  function cfgInmueblesHTML() {
+    const inms = E.cfg.inmuebles || [];
+    if (!inms.length) return '<p class="ayuda">Todavía no tienes inmuebles. Añádelos en <b>Mis datos → Inmuebles</b> y vuelve aquí para decir qué categorías de ingresos y gastos son de cada uno.</p>';
+    const ocup = categoriasOcupadas(null);
+    const cats = categoriasTodas();
+    (E.cfg.inmuebles || []).forEach(i => (i.categorias || []).forEach(c => {
+      if (!cats.some(k => k.nombre.toLowerCase() === c.toLowerCase())) cats.push({ nombre: c, tipo: "" });
+    }));
+    if (!cats.length) return '<p class="ayuda">Aún no tienes categorías de ingresos y gastos. Créalas en la pestaña «💶 Ingresos y gastos».</p>';
+    const fila = c => {
+      const de = ocup[c.nombre.toLowerCase()];
+      return `<tr><td>${esc(c.nombre)}</td><td><select data-inmcfg="${esc(c.nombre)}" aria-label="Inmueble de «${esc(c.nombre)}»">
+        <option value="">— ninguno —</option>${inms.map(i => `<option value="${esc(i.id)}"${de && de.id === i.id ? " selected" : ""}>${esc((ICO_INM[i.tipo] || "🏠") + " " + i.nombre)}</option>`).join("")}</select></td></tr>`;
+    };
+    const tabla = (ls, etq) => ls.length ? `<div class="secc">${etq}</div><table class="inmCfgTabla"><tbody>${ls.map(fila).join("")}</tbody></table>` : "";
+    return tabla(cats.filter(c => c.tipo === "ingreso"), "Categorías de ingresos")
+      + tabla(cats.filter(c => c.tipo === "gasto"), "Categorías de gastos")
+      + tabla(cats.filter(c => !c.tipo), "Otras (ya no están en tus categorías)");
+  }
+
+  function formHogar(tabInicial) {
     const conf = E.cfg.config || {};
     const obj = conf.objetivos || {};
     const ocultos = conf.tiposOcultos || [];
@@ -994,6 +1191,7 @@
         <button type="button" class="cfgTab" data-cfg="activos">📈 Activos e inversiones</button>
         <button type="button" class="cfgTab" data-cfg="flujos">💶 Ingresos y gastos</button>
         <button type="button" class="cfgTab" data-cfg="documentos">📄 Documentos</button>
+        <button type="button" class="cfgTab" data-cfg="inmuebles">🏢 Inmuebles</button>
       </div>
 
       <div class="cfgPanel" data-cfgp="general">
@@ -1116,6 +1314,13 @@
           ${campo("Papelera de archivos", '<input name="papeleraMax" inputmode="numeric" placeholder="5">', "últimos borrados que se guardan")}
         </div>
         <p class="ayuda">En el Explorador de archivos, los archivos borrados se guardan en una papelera por si quieres recuperarlos. Aquí eliges cuántos conservar (0 = borrado directo, sin papelera).</p>
+      </div>
+
+      <div class="cfgPanel" data-cfgp="inmuebles" hidden>
+        ${seccion("Categorías de cada inmueble")}
+        <p class="ayuda" style="margin:2px 0 8px">Elige a qué inmueble pertenece cada categoría de ingresos y gastos. Todos los apuntes de esa categoría —los que ya tienes y los que importes del banco, que tus reglas clasifican solas— forman el <b>libro del inmueble</b>: lo que te deja o te cuesta. No se anota nada dos veces ni cambia el saldo de tus cuentas. Una categoría solo puede ir con un inmueble.</p>
+        <div id="cfgInm">${cfgInmueblesHTML()}</div>
+        <p class="ayuda">Consejo: crea categorías propias para cada inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor», «IBI piso Mayor») en la pestaña «💶 Ingresos y gastos» y una regla del banco para cada una. Si añades categorías nuevas, guarda y vuelve a abrir esta pestaña para verlas aquí.</p>
       </div>`,
     async f => {
       const d = campos(f);
@@ -1169,7 +1374,16 @@
       // Avisos: los que quedan sin marcar se desactivan.
       const avisosOff = (E.avisosCatalogo || []).map(a => a.clave)
         .filter(c => { const el = f.elements["aviso_" + c]; return el && !el.checked; });
+      // Inmuebles: {id: [categorías]} (todos, para que una categoría quitada se suelte).
+      const extraInm = {};
+      if ((E.cfg.inmuebles || []).length && f.querySelector("[data-inmcfg]")) {
+        const inmCats = {};
+        E.cfg.inmuebles.forEach(i => { inmCats[i.id] = []; });
+        f.querySelectorAll("[data-inmcfg]").forEach(s => { if (s.value && inmCats[s.value]) inmCats[s.value].push(s.dataset.inmcfg); });
+        extraInm.inmueblesCategorias = inmCats;
+      }
       await guardaConfig({
+        ...extraInm,
         titular: (d.nombreCartera || "").trim(),
         objetivoImporte: d.objetivoImporte,
         colchon: d.colchon,
@@ -1236,6 +1450,9 @@
       paneles.forEach(p => { p.hidden = p.dataset.cfgp !== bt.dataset.cfg; });
       const cuerpo = f.querySelector(".mCuerpo"); if (cuerpo) cuerpo.scrollTop = 0;
     });
+    // Abrir ya en una pestaña concreta (p. ej. «Asociar categorías» de la ficha de un inmueble).
+    const inicial = tabInicial && f.querySelector(`.cfgTab[data-cfg="${tabInicial}"]`);
+    if (inicial) inicial.click();
     return f;
   }
 
@@ -2623,7 +2840,15 @@
     nuevoApartado: soloPropio(() => formApartado(null)),
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
-    editarConfig: soloPropio(formHogar),
+    nuevoInmueble: soloPropio(() => formInmueble(null)),
+    editarInmueble: soloPropio(id => formInmueble(inmueble(id))),
+    borrarInmueble: soloPropio(borrarInmueble),
+    // Navegar entre una hipoteca y la deuda de Patrimonio que señala (y al revés).
+    irDeuda: id => window.Editor.irAEntidad("deuda", id),
+    irInmueble: id => window.Editor.irAEntidad("inmueble", id),
+    // La ficha ampliada (solo lectura, con su libro y sus documentos) vive en el Panel.
+    verInmueble: id => window.Editor.irAEntidad("inmueble", id),
+    editarConfig: soloPropio(() => formHogar()),
     nuevoFlujo: soloPropio(() => formFlujo(null)),
     editarFlujo: soloPropio(id => formFlujo((E.cfg.flujos || []).find(x => x.id === id))),
     borrarFlujo: soloPropio(borrarFlujo),
@@ -2730,6 +2955,59 @@
   async function guardaNotas(notas) {
     const j = await api("POST", "api/notas", { notas });
     E.cfg = j.cartera; pintarNotas();   // no marca EDITOR_SUCIO: no afecta al panel
+    // La ficha de un inmueble abierta en el Panel muestra sus notas: que se refresque.
+    const docs = $("#inmDocs");
+    if (docs && docs.dataset.inm) docsInmueble(docs, docs.dataset.inm);
+  }
+
+  /* Documentos de un inmueble (sección de su ficha en el Panel): las notas de Documentos
+     enlazadas a él, con sus archivos. Se enlazan desde aquí (nota nueva o una que ya
+     tengas) o desde la propia nota («Relacionada con → Un inmueble»). */
+  function docsInmueble(el, id) {
+    if (!el) return;
+    el.dataset.inm = id;
+    if (!E.cfg) { el.innerHTML = '<p class="cargando">Cargando…</p>'; return; }   // se repinta al cargar
+    const enlazada = n => notaVinculos(n).some(v => v.tipo === "inmueble" && v.ref === id);
+    const notas = (E.cfg.notas || []).filter(enlazada)
+      .sort((a, b) => (!!b.fijada - !!a.fijada) || String(b.fecha).localeCompare(String(a.fecha)));
+    const otras = (E.cfg.notas || []).filter(n => !enlazada(n));
+    const resumen = n => String(n.texto || "").replace(/^\s*[-*]\s+\[[ xX]\]\s?/gm, "☐ ").slice(0, 220);
+    el.innerHTML = `<div class="inmDocs">${notas.length ? notas.map(n => {
+        const archs = (n.archivos || []).map(chipArchivoNota).join("");
+        return `<div class="inmDoc"${n.color ? ` style="border-left:4px solid var(--${esc(n.color)})"` : ""}>
+          <div style="display:flex;gap:8px;align-items:flex-start">
+            <button type="button" class="inmDocTit" data-dabrir="${esc(n.id)}" title="Abrir la nota">${n.fijada ? "📌 " : ""}${esc(n.titulo || "(sin título)")}</button>
+            <span class="sp"></span><small class="subt">${fecha(n.fecha)}</small>
+            <button type="button" class="accIco" data-dquitar="${esc(n.id)}" title="Quitar de este inmueble (la nota no se borra)" aria-label="Quitar de este inmueble">×</button></div>
+          ${n.texto ? `<div class="inmDocTxt">${esc(resumen(n))}</div>` : ""}
+          ${archs ? `<div class="notaLinea">${archs}</div>` : ""}</div>`;
+      }).join("") : '<p class="subt" style="margin:0">Aún no hay documentos de este inmueble. Crea una nota (puedes adjuntarle archivos de tu Biblioteca: escrituras, contrato de alquiler, recibos del IBI, el seguro…) o enlaza una que ya tengas.</p>'}</div>
+      <div class="inmDocAcc">
+        <button type="button" class="btn prim" data-d="nueva">+ Nueva nota del inmueble</button>
+        ${otras.length ? '<button type="button" class="btn" data-d="enlazar">🔗 Enlazar una nota que ya tengo</button>' : ""}
+        ${notas.length ? '<button type="button" class="btn" data-d="ver">Verlas en Documentos</button>' : ""}
+      </div>`;
+    const guardaVincs = (nid, fn) => guardaNotas((E.cfg.notas || []).map(n => {
+      if (n.id !== nid) return n;
+      const { vinculo: _v, vinculos: _vs, ...resto } = n;
+      const vs = fn(notaVinculos(n));
+      return vs.length ? { ...resto, vinculos: vs } : resto;
+    }));
+    el.querySelectorAll("[data-dabrir]").forEach(b => { b.onclick = () => abreNotaModal(b.dataset.dabrir); });
+    el.querySelectorAll("[data-afolder]").forEach(b => { b.onclick = () => window.Editor.irACarpeta(b.dataset.afolder); });
+    el.querySelectorAll("[data-dquitar]").forEach(b => {
+      b.onclick = () => guardaVincs(b.dataset.dquitar, vs => vs.filter(v => !(v.tipo === "inmueble" && v.ref === id)));
+    });
+    el.querySelector('[data-d="nueva"]').onclick = () => formNota(null, { vinculos: [{ tipo: "inmueble", ref: id }] });
+    const bEnl = el.querySelector('[data-d="enlazar"]');
+    if (bEnl) bEnl.onclick = () => abreModal("Enlazar una nota", `
+        <div class="campo ancho"><span class="et">Nota</span><select name="nota">${otras
+          .slice().sort((a, b) => String(b.fecha).localeCompare(String(a.fecha)))
+          .map(n => `<option value="${esc(n.id)}">${esc(n.titulo || "(sin título)")} · ${fecha(n.fecha)}</option>`).join("")}</select></div>
+        <p class="ayuda">La nota (y sus archivos) aparecerá en la ficha de este inmueble. Sigue en Documentos como siempre.</p>`,
+      async f => { await guardaVincs(campos(f).nota, vs => vs.concat({ tipo: "inmueble", ref: id })); }, "Enlazar");
+    const bVer = el.querySelector('[data-d="ver"]');
+    if (bVer) bVer.onclick = () => window.Editor.verEntidad(id);
   }
   async function guardaTablero(tablero) {
     const j = await api("POST", "api/tablero", { tablero });
@@ -2761,11 +3039,12 @@
     }
     return d.toISOString().slice(0, 10);
   }
-  const VINC_ETIQ = { activo: "activo", deuda: "deuda", reservado: "reservado", categoria: "categoría" };
+  const VINC_ETIQ = { activo: "activo", deuda: "deuda", reservado: "reservado", inmueble: "inmueble", categoria: "categoría" };
   function nombreVinculo(v) {
     if (!v) return "";
     if (v.tipo === "categoria") return v.ref;
     if (v.tipo === "reservado") { const a = (E.cfg.apartados || []).find(x => x.id === v.ref); return a ? a.nombre : v.ref; }
+    if (v.tipo === "inmueble") { const i = inmueble(v.ref); return i ? `${ICO_INM[i.tipo] || "🏠"} ${i.nombre}` : v.ref; }
     const p = (E.cfg.productos || []).find(x => x.id === v.ref);
     return p ? nombre(p) : v.ref;
   }
@@ -2774,6 +3053,7 @@
     const lista = tipo === "activo" ? prods.filter(p => p.tipo !== "deuda").map(p => ({ v: p.id, t: nombre(p) }))
       : tipo === "deuda" ? prods.filter(p => p.tipo === "deuda").map(p => ({ v: p.id, t: nombre(p) }))
       : tipo === "reservado" ? (E.cfg.apartados || []).map(a => ({ v: a.id, t: a.nombre }))
+      : tipo === "inmueble" ? (E.cfg.inmuebles || []).map(i => ({ v: i.id, t: i.nombre }))
       : tipo === "categoria" ? ((E.cfg.config || {}).categorias || []).map(c => ({ v: c.nombre, t: c.nombre })) : [];
     return `<option value="">—</option>` + lista.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("");
   }
@@ -2787,6 +3067,7 @@
         <option value="activo"${vinc.tipo === "activo" ? " selected" : ""}>Un activo</option>
         <option value="deuda"${vinc.tipo === "deuda" ? " selected" : ""}>Una deuda</option>
         <option value="reservado"${vinc.tipo === "reservado" ? " selected" : ""}>Un reservado</option>
+        ${(E.cfg.inmuebles || []).length || vinc.tipo === "inmueble" ? `<option value="inmueble"${vinc.tipo === "inmueble" ? " selected" : ""}>Un inmueble</option>` : ""}
         ${legado ? '<option value="categoria" selected>Una categoría (antigua)</option>' : ""}</select>`)}
       ${campo("¿Cuál?", `<select name="vinculoRef">${opcionesRefNota(vinc.tipo || "", vinc.ref || "")}</select>`)}`;
   }
@@ -2856,7 +3137,8 @@
     pre = pre || {};
     let color = COLORES_NOTA.includes(n.color) ? n.color : "";
     let fijada = !!n.fijada;
-    const vincs = notaVinculos(n);
+    // pre.vinculos: enlaces con los que nace una nota nueva (p. ej. desde la ficha de un inmueble).
+    const vincs = nuevo && pre.vinculos ? pre.vinculos.slice() : notaVinculos(n);
     const archivos = (n.archivos || []).slice();
     const cuads = cuadernosLista();
     const cuadSel = nuevo ? (pre.cuaderno || "") : (n.cuaderno || "");
@@ -2872,10 +3154,10 @@
         ${campo("Texto", '<textarea name="texto" rows="7"></textarea>', "Para una lista de tareas, escribe «- [ ] comprar X» (se vuelve una casilla).", "ancho")}
         <div class="campo ancho"><span class="et">Color</span>
           <div class="notaColores" data-colores>${COLORES_NOTA.map(c => `<button type="button" class="notaColor${c ? "" : " sincolor"}" data-color="${c}" title="${c ? "Color" : "Sin color"}"${c ? ` style="background:var(--${c})"` : ""}>${c ? "" : "∅"}</button>`).join("")}</div></div>
-        <div class="campo ancho"><span class="et">Activos relacionados <em>navega a ellos desde la nota</em></span>
+        <div class="campo ancho"><span class="et">Relacionada con <em>activos, deudas, reservados o inmuebles; navega a ellos desde la nota</em></span>
           <div class="notaVincs chips" data-vincs></div>
           <div class="notaAddRow">
-            <select data-vtipo><option value="activo">Un activo</option><option value="deuda">Una deuda</option><option value="reservado">Un reservado</option></select>
+            <select data-vtipo><option value="activo">Un activo</option><option value="deuda">Una deuda</option><option value="reservado">Un reservado</option>${(E.cfg.inmuebles || []).length ? '<option value="inmueble">Un inmueble</option>' : ""}</select>
             <select data-vref></select>
             <button type="button" class="btn mini" data-vadd>+ Añadir</button>
           </div></div>
@@ -3890,7 +4172,7 @@
     notas: pintarNotas,
     // Navegar a una sección de «Mis datos» desde fuera (p. ej. la paleta de acciones).
     ir(v) {
-      if (["activos", "deudas", "apartados", "flujos", "saldos", "facturas", "config", "importar", "copias"].includes(v)) {
+      if (VISTAS.includes(v)) {
         E.vista = v; recuerda.guarda("patrimonio.editor", v);
       }
       pinta();
@@ -3957,25 +4239,39 @@
     // Lo usan los vencimientos de la Agenda y los activos enlazados a una nota.
     irAEntidad(origen, ref) {
       if (!ref) return;
-      // Deducir el origen si no se da: por si el id es de un producto o de un reservado.
+      // Deducir el origen si no se da: por si el id es de un producto, un reservado o un inmueble.
       if (!origen) {
         const p = prod(ref);
         origen = p ? (p.tipo === "deuda" ? "deuda" : "activo")
-          : (E.cfg.apartados || []).some(a => a.id === ref) ? "reservado" : "activo";
+          : (E.cfg.apartados || []).some(a => a.id === ref) ? "reservado"
+          : inmueble(ref) ? "inmueble" : "activo";
       }
-      const vista = origen === "deuda" ? "deudas" : origen === "reservado" ? "apartados" : "activos";
+      // Un inmueble se abre en su ficha ampliada del Panel (todo lo suyo junto: datos,
+      // libro de ingresos y gastos y documentos). Su fila de Mis datos es para editar.
+      if (origen === "inmueble" && window.verInmueble && inmueble(ref)) { window.verInmueble(ref); return; }
+      const vista = { deuda: "deudas", reservado: "apartados", inmueble: "inmuebles" }[origen] || "activos";
       E.vista = vista; recuerda.guarda("patrimonio.editor", vista);
-      E.resaltaProd = origen === "reservado" ? null : ref;
+      E.resaltaProd = origen === "activo" || origen === "deuda" ? ref : null;
       E.resaltaApartado = origen === "reservado" ? ref : null;
+      E.resaltaInmueble = origen === "inmueble" ? ref : null;
       const tab = document.querySelector('[data-tab="datos"]');
       if (tab) tab.click(); else pinta();
       requestAnimationFrame(() => {
-        const fila = document.getElementById((origen === "reservado" ? "fila-ap-" : "fila-prod-") + ref);
+        const pre = { reservado: "fila-ap-", inmueble: "fila-inm-" }[origen] || "fila-prod-";
+        const fila = document.getElementById(pre + ref);
         if (!fila) return;
         try { fila.scrollIntoView({ block: "center", behavior: "smooth" }); } catch (e) { fila.scrollIntoView(); }
       });
     },
     // Abrir la Biblioteca con una carpeta seleccionada (chip de carpeta de una nota).
+    // Para la ficha de un inmueble en el Panel: editarla (y recargar el Panel al guardar),
+    // abrir Configuración en la pestaña de categorías, pintar sus documentos y leer el
+    // concepto de un apunte (no va en los datos del Panel para que no salga en la web
+    // exportada).
+    editarInmueble: soloPropio(id => formInmueble(inmueble(id), { recargar: true })),
+    configInmuebles: soloPropio(() => formHogar("inmuebles")),
+    docsInmueble,
+    apunte: id => (E.cfg && E.cfg.flujos || []).find(f => f.id === id) || null,
     irACarpeta(id) {
       E.notasVista = "biblioteca";
       recuerda.guarda("patrimonio.notasVista", "biblioteca");
@@ -4017,6 +4313,9 @@
     pinta();
     // Si al cargar la pestaña activa es «Notas», re-dibujarla ya con los datos reales.
     if ($("#tab-notas") && !$("#tab-notas").hidden) pintarNotas();
+    // Lo que el Panel pintó antes de tener la cartera (documentos y conceptos de la ficha
+    // de un inmueble) se completa ahora.
+    document.dispatchEvent(new CustomEvent("liberty:editor-listo"));
   }).catch(x => {
     const cont = $("#editor");
     if (cont) cont.innerHTML = `<div class="av"><span>⚠</span><span>${esc(x.message)}</span></div>`;

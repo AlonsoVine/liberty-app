@@ -386,7 +386,9 @@ def api_cartera():
     return jsonify(modo=modo(), cartera=cfg, tipos=motor.tipos_visibles(cfg),
                    tiposBase=motor.TIPOS, fuentes=motor.FUENTES, avisosCatalogo=motor.AVISOS_CATALOGO,
                    marcas=almacen.marcas_de(cfg),
-                   tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO)
+                   tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO,
+                   inmueble={"tipos": motor.TIPOS_INMUEBLE, "usos": motor.USOS_INMUEBLE,
+                             "estados": motor.ESTADOS_INMUEBLE})
 
 
 @app.get("/api/buscar")
@@ -396,10 +398,10 @@ def api_buscar():
 
 GUARDAR = {"productos": almacen.guarda_producto, "movimientos": almacen.guarda_movimiento,
            "valoraciones": almacen.guarda_valoracion, "apartados": almacen.guarda_apartado,
-           "flujos": almacen.guarda_flujo}
+           "flujos": almacen.guarda_flujo, "inmuebles": almacen.guarda_inmueble}
 BORRAR = {"productos": almacen.borra_producto, "movimientos": almacen.borra_movimiento,
           "valoraciones": almacen.borra_valoracion, "apartados": almacen.borra_apartado,
-          "flujos": almacen.borra_flujo}
+          "flujos": almacen.borra_flujo, "inmuebles": almacen.borra_inmueble}
 AVISO_DEMO = ("Estás viendo el patrimonio de ejemplo. Pulsa «Empezar con mis datos» "
               "para crear el tuyo y poder guardar cambios.")
 
@@ -1258,7 +1260,7 @@ def valida_copia(cfg):
     for k in ("productos", "movimientos", "valoraciones"):
         if not isinstance(cfg.get(k), list) or any(not isinstance(x, dict) for x in cfg[k]):
             raise almacen.ErrorValidacion(["Ese archivo no es una copia de seguridad de esta app."])
-    for k in ("flujos", "apartados", "titulares", "monedas"):
+    for k in ("flujos", "apartados", "inmuebles", "titulares", "monedas"):
         if k in cfg and not isinstance(cfg.get(k), list):
             raise almacen.ErrorValidacion([f"La copia está dañada (campo «{k}» con formato incorrecto)."])
     if "config" in cfg and not isinstance(cfg.get("config"), dict):

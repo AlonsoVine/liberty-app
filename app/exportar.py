@@ -10,6 +10,11 @@ Con «ocultar importes», las cantidades en euros se multiplican por un factor a
 azar ANTES de meterlas en la página, y además no se muestran. Así, aunque alguien
 mire el código fuente, solo puede sacar proporciones (que ya se ven en los
 porcentajes), nunca tu patrimonio real.
+
+Se escala TODO número salvo los que se sabe que no son euros (porcentajes, días,
+recuentos…). Al revés —escalar solo una lista de campos «de dinero»— cualquier campo
+nuevo que nadie añadiera a la lista se colaba con su cifra real (pasó con el patrimonio
+neto, las deudas y el bloque fiscal).
 """
 
 import base64
@@ -20,68 +25,54 @@ import random
 import re
 from html import escape as _escape  # alias: dentro de pagina() «html» es la página
 
-# Campos con euros (o unidades, que multiplicadas por el precio darían euros).
-CAMPOS_DINERO = {
-    "valor", "aportado", "plusvalia", "serie", "serieAportado", "importe", "valorExtracto",
-    "realizado", "participaciones", "titulos", "valorConCoste", "patrimonio", "ritmoMensual",
-    "anual", "base", "compraventaPagada", "inicio", "fin", "mercado", "nuevo",
-    "comision", "min", "max", "mediana", "p33", "p67", "snapshots", "flujos", "tuya", "tuValor",
+# Números que NO son euros: porcentajes, tipos, días, recuentos, superficies… Se dejan
+# tal cual (no revelan el patrimonio y escalarlos rompería los porcentajes que sí se ven).
+# Cualquier otro número se escala.
+NO_DINERO = {
+    "activos", "alquilados", "anios", "apuntes", "cagr", "caidaMaxima", "cuotaSobreIngresos",
+    "desviacion", "desviacionMax", "dias", "diasAviso", "diasInvertido", "diasRestantes",
+    "documentos", "facturas", "habitaciones", "inflacion", "m2", "maxDD", "movimientos", "n",
+    "nApuntes", "nHabitual", "nInversion", "numAportaciones", "ocupacion", "pct", "peso",
+    "plusvaliaPct", "racha", "ratioDeudaActivos", "rentTotal", "rentabilidad",
+    "rentabilidadNeta", "riesgo", "sharpe", "slot", "sumaObjetivos", "tae", "tasaAhorro",
+    "ter", "terPonderado", "tipo", "tipoInteres", "tir", "tuTir", "twr", "umbral", "vol", "ytd",
 }
-# «total» y «porProducto» significan cosas distintas según dónde estén (en
-# rentabilidadAnual son porcentajes): solo se escalan en aportacionesMensuales.
+# Bloques enteros de proporciones o índices (base 100): se copian sin tocar.
+BLOQUES_RATIO = {"rentabilidadAnual", "comparador", "indiceCartera", "control", "conteos"}
+# Cifras absolutas que ni escaladas tienen sentido: fuera.
+FUERA = {"hitos", "objetivo", "precioMedio"}
+# Un importe escrito dentro de un texto (p. ej. en un aviso): «1.234,56 €».
+_EUROS_EN_TEXTO = re.compile(r"[-+−]?\d[\d.,]*\s?€")
 
 
-def _escala(x, k):
-    """Multiplica por k todos los números de x (listas y diccionarios incluidos),
-    dejando en paz las fechas y los textos."""
-    if isinstance(x, bool) or x is None:
-        return x
-    if isinstance(x, (int, float)):
-        return round(x * k, 2)
-    if isinstance(x, list):
-        return [_escala(v, k) for v in x]
-    if isinstance(x, dict):
-        return {c: _escala(v, k) for c, v in x.items()}
-    return x
-
-
-def _anonimiza(nodo, k):
-    if isinstance(nodo, list):
-        return [_anonimiza(v, k) for v in nodo]
-    if not isinstance(nodo, dict):
+def _anonimiza(nodo, k, clave=None):
+    if isinstance(nodo, bool) or nodo is None:
         return nodo
-    out = {}
-    for c, v in nodo.items():
-        if c in CAMPOS_DINERO:
-            out[c] = _escala(v, k)
-        elif c in ("hitos", "objetivo", "precioMedio"):
-            continue   # cifras absolutas: fuera
-        else:
-            out[c] = _anonimiza(v, k)
-    return out
+    if isinstance(nodo, (int, float)):
+        if clave in NO_DINERO:
+            return nodo
+        return round(nodo * k, 2 if abs(nodo) >= 1 else 6)   # 6: títulos de cripto (0,0123 BTC)
+    if isinstance(nodo, str):
+        return _EUROS_EN_TEXTO.sub("••• €", nodo)
+    if isinstance(nodo, list):   # una lista hereda la clave que la contiene
+        return [_anonimiza(v, k, clave) for v in nodo]
+    if isinstance(nodo, dict):
+        out = {}
+        for c, v in nodo.items():
+            if c in FUERA:
+                continue
+            out[c] = v if c in BLOQUES_RATIO else _anonimiza(v, k, c)
+        return out
+    return nodo
 
 
 def sin_importes(datos):
     """Copia de los datos con los euros escalados por un factor secreto."""
     k = random.uniform(0.37, 2.9)
     out = _anonimiza(datos, k)
-    am = out.get("aportacionesMensuales") or {}
-    for c in ("total", "porProducto"):
-        if c in am:
-            am[c] = _escala(am[c], k)
-    # El bloque «flujos» se escala entero (es dinero), pero la tasa de ahorro es una
-    # proporción: escalarla la dejaría sin sentido. Se restaura desde el original (un
-    # ratio no revela euros). Ingresos/gastos/ahorro sí siguen escalados.
-    fl0 = datos.get("flujos")
-    if out.get("flujos") and fl0:
-        out["flujos"]["tasaAhorro"] = fl0.get("tasaAhorro")
-        for b in ("esteMes", "anio", "media12"):
-            if isinstance(out["flujos"].get(b), dict) and isinstance(fl0.get(b), dict):
-                out["flujos"][b]["tasaAhorro"] = fl0[b].get("tasaAhorro")
-    out["total"]["hitos"] = []
+    if isinstance(out.get("total"), dict):
+        out["total"]["hitos"] = []
     out["objetivo"] = None
-    if out.get("vivo"):
-        out["vivo"]["titulos"] = round(datos["vivo"]["titulos"] * k, 6)
     return out
 
 

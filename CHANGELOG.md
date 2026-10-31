@@ -9,6 +9,47 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
+## [No publicado] — rama `inmuebles`
+
+Nueva **zona de Inmuebles**, la tercera «app» de Liberty, aparte de la cartera. Se construye por
+iteraciones ([diseño](docs/diseno-inmuebles.md)) y se publicará cuando esté completa.
+
+- **Iteración 1 · núcleo (ADR 0028).** Fichas de inmueble en «Mis datos → Inmuebles»: tipo,
+  titular, dirección, referencia catastral, superficie, valor catastral, **compra** (fecha,
+  precio y gastos), **valor estimado** y **hipoteca** (capital, cuota, interés y fin), con
+  enlace opcional a una deuda de Patrimonio para saltar de una a otra. Cada inmueble es una
+  inversión (alquilado, vacío, en reforma o en venta) o **tu vivienda habitual** (solo una). En
+  el Panel, la vista **«Inmuebles»** resume valor, revalorización, hipotecas y neto, con una
+  tarjeta por inmueble. **No suman en el patrimonio ni en los gráficos de tus inversiones.** La
+  demo trae un piso alquilado y la vivienda habitual.
+- **Ficha ampliada, libro, documentos e Inicio (ADR 0029).**
+  - **Ficha completa de cada inmueble** en el Panel (al pulsar su tarjeta, su nombre en Mis
+    datos, una nota enlazada o la paleta). Reúne todos sus datos, la compra y el valor, la
+    hipoteca, su **libro de ingresos y gastos** (KPIs, gráfica mes a mes, reparto por categoría y
+    apuntes, con **selector de periodo**: 12 meses, este año, el año pasado, todo o un rango de
+    una fecha a otra) y sus **documentos**. Se edita con «✎ Editar ficha».
+  - **Categorías por inmueble.** Hay una pestaña nueva, **Configuración → 🏢 Inmuebles**, y
+    casillas en la ficha. Los apuntes de esas categorías forman el libro del inmueble, también
+    los pasados y los importados del banco. Nada se anota dos veces ni se tocan los saldos. Una
+    categoría solo puede ir con un inmueble.
+  - **Cash-flow y rentabilidad neta** a 12 meses en los inmuebles de inversión. El coste de la
+    vivienda habitual va aparte.
+  - **Documentos del inmueble.** Las notas de Documentos se pueden enlazar a un inmueble, ya sea
+    desde la nota («Relacionada con → Un inmueble») o desde su ficha (nota nueva o una que ya
+    tengas). Al borrar el inmueble, el enlace se suelta.
+  - **Inicio** estrena el bloque **«Tus inmuebles»**, con el **patrimonio total del hogar**:
+    cartera + inmuebles − hipotecas, sin restar dos veces una hipoteca enlazada a una deuda.
+- **Arreglo de privacidad: la web exportada con «Ocultar importes».** Fallaba de dos maneras.
+  Este fallo ya estaba en la 1.16.1 y anteriores.
+  - Solo se escalaba una lista de campos. Se colaban **cifras reales**: patrimonio neto y bruto,
+    deudas, colchón, dinero libre, el informe fiscal… Ahora se escala **todo número** salvo los
+    que no son euros (porcentajes, días, recuentos), y se tapan los importes escritos en los
+    textos.
+  - Al abrir la web, la preferencia local de «Ocultar importes» **volvía a mostrar las
+    cantidades**. Ahora la marca de la exportación no se puede desactivar.
+  - Hay tests que lo comprueban con la demo entera.
+- **Arreglo:** el tour aún mencionaba las teclas 1–8, retiradas en la 1.16.1.
+
 ## [1.16.1] — 2026-10-31
 
 Mantenimiento y pulido de UX, sin funciones nuevas. ADR 0027.

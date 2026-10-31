@@ -106,6 +106,18 @@ Estructura de la cartera **antes** del rediseño (ver
 - **`hitos`**: importes objetivo para marcar en la curva de patrimonio.
 - **`objetivo`**: meta de importe única.
 - **`titular`**: nombre del titular (hoy, un único valor global).
+- **`inmuebles`** *(rama `inmuebles`, [diseño](diseno-inmuebles.md), ADR 0028)*: la zona de
+  Inmuebles, **aparte de la cartera** (no suma en su patrimonio ni en sus gráficos). Campos:
+  `id` (`i1`…), `nombre`, `tipo`, `uso` (`inversion`/`habitual`), `estado`, `titular`,
+  `direccion`, `refCatastral`, `m2`, `habitaciones`, `valorCatastral`, `compra {fecha,
+  precio, gastos}`, `valor {importe, fecha}` (estimación manual), `hipoteca {capitalPendiente,
+  cuota, tipoInteres, fechaFin, deudaRef}` (`deudaRef` solo señala una deuda de `productos`),
+  `categorias` (ADR 0029: categorías de ingresos y gastos cuyos apuntes forman el **libro** del
+  inmueble; cada categoría, como mucho en un inmueble). El motor la resume en
+  `DATOS.inmuebles` (`motor.inmuebles_de` + `libro_inmueble`, y `inmuebles_hogar` añade el
+  patrimonio total del hogar para Inicio). Las notas se enlazan a un inmueble con un vínculo
+  `{tipo: "inmueble", ref}`. Los conceptos de los apuntes y las notas **no** van en `DATOS`
+  (la ficha los lee de la cartera en vivo), así que no salen en la web exportada.
 
 ## 6. Interfaz de usuario
 

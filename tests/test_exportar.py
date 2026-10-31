@@ -54,3 +54,48 @@ def test_ocultar_importes_no_escala_la_tasa_de_ahorro(monkeypatch):
     assert out["flujos"]["ingresos"] == [2000.0, 4000.0]
     assert out["flujos"]["esteMes"]["ingresos"] == 4000.0
     assert out["flujos"]["esteMes"]["ahorro"] == 1200.0
+
+
+def _numeros(nodo, ruta="D", clave=None):
+    """(ruta, clave, número) de cada número de un árbol de datos."""
+    if isinstance(nodo, bool) or nodo is None:
+        return
+    if isinstance(nodo, (int, float)):
+        yield ruta, clave, nodo
+    elif isinstance(nodo, list):
+        for i, v in enumerate(nodo):
+            yield from _numeros(v, f"{ruta}[{i}]", clave)
+    elif isinstance(nodo, dict):
+        for c, v in nodo.items():
+            yield from _numeros(v, f"{ruta}.{c}", c)
+
+
+def test_ocultar_importes_no_deja_ninguna_cifra_real_de_la_demo(tmp_path, monkeypatch):
+    """Ninguna cifra en euros de la demo (patrimonio, deudas, fiscal, inmuebles…) puede
+    llegar intacta a la web con «ocultar importes». Antes se escalaba solo una lista de
+    campos y se colaban el patrimonio neto, las deudas o el bloque fiscal."""
+    import copy
+    import json
+
+    from app import motor
+    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(raiz, "demo", "cartera.json"), encoding="utf-8") as f:
+        cfg = json.load(f)
+    datos = motor.construir(cfg, str(tmp_path), descargar=False)
+    monkeypatch.setattr(exportar.random, "uniform", lambda a, b: 1.7)
+    out = exportar.sin_importes(copy.deepcopy(datos))
+    orig = {r: v for r, _, v in _numeros(datos)}
+    fugas = [r for r, c, v in _numeros(out)
+             if c not in exportar.NO_DINERO and abs(v) >= 50 and orig.get(r) == v
+             and not any(r.startswith(f"D.{b}") for b in exportar.BLOQUES_RATIO)]
+    assert fugas == []
+    # Las de inmuebles en concreto (zona nueva): escaladas.
+    assert out["inmuebles"]["total"]["neto"] == round(datos["inmuebles"]["total"]["neto"] * 1.7, 2)
+    assert out["total"]["patrimonioNeto"] != datos["total"]["patrimonioNeto"]
+    # Y las proporciones siguen intactas.
+    assert out["total"]["ratioDeudaActivos"] == datos["total"]["ratioDeudaActivos"]
+
+
+def test_ocultar_importes_tapa_los_euros_escritos_en_textos():
+    out = exportar.sin_importes({"total": {}, "alertas": [{"texto": "Te faltan 1.250,50 € para el colchón"}]})
+    assert out["alertas"][0]["texto"] == "Te faltan ••• € para el colchón"

@@ -450,6 +450,14 @@ FUENTES = {"morningstar": "Morningstar", "yahoo": "Yahoo Finance",
            "coingecko": "CoinGecko", "manual": "Valor anotado a mano"}
 ORDEN_TIPO = {"compra": 0, "comision": 1, "dividendo": 2, "venta": 3}
 
+# Zona de Inmuebles (aparte de la cartera): catálogos que comparten el almacén (para
+# validar) y el panel (para mostrar el nombre legible).
+TIPOS_INMUEBLE = {"piso": "Piso", "casa": "Casa", "local": "Local", "garaje": "Garaje",
+                  "trastero": "Trastero", "terreno": "Terreno", "otro": "Otro"}
+USOS_INMUEBLE = {"inversion": "Inversión", "habitual": "Vivienda habitual"}
+ESTADOS_INMUEBLE = {"alquilado": "Alquilado", "vacio": "Vacío", "reforma": "En reforma",
+                    "venta": "En venta"}
+
 
 # -- Tipos de activo: los de base (TIPOS) más los que cree el usuario -----------
 # El usuario puede AÑADIR tipos propios (config.tipos: [{id, nombre}]) y OCULTAR
@@ -745,6 +753,181 @@ def serie_cambio(moneda, carpeta):
 
 
 # ---------------------------------------------------------------- construccion
+
+def libro_inmueble(categorias, flujos, meses):
+    """Libro de ingresos y gastos de un inmueble: los apuntes de Ingresos y gastos cuya
+    categoría está asociada a él (no se duplica nada; es analítico, no toca saldos).
+    `meses` son los 12 meses (AAAA-MM) que acaban en la fecha de valoración."""
+    if not categorias:
+        return None
+    suyas = {str(c).lower() for c in categorias}
+    idx = {m: i for i, m in enumerate(meses)}
+    ser = {"ingreso": [0.0] * len(meses), "gasto": [0.0] * len(meses)}
+    tot = {"ingreso": 0.0, "gasto": 0.0}
+    por_cat = {}
+    apuntes = []
+    for f in flujos or []:
+        t = f.get("tipo")
+        cat = (f.get("categoria") or "").strip()
+        if t not in ("ingreso", "gasto") or cat.lower() not in suyas:
+            continue
+        imp = float(f.get("importe") or 0)
+        tot[t] += imp
+        i = idx.get(str(f.get("fecha", ""))[:7])
+        c = por_cat.setdefault((t, cat), {"categoria": cat, "tipo": t, "total": 0.0, "ultimos12": 0.0, "n": 0})
+        c["total"] += imp
+        c["n"] += 1
+        if i is not None:
+            ser[t][i] += imp
+            c["ultimos12"] += imp
+        apuntes.append({"id": f.get("id"), "fecha": f.get("fecha"), "tipo": t,
+                        "importe": r2(imp), "categoria": cat})
+    ing12, gas12 = sum(ser["ingreso"]), sum(ser["gasto"])
+    apuntes.sort(key=lambda a: str(a["fecha"]), reverse=True)
+    return {
+        "categorias": list(categorias),
+        "n": len(apuntes),
+        "ingresos12": r2(ing12), "gastos12": r2(gas12), "neto12": r2(ing12 - gas12),
+        "ingresosTotal": r2(tot["ingreso"]), "gastosTotal": r2(tot["gasto"]),
+        "netoTotal": r2(tot["ingreso"] - tot["gasto"]),
+        "meses": list(meses),
+        "serieIngresos": [r2(v) for v in ser["ingreso"]], "serieGastos": [r2(v) for v in ser["gasto"]],
+        "porCategoria": sorted(({**c, "total": r2(c["total"]), "ultimos12": r2(c["ultimos12"])}
+                                for c in por_cat.values()),
+                               key=lambda c: (c["tipo"] != "ingreso", -c["total"])),
+        # Todos (con un tope de seguridad): la ficha los filtra por el rango de fechas elegido.
+        "apuntes": apuntes[:5000],
+    }
+
+
+def meses_hasta(fecha, n=12):
+    """Los `n` meses (AAAA-MM) que acaban en el de `fecha`, del más antiguo al último."""
+    y, m = fecha.year, fecha.month
+    out = []
+    for _ in range(n):
+        out.append(f"{y:04d}-{m:02d}")
+        y, m = (y, m - 1) if m > 1 else (y - 1, 12)
+    return out[::-1]
+
+
+def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
+    """Resumen de la zona de Inmuebles: cada inmueble con su coste, valor, revalorización,
+    hipoteca y libro de ingresos y gastos, y los totales. Va APARTE del patrimonio de la
+    cartera (no suma en sus totales ni en sus gráficos). `deudas` es el detalle de deudas
+    ya calculado, para resolver la deuda enlazada a cada hipoteca. Con `hasta` (ISO) es la
+    foto de entonces: fuera los comprados después, y una estimación de valor posterior no
+    se usa. `flujos` son los apuntes de Ingresos y gastos (ya acotados a esa foto) y
+    `fecha_ref`, la fecha de valoración que cierra los «últimos 12 meses»."""
+    deuda_por = {x["id"]: x for x in deudas or []}
+    meses = meses_hasta(fecha_ref or (d(hasta[:10]) if hasta else hoy()))
+    lista = []
+    for im in cfg.get("inmuebles") or []:
+        compra = im.get("compra") or {}
+        if hasta and compra.get("fecha") and compra["fecha"] > hasta:
+            continue
+        precio, gastos = compra.get("precio"), compra.get("gastos")
+        coste = (precio or 0) + (gastos or 0) if precio is not None else None
+        est = im.get("valor") or {}
+        valor, valor_fecha, de_compra = est.get("importe"), est.get("fecha"), False
+        if valor is not None and hasta and valor_fecha and valor_fecha > hasta:
+            valor = None
+        if valor is None and precio is not None:   # sin estimación: vale lo que costó
+            valor, valor_fecha, de_compra = precio, compra.get("fecha"), True
+        # Revalorización solo con una estimación propia: sin ella no se sabe (y restar los
+        # gastos de compra al precio daría una «pérdida» que no es tal).
+        plusvalia = r2(valor - coste) if (valor is not None and coste and not de_compra) else None
+
+        hip_out, capital = None, 0.0
+        hip = im.get("hipoteca") or {}
+        if hip:
+            enl = deuda_por.get(hip.get("deudaRef"))
+            capital = hip.get("capitalPendiente")
+            if capital is None and enl:      # sin capital propio: el de la deuda enlazada
+                capital = enl.get("capitalPendiente")
+            capital = float(capital or 0)
+            hip_out = {"capitalPendiente": r2(capital), "cuota": hip.get("cuota"),
+                       "tipoInteres": hip.get("tipoInteres"), "fechaFin": hip.get("fechaFin"),
+                       "deudaRef": hip.get("deudaRef") if enl else None,
+                       "deudaNombre": enl.get("nombre") if enl else None}
+
+        anios = None
+        if compra.get("fecha"):
+            ref = d(hasta[:10]) if hasta else hoy()
+            anios = round(max(0, (ref - d(compra["fecha"])).days) / 365.25, 1)
+        uso = im.get("uso") or "inversion"
+        libro = libro_inmueble(im.get("categorias") or [], flujos, meses)
+        # Rentabilidad neta: lo que dejó el libro en 12 meses sobre lo que costó. Solo en
+        # los de inversión (la vivienda habitual no tiene ingresos: solo coste).
+        rent_neta = (r4(libro["neto12"] / coste) if (libro and coste and uso == "inversion"
+                                                     and libro["ingresos12"]) else None)
+        lista.append({
+            "id": im["id"], "nombre": im.get("nombre") or im["id"],
+            "tipo": im.get("tipo") or "piso",
+            "tipoNombre": TIPOS_INMUEBLE.get(im.get("tipo") or "piso", "Otro"),
+            "uso": uso, "usoNombre": USOS_INMUEBLE.get(uso, ""),
+            "estado": im.get("estado") if uso == "inversion" else None,
+            "estadoNombre": ESTADOS_INMUEBLE.get(im.get("estado") or "") if uso == "inversion" else None,
+            "titular": im.get("titular", ""), "direccion": im.get("direccion", ""),
+            "refCatastral": im.get("refCatastral", ""), "valorCatastral": im.get("valorCatastral"),
+            "m2": im.get("m2"), "habitaciones": im.get("habitaciones"), "nota": im.get("nota", ""),
+            "compraFecha": compra.get("fecha"), "precio": precio, "gastosCompra": gastos,
+            "coste": r2(coste), "valor": r2(valor), "valorFecha": valor_fecha,
+            "valorDeCompra": de_compra,
+            "plusvalia": plusvalia, "plusvaliaPct": r4(plusvalia / coste) if plusvalia is not None else None,
+            "anios": anios, "hipoteca": hip_out,
+            "neto": r2((valor or 0) - capital) if valor is not None else None,
+            "categorias": list(im.get("categorias") or []),
+            "libro": libro, "rentabilidadNeta": rent_neta,
+        })
+
+    valor_tot = round(sum(x["valor"] for x in lista if x["valor"] is not None), 2)
+    hipotecas = round(sum((x["hipoteca"] or {}).get("capitalPendiente") or 0 for x in lista), 2)
+    # Las hipotecas enlazadas a una deuda de Patrimonio ya restan allí: al sumar el hogar
+    # entero no se pueden volver a restar.
+    sin_enlace = round(sum((x["hipoteca"] or {}).get("capitalPendiente") or 0 for x in lista
+                           if not (x["hipoteca"] or {}).get("deudaRef")), 2)
+    con_rev = [x for x in lista if x["plusvalia"] is not None]
+    coste_rev = sum(x["coste"] for x in con_rev)
+    plus_tot = round(sum(x["plusvalia"] for x in con_rev), 2)
+    # El cash-flow («lo que te dejan») es solo de los de inversión: los gastos de la
+    # vivienda habitual son lo que cuesta vivir en ella, no una pérdida de la inversión.
+    libros = [x["libro"] for x in lista if x["libro"] and x["uso"] == "inversion"]
+    ing12 = round(sum(lb["ingresos12"] for lb in libros), 2)
+    gas12 = round(sum(lb["gastos12"] for lb in libros), 2)
+    hab = next((x["libro"] for x in lista if x["libro"] and x["uso"] == "habitual"), None)
+    return {
+        "lista": lista,
+        "total": {
+            "n": len(lista),
+            "nInversion": sum(1 for x in lista if x["uso"] == "inversion"),
+            "nHabitual": sum(1 for x in lista if x["uso"] == "habitual"),
+            "alquilados": sum(1 for x in lista if x["estado"] == "alquilado"),
+            "valor": valor_tot,
+            "coste": round(sum(x["coste"] or 0 for x in lista), 2),
+            # La revalorización solo compara los que tienen precio de compra y estimación.
+            "plusvalia": plus_tot if con_rev else None,
+            "plusvaliaPct": r4(plus_tot / coste_rev) if coste_rev else None,
+            "hipotecas": hipotecas,
+            "hipotecasSinEnlace": sin_enlace,
+            "cuotaHipotecas": round(sum((x["hipoteca"] or {}).get("cuota") or 0 for x in lista), 2),
+            "neto": round(valor_tot - hipotecas, 2),
+            # Libro de los de inversión con categorías asociadas, y el coste de la habitual.
+            "conLibro": len(libros),
+            "ingresos12": ing12, "gastos12": gas12, "neto12": round(ing12 - gas12, 2),
+            "costeHabitual12": hab["gastos12"] if hab else None,
+        },
+    }
+
+
+def inmuebles_hogar(inm, neto_cartera):
+    """Añade a los totales de Inmuebles el patrimonio total del hogar (lo que muestra
+    Inicio): el neto de la cartera + el valor de los inmuebles − las hipotecas que NO
+    están ya enlazadas a una deuda de Patrimonio (esas ya restan en el neto de la cartera)."""
+    t = inm["total"]
+    t["patrimonioCartera"] = r2(neto_cartera)
+    t["patrimonioHogar"] = r2((neto_cartera or 0) + t["valor"] - t["hipotecasSinEnlace"]) if t["n"] else None
+    return inm
+
 
 def construir(cfg, carpeta, descargar=True, hasta=None):
     """
@@ -1958,6 +2141,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                              if (n.get("vinculo") or {}).get("ref")}),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
+        # Zona de Inmuebles: aparte del patrimonio de la cartera (no suma en «total»).
+        "inmuebles": inmuebles_hogar(
+            inmuebles_de(cfg, deudas_detalle, fecha_extracto.isoformat() if hasta else None,
+                         flujos=flujos_cfg, fecha_ref=fecha_extracto), neto),
         "flujos": flujos_out,
         # Flujos crudos (acotados a 'hasta') para filtrar por titular/entidad/dimensión
         # en el cliente, sin recalcular en el servidor: el Panel reagrega al vuelo.
