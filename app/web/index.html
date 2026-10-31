@@ -543,22 +543,36 @@ body.vistaAmplia .segm button{padding:10px 16px}
 /* Caja discreta y plegable que agrupa los avisos del panel. Plegada ocupa solo la
    cabecera (una línea), para no obligar a hacer scroll en cada pestaña; el estado se
    recuerda. Si hay un aviso nuevo sin ver, la cabecera lo señala con «nuevo». */
-.avisosCaja{display:flex;flex-direction:column}
-.avisosCab{display:flex;align-items:center;gap:8px;width:100%;box-sizing:border-box;
-  background:transparent;border:0;border-radius:8px;padding:5px 6px;margin:0;cursor:pointer;
-  font:inherit;font-size:12.5px;font-weight:600;color:var(--tinta2);text-align:left;
+/* La caja de avisos es una tarjeta real (como el resto de paneles de la app): la cabecera
+   con la campanita y los avisos viven dentro del mismo recuadro, de modo que al desplegarse
+   se ve que forman parte de ella. Los avisos de dentro son filas planas de una misma lista,
+   no tarjetas sueltas. */
+.avisosCaja{border:1px solid var(--borde);border-radius:12px;background:var(--sup2);overflow:hidden}
+.avisosCab{display:flex;align-items:center;gap:9px;width:100%;box-sizing:border-box;
+  background:transparent;border:0;padding:11px 14px;margin:0;cursor:pointer;
+  font:inherit;font-size:13px;font-weight:600;color:var(--tinta2);text-align:left;
   transition:color .15s,background .15s}
-.avisosCab:hover{color:var(--tinta);background:var(--sup2,var(--sup))}
-.avisosCab:focus-visible{outline:2px solid var(--s1);outline-offset:2px}
-.avisosCabIco{font-size:14px;line-height:1}
-.avisosChevron{margin-left:auto;font-size:14px;line-height:1;transition:transform .2s ease}
+.avisosCab:hover{color:var(--tinta);background:color-mix(in srgb,var(--tinta) 4%,transparent)}
+.avisosCab:focus-visible{outline:2px solid var(--s1);outline-offset:-2px}
+.avisosCabIco{font-size:15px;line-height:1}
+.avisosCaja[data-abierto="1"] .avisosCab{border-bottom:1px solid var(--borde)}
+.avisosChevron{margin-left:auto;width:12px;height:8px;color:var(--tinta3);flex:0 0 auto;
+  transition:transform .25s ease}
 .avisosCaja[data-abierto="0"] .avisosChevron{transform:rotate(-90deg)}
-.avisosCaja[data-abierto="0"] .avisosLista{display:none}
-.avisosLista{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+/* Despliegue suave: la lista crece de 0fr a 1fr (en vez de aparecer de golpe). */
+.avisosLista{display:grid;grid-template-rows:1fr;transition:grid-template-rows .26s ease}
+.avisosCaja[data-abierto="0"] .avisosLista{grid-template-rows:0fr}
+.avisosListaIn{min-height:0;overflow:hidden;display:flex;flex-direction:column}
 .avisosNuevo{font-size:10.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
   color:#fff;background:var(--mal);border-radius:99px;padding:1px 7px;line-height:1.6;
   box-shadow:0 0 0 3px color-mix(in srgb,var(--mal) 28%,transparent)}
 .avisosNuevo[hidden]{display:none}
+/* Dentro de la caja: filas planas separadas por una línea fina (acento rojo si es aviso). */
+.avisosLista .avisoLinea{border:0;border-radius:0;background:transparent;padding:10px 14px;
+  border-top:1px solid var(--borde)}
+.avisosListaIn .avisoLinea:first-child{border-top:0}
+.avisosLista .avisoLinea.aviso{box-shadow:inset 3px 0 0 var(--mal)}
+.avisosLista .avisoLinea.clicable:hover{background:color-mix(in srgb,var(--tinta) 4%,transparent)}
 /* Aviso homogéneo: mismo aspecto en el Panel y en Mis datos (borde redondeado, acento
    por nivel a la izquierda y un icono de la sección a la que corresponde el aviso). */
 .avisoLinea{display:flex;align-items:center;gap:10px;background:var(--sup);border:1px solid var(--borde);
@@ -1372,11 +1386,6 @@ a.bibNom:hover,button.bibNom:hover{color:var(--s1);text-decoration:underline}
 .palVacio{padding:16px 12px;color:var(--tinta3);font-size:14px}
 .palPie{padding:9px 14px;border-top:1px solid var(--borde);font-size:11.5px;color:var(--tinta3)}
 .palPie kbd{margin-right:3px}
-/* Overlay de atajos de teclado */
-.atajosCuerpo{padding:24px 26px;max-width:460px}
-.atajos{width:100%;border-collapse:collapse}
-.atajos td{padding:8px 4px;border-top:1px solid var(--borde);font-size:14px;color:var(--tinta2)}
-.atajos td:first-child{white-space:nowrap;width:1%;padding-right:18px}
 kbd{display:inline-block;min-width:16px;text-align:center;padding:2px 7px;border-radius:7px;font:inherit;font-size:12.5px;
   font-weight:600;color:var(--tinta);background:var(--sup2);border:1px solid var(--borde);box-shadow:0 1px 0 var(--borde)}
 /* Resumen del mes (tarjeta de bienvenida del Panel) */
@@ -2245,14 +2254,10 @@ body.video .tarjetaCanal{display:none}
       <p>En <b>Mis datos → Activos</b>, da a cada activo un color distinto (útil cuando tienes muchos y se repiten).
       El cambio se ve en los gráficos del panel.</p></div></details>
 
-    <details class="faq"><summary>Se me ve pequeño. ¿Puedo agrandar el texto? ¿Hay atajos de teclado?</summary><div>
+    <details class="faq"><summary>Se me ve pequeño. ¿Puedo agrandar el texto?</summary><div>
       <p>En la pestaña <b>«⚙️ Ajustes»</b> (arriba, a la derecha de «Ayuda») puedes cambiar el <b>tamaño del texto</b>,
       el <b>tema</b> (claro, oscuro o automático), la <b>vista amplia</b>, <b>ocultar los importes</b> y el <b>modo vídeo</b>. Todo se recuerda para la próxima vez.</p>
-      <p>Atajos de teclado (cuando no estás escribiendo en un campo):</p>
-      <ul>
-        <li><b>1…8</b>: cambian de pestaña dentro del Panel, en orden (Inicio, Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos, Informe fiscal e Ingresos y gastos).</li>
-        <li><b>V</b>: modo vídeo. <b>L</b>: ver solo lo de largo plazo. <b>Esc</b>: quitar el filtro.</li>
-      </ul></div></details>
+      <p>Dos combinaciones de teclado (cuando no estás escribiendo en un campo): <kbd>Ctrl</kbd>/<kbd>⌘</kbd> + <kbd>K</kbd> abre la paleta de acciones para buscar e ir a cualquier sitio, y <kbd>Esc</kbd> quita el filtro activo.</p></div></details>
 
     <div class="ayudaPie">
       <p id="ayudaVersion">¿Otra duda? Mira la <a href="https://github.com/danidm98/rumbo" target="_blank" rel="noopener">página del proyecto original en GitHub</a>.</p>

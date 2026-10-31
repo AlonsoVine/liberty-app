@@ -118,9 +118,6 @@
     document.body.classList.toggle("vistaAmplia", pref("amplia", "0") === "1");
     document.body.classList.toggle("ayudaOff", pref("ayudaBotones", "1") === "0");
     window.OCULTAR_IMPORTES = pref("ocultar", "0") === "1";
-    // Atajos de una sola tecla (1-8, V, L, ?): se pueden desactivar en Ajustes para
-    // quien los pulsa sin querer. Ctrl/⌘+K y Escape van siempre (ver el keydown global).
-    window.ATAJOS = pref("atajos", "1") !== "0";
   }
   aplicaPrefs();
 
@@ -184,12 +181,10 @@
            [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
       fila("Ocultar importes", "Muestra «•••» en vez de las cantidades, para enseñar la pantalla sin revelar tu dinero.", "ocultar",
            [{ v: "0", t: "No" }, { v: "1", t: "Sí" }]) +
-      `<div class="ajusteFila"><div class="ajusteTxt"><b>Modo vídeo</b><small>Pantalla completa para presentar o grabar: la vista no cambia, solo ocupa toda la pantalla. También con la tecla V.</small></div>
+      `<div class="ajusteFila"><div class="ajusteTxt"><b>Modo vídeo</b><small>Pantalla completa para presentar o grabar: la vista no cambia, solo ocupa toda la pantalla.</small></div>
         <button class="btn" id="btnVideo">${enPantallaCompleta() ? "Salir de pantalla completa" : "Pantalla completa"}</button></div>` +
       fila("Botones de ayuda", "La «i» de la esquina que explica cada pantalla. Si ya te manejas, ocúltalos para una pantalla más limpia.", "ayudaBotones",
            [{ v: "1", t: "Mostrar" }, { v: "0", t: "Ocultar" }]) +
-      fila("Atajos de teclado", "Las teclas rápidas de una sola pulsación (1–8 para las vistas, V vídeo, L largo plazo, ? la lista). Si te estorban al pulsarlas sin querer, desactívalas. La paleta Ctrl/⌘+K y Escape siguen funcionando.", "atajos",
-           [{ v: "1", t: "Activados" }, { v: "0", t: "Desactivados" }]) +
       fila("Pantalla de inicio", "Qué se abre al abrir la app.", "inicio",
            [{ v: "ultima", t: "La última que usaste" }, { v: "panel", t: "Siempre el Panel" }]);
     const bv = $("#btnVideo"); if (bv) bv.onclick = alternaVideo;
@@ -1171,8 +1166,11 @@
     if (p.modo === "rango") {
       const de = $("#igDesde"), ha = $("#igHasta");
       const upd = () => { estado.igPeriodo.desde = de.value; estado.igPeriodo.hasta = ha.value; refrescaIg(); };
-      if (de) de.onchange = upd;
-      if (ha) ha.onchange = upd;
+      // Debounce: los <input type=date> disparan «change» en cada dígito del año y
+      // refrescaIg reconstruye estos campos → el foco saltaba a media escritura.
+      let tDeb; const deb = () => { clearTimeout(tDeb); tDeb = setTimeout(upd, 450); };
+      if (de) de.onchange = deb;
+      if (ha) ha.onchange = deb;
     }
   }
   function refrescaIg() { pintaFlujos(); pintaIngresos(); }
@@ -1427,14 +1425,17 @@
         <span class="avisoCuerpo"><b>${a.n}</b> ${esc(a.texto)}</span>${clic ? `<span class="avisoIr">${dest ? "Ver en la agenda →" : "Ver →"}</span>` : ""}</div>`;
     }).join("");
 
+    // Chevron fina, el mismo trazo que la flecha de los <select> de la app (var --flecha),
+    // dibujada con currentColor para que tome el color de la cabecera y gire al plegar.
+    const chevron = `<svg class="avisosChevron" viewBox="0 0 12 8" aria-hidden="true"><path d="M1 1.5l5 5 5-5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     cont.innerHTML = `<div class="avisosCaja" data-abierto="${abierto ? "1" : "0"}">
       <button type="button" class="avisosCab" aria-expanded="${abierto ? "true" : "false"}" title="${abierto ? "Plegar los avisos" : "Mostrar los avisos"}">
         <span class="avisosCabIco">🔔</span>
         <span class="avisosCabTit">${n} ${n === 1 ? "aviso" : "avisos"}</span>
         <span class="avisosNuevo" title="Hay un aviso nuevo que no has visto"${(!abierto && hayNuevo) ? "" : " hidden"}>nuevo</span>
-        <span class="avisosChevron" aria-hidden="true">⌄</span>
+        ${chevron}
       </button>
-      <div class="avisosLista">${lineas}</div>
+      <div class="avisosLista"><div class="avisosListaIn">${lineas}</div></div>
     </div>`;
 
     const caja = cont.querySelector(".avisosCaja");
@@ -3049,13 +3050,12 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.15.0",
+    version: "1.16.1",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["📅", "Elige el periodo en Ingresos y gastos", "En el panel de Ingresos y gastos tienes un nuevo selector «Periodo» que recalcula el Resumen y las Categorías para este mes, el año en curso, los últimos 12 meses o un rango de fechas a tu medida (desde → hasta). Así ves a dónde fue tu dinero en el tramo que quieras, no solo este mes."],
-      ["📈", "La evolución «Total», con todo el detalle", "Al pasar el ratón por la vista «Total» de la evolución, el detalle ya no muestra solo lo aportado: añade la plusvalía, la rentabilidad % y, si la activas, la línea de inflación de ese día."],
-      ["🌙", "Calendario visible en modo oscuro", "El icono de calendario de los campos de fecha apenas se distinguía sobre el fondo oscuro; ahora resalta y se ve bien en cualquier tema."],
-      ["🗂️", "Pestañas del panel más ordenadas", "Las pestañas del panel se agrupan por tema (Inicio · tu patrimonio e inversiones · Ingresos y gastos), igual que Mis datos, para encontrar cada vista de un vistazo. Y en Ajustes puedes desactivar los atajos de teclado de una pulsación si prefieres que no actúen al tocarlos sin querer."],
+      ["🔔", "Avisos del panel más elegantes", "La caja de avisos estrena una flecha fina integrada con el resto de la app (adiós al símbolo anterior) y muestra los avisos como filas limpias dentro de una tarjeta."],
+      ["🔎", "Filtros de Ingresos y gastos arreglados", "El filtro «Sin categoría» ya muestra los apuntes sin clasificar, volver a «Todas» recarga bien la tabla y el selector de fechas te deja escribir el año completo sin saltar."],
+      ["⌨️", "Sin atajos de una sola tecla", "Se quitan los atajos de una pulsación (1–8, V, L) que podían robar la tecla al escribir. Siguen funcionando Ctrl/⌘+K (la paleta de acciones) y Esc (quitar el filtro)."],
     ],
   };
   function quizaNovedades() {
@@ -3263,9 +3263,8 @@
     "ajustes": { t: "Ajustes", sub: "Cómo se ve la app. Se guarda en este navegador y no afecta a tus datos.", p: [
       ["🎨", "Aspecto", "Tema claro, oscuro o automático (según tu sistema) y tamaño del texto, hasta muy grande, para leer cómodo."],
       ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades: así puedes enseñar la pantalla o compartir una captura sin revelar tu dinero."],
-      ["🖥️", "Vista amplia y Modo vídeo", "Vista amplia agranda filas y botones (mejor para tocar). Modo vídeo pone la app a pantalla completa para presentar o grabar (también con la tecla V)."],
+      ["🖥️", "Vista amplia y Modo vídeo", "Vista amplia agranda filas y botones (mejor para tocar). Modo vídeo pone la app a pantalla completa para presentar o grabar."],
       ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (esta misma). Déjalos si estás empezando; ocúltalos cuando ya te manejes."],
-      ["⌨️", "Atajos de teclado", "Activa o desactiva las teclas rápidas de una sola pulsación (1–8 para las vistas, V vídeo, L largo plazo, ? la lista). Si las pulsas sin querer y te estorban, desactívalas; la paleta Ctrl/⌘+K y Escape siguen funcionando."],
       ["🏁", "Pantalla de inicio", "Elige qué se abre al arrancar: la última pantalla que usaste o siempre el Panel."],
       ["📂", "Carpeta de datos", "Dónde se guardan tus carteras, copias y documentos. Se muestra para que sepas qué respaldar. En Docker la ubicación la fija el contenedor (el volumen del docker-compose) y no se cambia desde aquí."],
       ["🔄", "Buscar actualizaciones", "Opcional y apagado por defecto: Liberty es 100 % local salvo la descarga de precios. Si lo activas, mira de vez en cuando si hay versión nueva (nunca envía tus datos). En Docker no descarga nada: te dice que actualices la imagen con «docker compose pull && docker compose up -d»."],
@@ -3514,30 +3513,6 @@
   window.borrarPatrimonio = borrarPatrimonio;
   { const cb = $("#borrarConfirmo"), ok = $("#borrarOk"); if (cb && ok) cb.onchange = () => { ok.disabled = !cb.checked; }; }
 
-  /* ---------------------------------------------- atajos de teclado (?) */
-  function muestraAtajos() {
-    let dlg = $("#dlgAtajos");
-    if (!dlg) {
-      dlg = document.createElement("dialog");
-      dlg.id = "dlgAtajos"; dlg.className = "modal";
-      dlg.innerHTML = `<div class="atajosCuerpo"><h2 style="margin:0 0 2px">Atajos de teclado</h2>
-        <p class="subt" style="margin:0 0 14px">Funcionan cuando no estás escribiendo en un campo. Puedes desactivarlos en <b>Ajustes → Atajos de teclado</b>.</p>
-        <table class="atajos"><tbody>
-          <tr><td><kbd>1</kbd> … <kbd>8</kbd></td><td>Cambiar de sub-pestaña del Panel</td></tr>
-          <tr><td><kbd>Ctrl</kbd> + <kbd>K</kbd></td><td>Paleta de acciones: buscar e ir a cualquier sitio</td></tr>
-          <tr><td><kbd>L</kbd></td><td>Ver solo lo de largo plazo (y volver)</td></tr>
-          <tr><td><kbd>V</kbd></td><td>Modo vídeo: pantalla completa para presentar o grabar</td></tr>
-          <tr><td><kbd>Esc</kbd></td><td>Quitar el filtro activo</td></tr>
-          <tr><td><kbd>?</kbd></td><td>Mostrar esta ayuda</td></tr>
-        </tbody></table>
-        <div style="text-align:right;margin-top:16px"><button class="btn prim" type="button">Entendido</button></div></div>`;
-      document.body.appendChild(dlg);
-      dlg.querySelector("button").onclick = () => { try { dlg.close(); } catch (e) { dlg.removeAttribute("open"); } };
-      dlg.addEventListener("click", e => { if (e.target === dlg) dlg.querySelector("button").click(); });
-    }
-    try { dlg.showModal(); } catch (e) { dlg.setAttribute("open", ""); }
-  }
-
   /* ---------------------------------------------- tour guiado (primer uso + Ayuda) */
   // Recorrido con foco (spotlight) sobre elementos reales, sin librerías. Cambia solo
   // a la pestaña/subpestaña de cada paso y señala el elemento con un globo explicativo.
@@ -3562,7 +3537,7 @@
     { sel: "#imZona", tit: "Copias de seguridad", txt: "Descarga una copia cuando quieras: el «.zip» incluye tus datos y tus facturas (con nombres descriptivos); el «.json» es más ligero. Para recuperar, arrastra aquí un .json o .zip. Y antes de cada cambio se guarda una copia automática.", antes: () => irMisDatos("copias") },
     // --- Organización y ajustes ---
     { sel: '[data-tab="notas"]', tit: "Documentos", txt: "Tu espacio aparte para guardarlo todo: un Explorador de archivos para tus documentos importantes (Hacienda, escrituras, contratos…) en carpetas, y además una Lista de notas (con etiquetas y tareas), un Tablero tipo Trello y una Agenda con calendario. Todo en tu ordenador.", antes: () => irA("panel") },
-    { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa, tecla V). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
+    { sel: '[data-tab="ajustes"]', tit: "Ajustes", txt: "Tema claro/oscuro, tamaño del texto (hasta muy grande), vista amplia, ocultar importes y Modo vídeo (pantalla completa). Todo 100 % en tu ordenador. ¡Y listo: ya puedes empezar!", antes: () => irA("panel") },
   ];
   function iniciaTour() {
     if ($(".tourFoco")) return;   // ya hay un tour abierto
@@ -3732,7 +3707,6 @@
     if ($("#btnPrecios") && !$("#btnPrecios").hidden) c.push({ ico: "↻", label: "Actualizar precios", hint: "acción", run: () => $("#btnPrecios").click() });
     const dv = { activos: "Activos", deudas: "Deudas", apartados: "Reservados", flujos: "Ingresos y gastos", saldos: "Saldos y movimientos", config: "Configuración", importar: "Importar", copias: "Copias y seguridad" };
     Object.entries(dv).forEach(([v, nm]) => c.push({ ico: "✏️", label: "Mis datos · " + nm, hint: "editar", run: irDatos(v) }));
-    c.push({ ico: "⌨️", label: "Ver atajos de teclado", run: () => muestraAtajos() });
     (D.productos || []).forEach(p => c.push({ ico: "🔎", label: p.corto || p.nombre, hint: "activo", run: () => abreFicha(p.id, "distribucion") }));
     return c;
   }
@@ -3836,27 +3810,13 @@
   $("#rApor").value = Math.min(3000, Math.max(0, Math.round(((D.total || {}).ritmoMensual || 500) / 50) * 50));
 
   document.addEventListener("keydown", e => {
-    // Solo se ignoran los atajos mientras escribes en un campo. Si el guardia
-    // fuese "el foco esta en el body", dejarian de funcionar en cuanto pulsas
-    // cualquier boton, que es justo cuando los quieres.
+    // No hay atajos de una sola tecla (se quitaron: robaban pulsaciones al escribir).
+    // Solo quedan dos combinaciones deliberadas que NO se pulsan sin querer y que se
+    // ignoran mientras escribes en un campo: Escape (limpiar filtro) y Ctrl/⌘+K (paleta).
     const t = e.target;
     if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.tagName === "SELECT" || t.isContentEditable)) return;
-    // Escape (limpiar filtro) y la paleta Ctrl/⌘+K van SIEMPRE: no "entorpecen" (Escape es
-    // estándar; Ctrl/⌘+K es una combinación deliberada que no se pulsa sin querer).
     if (e.key === "Escape" && filtrando()) { estado.ocultos.clear(); estado.titular = "todos"; estado.filtroDim = {}; pintaPatrimonio(); return; }
     if ((e.key === "k" || e.key === "K") && (e.metaKey || e.ctrlKey)) { e.preventDefault(); abrePaleta(); return; }
-    // El resto son atajos de una sola tecla: se pueden desactivar en Ajustes → Atajos de teclado.
-    if (!window.ATAJOS) return;
-    if (e.key === "v" && !e.metaKey && !e.ctrlKey) alternaVideo();
-    if (e.key === "l" && !e.metaKey && !e.ctrlKey && estado.tab === "panel") {
-      estado.ocultos = filtrando() ? new Set() : new Set(idsCorto());
-      pintaPatrimonio();
-    }
-    if (e.key === "?") { muestraAtajos(); return; }
-    // Teclas 1-8: sub-pestañas del Panel, en el orden visual (resumen · patrimonio · día a día).
-    const n = "12345678".indexOf(e.key);
-    const pv = ["inicio", "patrimonio", "distribucion", "rentabilidad", "evolucion", "deudas", "fiscal", "ingresos"][n];
-    if (n >= 0 && pv && document.getElementById("pv-" + pv)) { if (estado.tab !== "panel") irA("panel"); irVista(pv); }
   });
 
   let t = null;

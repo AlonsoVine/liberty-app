@@ -120,7 +120,7 @@ El panel es una SPA ligera con **6 pestañas** (`app/web/index.html`):
 | **Mis datos** | Alta/edición de productos, movimientos y saldos; importar; copias y web. |
 | **Ayuda** | Preguntas frecuentes. |
 
-Atajos: `V` (modo vídeo), `1`–`6` (cambiar de pestaña), botón de tema claro/oscuro.
+Teclado: `Ctrl`/`⌘`+`K` abre la paleta de acciones y `Esc` quita el filtro activo. No hay atajos de una sola tecla (se retiraron porque robaban pulsaciones al escribir en los campos).
 
 ## 7. Cómo se ejecuta
 

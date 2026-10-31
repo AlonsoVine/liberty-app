@@ -1405,10 +1405,16 @@
   }
   // Filtros potentes de la tabla de ingresos y gastos (por columna, importe y fechas).
   // Valor centinela del filtro de categoría para «apuntes sin categoría».
-  const SIN_CAT = "\u0000sincat";
+  // Centinela del filtro «sin categoría». DEBE ser texto que sobreviva al HTML: un
+  // \u0000 dentro de value="…" el parser lo convierte en �, así que al elegir la
+  // opción el valor dejaba de coincidir con el centinela → la tabla salía vacía y el
+  // selector quedaba incoherente al volver a «Todas».
+  const SIN_CAT = "__sincat__";
   function filtrosFlujos() {
     try { E.flujoFiltros = E.flujoFiltros || JSON.parse(recuerda.lee("patrimonio.flujoFiltros") || "{}") || {}; } catch (e) { E.flujoFiltros = {}; }
     if (!E.flujoFiltros.dim) E.flujoFiltros.dim = {};
+    // Sana el valor roto (�…) que haya podido quedar guardado de la versión anterior.
+    if (E.flujoFiltros.categoria && E.flujoFiltros.categoria.charCodeAt(0) === 0xFFFD) E.flujoFiltros.categoria = SIN_CAT;
     return E.flujoFiltros;
   }
   function filtraFlujos(fs) {
@@ -1515,8 +1521,16 @@
         // filtros; así el campo no pierde el foco mientras tecleas (antes «saltaba»).
         if (pleno) pinta(); else refrescaFlujos();
       };
-      if (el.type === "date" || el.classList.contains("fImp")) el.onchange = () => aplica(false);
-      else el.onchange = () => aplica(true);   // selects: re-pinta (chips activas, importe)
+      if (el.type === "date" || el.classList.contains("fImp")) {
+        // Un <input type=date> dispara «change» en CADA dígito del año (cada fecha
+        // parcial es válida). Si aplicáramos al instante, al cruzar 0⇄N resultados la
+        // tabla se reconstruye y el campo pierde el foco a media escritura. Esperamos a
+        // que termines de teclear (debounce) y aplicamos una sola vez.
+        let tDeb;
+        el.onchange = () => { clearTimeout(tDeb); tDeb = setTimeout(() => aplica(false), 450); };
+      } else {
+        el.onchange = () => aplica(true);   // selects: re-pinta (chips activas, importe)
+      }
     });
     const lb = document.querySelector("#tab-datos [data-ff-limpiar]");
     if (lb) lb.onclick = () => { E.flujoFiltros = { dim: {} }; try { recuerda.guarda("patrimonio.flujoFiltros", "{}"); } catch (e) { /* */ } pinta(); };

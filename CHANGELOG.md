@@ -9,7 +9,25 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
-## [No publicado] — próxima v1.16.0
+## [1.16.1] — 2026-10-31
+
+Mantenimiento y pulido de UX, sin funciones nuevas. ADR 0027.
+
+- **Avisos del panel, más elegantes.** La cabecera plegable de avisos estrena una flecha fina
+  (chevron, mismo trazo que el resto de la app) en lugar del símbolo anterior, y la caja pasa a
+  ser una tarjeta con los avisos como filas limpias dentro.
+- **Filtros de Ingresos y gastos arreglados.** El filtro **«Sin categoría»** ahora muestra
+  correctamente los apuntes sin clasificar (un centinela interno se guardaba corrupto); volver a
+  **«Todas»** recarga bien la tabla; y el **selector de fechas** deja escribir el año completo sin
+  perder el foco ni saltar de pantalla (los filtros de fecha/importe aplican con un pequeño retardo
+  en vez de reconstruir la tabla en cada tecla).
+- **Fuera los atajos de una sola tecla.** Se retiran por completo los atajos de teclado de una
+  pulsación (1–8, `V`, `L`, `?`) y su interruptor de Ajustes: podían robar la pulsación al escribir
+  (por ejemplo, al teclear un año en un filtro de fecha). Se mantienen las dos combinaciones
+  deliberadas: **Ctrl/⌘+K** (paleta de acciones) y **Esc** (quitar el filtro). Revierte el punto D
+  del ADR 0025.
+
+## [1.16.0] — 2026-10-27
 
 - **Liberty en Docker (nueva forma de ejecutarlo).** Además del `.exe` y el `.dmg`, ahora se
   publica una **imagen Docker multiarquitectura** (`ghcr.io/alonsovine/liberty`, `amd64` y

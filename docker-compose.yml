@@ -10,7 +10,7 @@ services:
     restart: unless-stopped
 
     # El puerto se publica SOLO en este equipo (127.0.0.1). El acceso del resto de la familia
-    # va por Tailscale (`tailscale serve https / 127.0.0.1:8765`), nunca por internet.
+    # va por Tailscale (`tailscale serve --bg 8765`), nunca por internet.
     ports:
       - "127.0.0.1:8765:8765"
 
