@@ -232,7 +232,7 @@ test("Inmuebles: KPIs y una tarjeta por inmueble, con su estado y el enlace a la
   assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
   assert.strictEqual(doc.getElementById("tarjetaInmuebles").hidden, false);
   assert.strictEqual(doc.getElementById("inmVacio").hidden, true);
-  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 4, "deberían verse los 4 KPIs");
+  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 5, "los 4 KPIs y el de alquileres");
   const tarjetas = doc.querySelectorAll("#inmTarjetas .inmCard");
   assert.strictEqual(tarjetas.length, 2, "una tarjeta por inmueble");
   assert.match(tarjetas[0].textContent, /Alquilado/);
@@ -279,7 +279,7 @@ test("Inmuebles: la ficha ampliada muestra datos, hipoteca y libro, y vuelve a l
   const { window, errores } = montaPanel(JSON.stringify(datosConLibro()));
   const doc = window.document;
   doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
-  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 5, "con libro se añade el cash-flow");
+  assert.strictEqual(doc.querySelectorAll("#inmKpis .kpi").length, 6, "con libro se añade el cash-flow");
   doc.querySelector("#inmTarjetas .inmCard").click();
   assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
   const ficha = doc.getElementById("inmFicha");
@@ -324,6 +324,97 @@ test("Inmuebles: el libro de la ficha se filtra por periodo, también de una fec
   assert.strictEqual(kpi(3), "1");
   assert.ok(kpi(1).includes("300"), "rango: " + kpi(1));
   assert.strictEqual(doc.getElementById("inmDesde"), de, "los campos de fecha no se rehacen (no se pierde el foco)");
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("Inmuebles: la ficha dibuja la evolución del valor con dos o más fechas", () => {
+  const datos = datosConLibro();
+  const x = datos.inmuebles.lista[0];
+  x.compraFecha = "2020-03-01"; x.precio = 150000;
+  x.valoraciones = [{ fecha: "2025-06-01", importe: 180000 }, { fecha: "2026-09-30", importe: 185000 }];
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  doc.querySelector("#inmTarjetas .inmCard").click();
+  assert.ok(doc.querySelector("#inmEvol svg"), "gráfica de la evolución del valor");
+  assert.ok(doc.querySelectorAll("#inmEvol circle.marcador").length >= 3, "marcas de la compra y de cada estimación");
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  // Con una sola fecha (ni compra ni historial) no hay gráfica.
+  x.compraFecha = null; x.valoraciones = [{ fecha: "2026-09-30", importe: 185000 }];
+  const b = montaPanel(JSON.stringify(datos));
+  b.window.document.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  b.window.document.querySelector("#inmTarjetas .inmCard").click();
+  assert.strictEqual(b.window.document.getElementById("inmEvol"), null);
+});
+
+test("Inmuebles: los chips de categorías filtran el libro de la ficha", () => {
+  const datos = datosConLibro();
+  const x = datos.inmuebles.lista[0], lb = x.libro;
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inmuebles"]').click();
+  doc.querySelector("#inmTarjetas .inmCard").click();
+  [...doc.querySelectorAll("#segInmPeriodo button")].find(b => b.textContent === "Todo").click();
+  const apuntes = () => doc.querySelectorAll("#inmLibroCuerpo .kpi .v")[3].textContent;
+  const chips = [...doc.querySelectorAll("#inmFicha [data-chip]")];
+  assert.strictEqual(chips.length, x.categorias.length, "un chip pulsable por categoría");
+  assert.strictEqual(apuntes(), String(lb.apuntes.length));
+  const cat = chips[0].dataset.chip;
+  chips[0].click();
+  const n = lb.apuntes.filter(a => a.categoria.toLowerCase() === cat).length;
+  assert.strictEqual(apuntes(), String(n), "solo los de " + cat);
+  assert.strictEqual(chips[0].getAttribute("aria-pressed"), "true");
+  assert.ok(chips[1].classList.contains("apagado"), "los demás se atenúan");
+  doc.querySelector("#inmFicha [data-chip-todas]").click();
+  assert.strictEqual(apuntes(), String(lb.apuntes.length), "«Todas» vuelve a todo");
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("Ingresos y gastos: el filtro «Inmuebles» oculta (o deja solos) sus apuntes", () => {
+  const datos = datosConLibro();
+  const mes = datos.flujos.meses[datos.flujos.meses.length - 1];
+  const ap = (tipo, importe, categoria, inmueble) => ({ fecha: mes + "-05", tipo, importe, categoria, titular: "", entidad: "Sin entidad", marca: "", inmueble, categorias: {} });
+  datos.flujosLista = [ap("ingreso", 900, "Alquiler Mayor", "i1"), ap("ingreso", 2000, "Nómina", ""), ap("gasto", 300, "Comida", "")];
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="ingresos"]').click();
+  const sel = doc.querySelector('#igFiltros [data-igf="inm"]');
+  assert.ok(sel, "hay filtro de inmuebles");
+  assert.deepStrictEqual([...sel.options].map(o => o.value), ["", "__sin__", "__con__", "i1"]);
+  const kpis = () => doc.getElementById("flujosKpis").textContent;
+  assert.ok(/2.?900/.test(kpis()), "sin filtro cuentan todos: " + kpis());
+  sel.value = "__sin__"; sel.dispatchEvent(new window.Event("change"));
+  assert.ok(/2.?000/.test(kpis()) && !/2.?900/.test(kpis()), "sin los del inmueble: " + kpis());
+  const sel2 = doc.querySelector('#igFiltros [data-igf="inm"]');
+  sel2.value = "i1"; sel2.dispatchEvent(new window.Event("change"));
+  assert.ok(/900/.test(kpis()) && !/2.?000/.test(kpis()), "solo el piso: " + kpis());
+  assert.strictEqual(window.localStorage.getItem("patrimonio.igInm"), "i1", "se recuerda");
+  doc.getElementById("igQuitar").click();
+  assert.ok(/2.?900/.test(kpis()));
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("Inmuebles: renta y rentabilidad bruta; sin «Mis datos» solo cifras del alquiler; aviso que abre la ficha", () => {
+  const datos = datosConLibro();
+  const x = datos.inmuebles.lista[0];
+  x.alquiler = { inquilinos: 1, contratos: 2, vigentes: 1, rentaMensual: 750, proximoFin: "2030-07-31" };
+  x.rentabilidadBruta = 0.0545; x.ocupado = true;
+  Object.assign(datos.inmuebles.total, { rentaMensual: 750, ocupacion: 1, rentabilidadBruta: 0.0545 });
+  datos.alertas = [{ texto: "No hay ningún cobro del alquiler de «Piso Mayor».", n: "Sin cobrar", nivel: "aviso", pv: "inmuebles",
+    clave: "inm-cobro-pendiente", destino: { tab: "inmuebles", inmueble: "i1" } }];
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const doc = window.document;
+  const linea = doc.querySelector("#bannerAlertas [data-dest-inm]");
+  assert.ok(linea, "el aviso del inmueble es clicable");
+  linea.click();
+  const ficha = doc.getElementById("inmFicha");
+  assert.strictEqual(ficha.hidden, false, "el aviso abre la ficha");
+  const t = ficha.textContent;
+  for (const s of ["Renta mensual", "750", "Rentabilidad bruta", "5,45", "Inquilinos y contratos", "Contratos vigentes", "31"])
+    assert.ok(t.includes(s), "la ficha debería mostrar " + s);
+  assert.strictEqual(doc.getElementById("inmInq"), null, "sin editor no hay lista de inquilinos (ni sus datos)");
+  ficha.querySelector('[data-f="volver"]').click();
+  assert.ok(doc.getElementById("inmKpis").textContent.includes("ocupación 100"), doc.getElementById("inmKpis").textContent);
   assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
 });
 

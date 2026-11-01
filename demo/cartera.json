@@ -2011,6 +2011,55 @@
    "categorias": [
     "Alquileres cobrados",
     "Gastos piso Valencia"
+   ],
+   "inquilinos": [
+    {
+     "id": "q1",
+     "nombre": "Ana Martín",
+     "telefono": "600 123 456",
+     "email": "ana@ejemplo.com",
+     "campos": [
+      {
+       "nombre": "Avalista",
+       "valores": [
+        "Luis Martín"
+       ]
+      },
+      {
+       "nombre": "Contacto de emergencia",
+       "valores": [
+        "Marta (hermana) · 600 987 654"
+       ]
+      }
+     ],
+     "contratos": [
+      {
+       "id": "c1",
+       "inicio": "2025-08-01",
+       "fin": "2030-07-31",
+       "renta": 750,
+       "diaCobro": 5,
+       "fianza": 750,
+       "actualizacion": "irav",
+       "categoria": "Alquileres cobrados",
+       "campos": [
+        {
+         "nombre": "Gastos incluidos",
+         "valores": [
+          "Comunidad",
+          "Agua"
+         ]
+        },
+        {
+         "nombre": "Duración mínima",
+         "valores": [
+          "1 año"
+         ]
+        }
+       ]
+      }
+     ]
+    }
    ]
   },
   {

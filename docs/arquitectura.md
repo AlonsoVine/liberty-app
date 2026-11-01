@@ -118,6 +118,12 @@ Estructura de la cartera **antes** del rediseño (ver
   patrimonio total del hogar para Inicio). Las notas se enlazan a un inmueble con un vínculo
   `{tipo: "inmueble", ref}`. Los conceptos de los apuntes y las notas **no** van en `DATOS`
   (la ficha los lee de la cartera en vivo), así que no salen en la web exportada.
+  `inquilinos` (ADR 0030): `[{id: q…, nombre, documento, telefono, email, nota, campos,
+  contratos: [{id: c…, inicio, fin, renta, diaCobro, fianza, actualizacion, categoria, nota,
+  campos}]}]`, donde `campos` son datos propios `{nombre, valores[]}`. A `DATOS` solo llegan
+  cifras (`alquiler`, `rentabilidadBruta`, `ocupado`, y en el total `rentaMensual`,
+  `ocupacion`, `rentabilidadBruta`). `motor.avisos_inmuebles` genera sus avisos (catálogo con
+  `grupo: "inmuebles"`, plazos `inmDias…`/`inmMesesValor` en `config`).
 
 ## 6. Interfaz de usuario
 

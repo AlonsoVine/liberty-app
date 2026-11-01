@@ -435,7 +435,7 @@
 
     svg.appendChild(el("line", { x1: P.l, x2: W - P.r, y1: P.t + ih, y2: P.t + ih, class: "eje" }));
     indicesEjeX(n, W < 520 ? 4 : 7).forEach(i => {
-      svg.appendChild(txt(x(i), H - 8, etiquetaEjeX(fechas, i, n), "ejeX",
+      svg.appendChild(txt(x(i), H - 8, cfg.etiquetaX ? cfg.etiquetaX(fechas[i]) : etiquetaEjeX(fechas, i, n), "ejeX",
         { "text-anchor": i === 0 ? "start" : i === n - 1 ? "end" : "middle" }));
     });
 
@@ -479,7 +479,7 @@
       } else if (cfg.overlay && cfg.overlay.valores[i] != null) {
         extra += `<table><tr><td><i class="raya"></i>${escHtml(cfg.overlay.nombre)}</td><td>${fmtEur(cfg.overlay.valores[i])}</td></tr></table>`;
       }
-      tt.innerHTML = `<b>${fmtFecha(fechas[i])}</b><div class="ttTotal">${cfg.formatoTT ? cfg.formatoTT(vals[i]) : fmtEur(vals[i])}</div>${extra}`;
+      tt.innerHTML = `<b>${cfg.fechaTT ? cfg.fechaTT(fechas[i]) : fmtFecha(fechas[i])}</b><div class="ttTotal">${cfg.formatoTT ? cfg.formatoTT(vals[i]) : fmtEur(vals[i])}</div>${extra}`;
       tt.classList.add("on");
       colocaTooltip(tt, cont, x(i) * (r.width / W), ev.clientY - r.top);
     }

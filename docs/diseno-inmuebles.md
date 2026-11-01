@@ -51,20 +51,29 @@ Colección nueva en la raíz de la cartera: `inmuebles: []`.
   "estado": "alquilado",        // alquilado | vacio | reforma | venta   (solo si uso = inversion)
   "direccion": "", "refCatastral": "", "m2": 80, "habitaciones": 3, "valorCatastral": 60000,
   "compra": { "fecha": "2019-05-10", "precio": 150000, "gastos": 15000 },
-  "valor": { "importe": 185000, "fecha": "2026-10-01" },   // estimación manual
+  "valor": { "importe": 185000, "fecha": "2026-10-01" },   // estimación manual (la actual)
+  "historico": [{ "fecha": "2025-06-01", "importe": 178000 }],   // las anteriores (ADR 0031)
   "hipoteca": {                  // opcional
     "capitalPendiente": 90000, "cuota": 650, "tipoInteres": 0.025, "fechaFin": "2044-05-10",
     "deudaRef": null             // id de un producto tipo "deuda" de Patrimonio (solo enlace)
   },
   "categorias": ["Alquiler · Piso Mayor", "Comunidad · Piso Mayor"],
-  "contratos": [                 // lista (un contrato activo en el MVP)
-    { "id": "c1", "inquilino": { "nombre": "", "contacto": "" },
-      "inicio": "2025-01-01", "fin": "2030-01-01", "renta": 900, "diaCobro": 5,
-      "fianza": 900, "actualizacion": "indice" }   // indice | ipc | ninguna
+  "inquilinos": [                // cada inquilino con sus contratos (ADR 0030)
+    { "id": "q1", "nombre": "", "documento": "", "telefono": "", "email": "", "nota": "",
+      "campos": [{ "nombre": "Avalista", "valores": ["Luis", "Marta"] }],   // datos propios
+      "contratos": [
+        { "id": "c1", "inicio": "2025-01-01", "fin": "2030-01-01", "renta": 900, "diaCobro": 5,
+          "fianza": 900, "actualizacion": "irav",       // ninguna | ipc | irav | pactada
+          "categoria": "Alquiler · Piso Mayor",         // dónde se apunta el cobro (opcional)
+          "nota": "", "campos": [] }
+      ] }
   ],
   "nota": ""
 }
 ```
+
+> El diseño inicial ponía `contratos[]` con el inquilino dentro. Se cambió a la propuesta de
+> Alonso (el inquilino con sus contratos y datos propios de uno o varios valores): ver ADR 0030.
 
 ### Libro de ingresos y gastos: por categorías
 
@@ -122,20 +131,23 @@ vuelve a restar.
      solo puede enlazarse a un inmueble.
    - **Limitación conocida:** sin ningún activo con datos, el motor no calcula el Panel (le pasa
      igual a Ingresos y gastos). Se revisará en la iteración 4.
-2. **Contratos e inquilinos.** Renta, fianza, ocupación y **rentabilidad bruta**. *(pendiente)*
+2. ✅ **Contratos e inquilinos** *(hecha, ADR 0030)*. Inquilinos con sus contratos y datos
+   propios en la ficha. Renta mensual, **rentabilidad bruta** y ocupación.
 3. ✅ **Libro por categorías** *(hecha, ADR 0029)*. Pestaña «🏢 Inmuebles» en Configuración
    (un selector de inmueble por categoría) y casillas en la ficha, cash-flow y rentabilidad
    neta a 12 meses y coste de la vivienda habitual aparte.
-   - **Pendiente:** el filtro «ocultar apuntes de inmuebles» en Ingresos y gastos. La
-     asociación **no sigue** a una categoría renombrada, porque las categorías se editan como
+   - ✅ Filtro «Inmuebles» en Ingresos y gastos *(ADR 0030)*.
+   - **Pendiente:** la asociación **no sigue** a una categoría renombrada, porque las categorías se editan como
      texto y no hay renombrado como tal: hay que volver a asociarla. Las que ya no existen se
      ven como «Otras» y se conservan.
 4. ✅ **Inicio** *(hecha, ADR 0029)*. Bloque «Tus inmuebles» con el patrimonio total del hogar
-   y la lista de inmuebles. Sin inmuebles, una invitación a la zona. La limitación de `None`
-   (cartera sin activos) **sigue pendiente**.
+   y la lista de inmuebles. Sin inmuebles, una invitación a la zona. ✅ Con una cartera sin
+   activos (solo inmuebles o apuntes) el Panel ya se calcula *(ADR 0030)*.
 5. **Documentos y avisos.** ✅ Documentos *(ADR 0029)*: vínculo `inmueble` en las notas, sección
-   en la ficha con nota nueva, enlazar una existente y quitar el enlace. *Pendiente:* avisos
-   de fin de contrato, revisión de renta, IBI y seguro (reutilizando la agenda).
+   en la ficha con nota nueva, enlazar una existente y quitar el enlace. ✅ Avisos *(ADR 0030)*:
+   fin de contrato, revisión de la renta, cobro que se acerca, alquiler sin cobrar y valor
+   antiguo, configurables en Configuración → 🏢 Inmuebles. IBI y seguro: con un recordatorio
+   anual de la agenda enlazado al inmueble.
 
 **Ficha ampliada** *(ADR 0029)*: vive en el Panel, en Inmuebles, y es de solo lectura. Reúne
 los datos, la compra y el valor, la hipoteca, el libro y los documentos. Se edita con
@@ -147,8 +159,9 @@ verificación en vivo por CDP y el export estático sin romper.
 
 ## Fuera de alcance (por ahora)
 
-- **Migración** de los productos `tipo:"inmueble"` de la cartera a la zona nueva. Se decidirá
-  cuando la zona exista y se vea si compensa y cómo.
+- ~~**Migración** de los productos `tipo:"inmueble"` de la cartera a la zona nueva.~~ ✅ Hecha
+  como **traspaso completo**, con historial de valoraciones y evolución del valor en la ficha
+  *(ADR 0031)*.
 - **Alquiler por habitaciones** (varios contratos a la vez en un inmueble). Los contratos ya son
   una lista para no cerrar la puerta.
 - **Ajuste por apunte** para excepciones (una categoría genérica usada para varias cosas).

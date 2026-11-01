@@ -294,6 +294,10 @@
     inmSel: recuerda.lee("patrimonio.inmSel") || null,   // ficha de inmueble abierta en el Panel
     // Periodo del libro en esa ficha: 12m | anio | anterior | todo | rango (desde → hasta).
     inmPeriodo: { modo: recuerda.lee("patrimonio.inmPeriodo") || "12m", desde: "", hasta: "" },
+    // Chips de categorías pulsados en la ficha de un inmueble (filtran su libro).
+    inmCats: { id: null, sel: new Set() },
+    // Filtro de Ingresos y gastos por inmuebles (se recuerda: suele usarse para ocultarlos siempre).
+    igInm: recuerda.lee("patrimonio.igInm") || "",
     catTipo: "gasto",
     // Periodo del panel de Ingresos y gastos (Resumen + Categorías): mes | anio | 12m | rango.
     igPeriodo: { modo: recuerda.lee("patrimonio.igPeriodo") || "mes", desde: "", hasta: "" },
@@ -910,7 +914,9 @@
   // «Mis datos» carga la cartera después de pintar el Panel: la ficha abierta se repinta
   // entonces con su botón de editar, sus documentos y los conceptos de sus apuntes.
   document.addEventListener("liberty:editor-listo", () => {
-    if (estado.tab === "panel" && estado.pv === "inmuebles" && estado.inmSel) pintaInmuebles();
+    // La ficha (inquilinos, documentos) y la lista (aviso de los inmuebles que siguen en
+    // la cartera) leen la cartera del editor: se repintan cuando ya está cargada.
+    if (estado.tab === "panel" && estado.pv === "inmuebles") pintaInmuebles();
   });
   // Desde fuera del Panel (Mis datos, notas, paleta…): ir a la ficha de un inmueble. Si
   // se cambiaron datos, el Panel se recarga con las cifras nuevas y vuelve a la ficha.
@@ -940,6 +946,12 @@
     $("#btnInmGestionar").onclick = gestionar;
     $("#btnInmAnadir").onclick = gestionar;
     $("#btnInmGestionar").hidden = $("#btnInmAnadir").hidden = !conEditor();
+    // Inmuebles que aún están en la cartera como un activo: se ofrece pasarlos aquí.
+    const tras = $("#inmTraspasoPanel");
+    if (tras) {
+      tras.innerHTML = conEditor() && window.Editor.avisoTraspaso ? window.Editor.avisoTraspaso() : "";
+      tras.querySelectorAll("[data-id]").forEach(b => { b.onclick = () => window.Editor.traspasarInmueble(b.dataset.id); });
+    }
     if (!ls.length) { rej.innerHTML = ""; return; }
 
     $("#inmSub").textContent = [plural(t.n, "inmueble", "inmuebles"),
@@ -959,6 +971,12 @@
         v: G.fmtEur(t.neto, 0), n: "valor − hipotecas"
       },
     ];
+    if (t.nInversion) tiles.push({
+      e: "Alquileres" + info("La renta de los contratos vigentes de tus inmuebles de inversión. La ocupación es la parte de ellos que tiene un contrato vigente (o que marcaste como alquilado si no tiene contratos anotados). La rentabilidad bruta es la renta de un año sobre lo que costaron."),
+      v: t.rentaMensual != null ? G.fmtEur(t.rentaMensual, 0) + " /mes" : "—",
+      n: [t.ocupacion != null ? "ocupación " + G.fmtPct(t.ocupacion, 0) : "",
+        t.rentabilidadBruta != null ? "bruta " + G.fmtPct(t.rentabilidadBruta, 1) : "añade sus contratos"].filter(Boolean).join(" · ")
+    });
     if (t.conLibro) tiles.push({
       e: "Cash-flow 12 meses" + info("Lo que te dejaron tus inmuebles de inversión en los últimos 12 meses: los ingresos menos los gastos de las categorías que tienes asociadas a cada uno (Configuración → Inmuebles). Son tus apuntes de Ingresos y gastos, no se anotan dos veces. Lo que cuesta tu vivienda habitual va aparte."),
       v: eurSigno(t.neto12), n: `${G.fmtEur(t.ingresos12, 0)} ingresos · ${G.fmtEur(t.gastos12, 0)} gastos`,
@@ -982,6 +1000,8 @@
         <dl class="inmFilas">
           ${x.coste != null ? fila("Te costó", G.fmtEur(x.coste, 0) + (x.anios != null ? ` <small>· hace ${String(x.anios).replace(".", ",")} años</small>` : "")) : ""}
           ${x.plusvalia != null ? fila("Revalorización", `${eurSigno(x.plusvalia)} <small>(${G.fmtPctSigno(x.plusvaliaPct, 1)})</small>`, x.plusvalia >= 0 ? "pos" : "neg") : ""}
+          ${x.alquiler && x.alquiler.rentaMensual != null ? fila("Renta", G.fmtEur(x.alquiler.rentaMensual, 0) + "/mes"
+            + (x.rentabilidadBruta != null ? ` <small>· ${G.fmtPct(x.rentabilidadBruta, 1)} bruta</small>` : "")) : ""}
           ${h ? fila("Hipoteca", G.fmtEur(h.capitalPendiente, 0) + (h.cuota ? ` <small>· ${G.fmtEur(h.cuota, 0)}/mes</small>` : "")) : ""}
           ${h && h.deudaRef ? fila("", `<button type="button" class="inmDeuda" data-deuda="${esc(h.deudaRef)}">↗ Ver la deuda «${esc(h.deudaNombre || "")}»</button>`) : ""}
           ${h && x.neto != null ? fila("Neto", `<b>${G.fmtEur(x.neto, 0)}</b>`) : ""}
@@ -1024,6 +1044,18 @@
       },
       { e: "Neto", v: G.fmtEur(x.neto, 0), n: h ? "valor − hipoteca" : "sin hipoteca" },
     ];
+    const alq = x.alquiler;
+    if (inv) {
+      tiles.push({
+        e: "Renta mensual", v: alq && alq.rentaMensual != null ? G.fmtEur(alq.rentaMensual, 0) : "—",
+        n: alq && alq.vigentes ? plural(alq.vigentes, "contrato vigente", "contratos vigentes") : "sin contrato vigente"
+      });
+      tiles.push({
+        e: "Rentabilidad bruta" + info("La renta de un año de sus contratos vigentes sobre lo que te costó, gastos de compra incluidos. No descuenta gastos: para eso está la rentabilidad neta."),
+        v: x.rentabilidadBruta != null ? G.fmtPct(x.rentabilidadBruta, 2) : "—",
+        n: x.rentabilidadBruta != null ? "renta de un año sobre lo que costó" : alq && alq.vigentes ? "falta el precio de compra" : "añade un contrato"
+      });
+    }
     if (lb && inv) {
       tiles.push({ e: "Cash-flow 12 meses", v: eurSigno(lb.neto12), n: `${G.fmtEur(lb.ingresos12, 0)} ingresos · ${G.fmtEur(lb.gastos12, 0)} gastos`, cl: lb.neto12 >= 0 ? "pos" : "neg" });
       tiles.push({
@@ -1062,10 +1094,14 @@
     const vacio = txt => `<p class="subt" style="margin:0">${txt}</p>`;
 
     // --- Libro de ingresos y gastos (por categorías asociadas) ---
+    // Con libro, los chips filtran el libro (cifras, barras y tablas); sin él solo informan.
+    if (estado.inmCats.id !== x.id) estado.inmCats = { id: x.id, sel: new Set() };
     const chips = (x.categorias || []).map(c => {
       const pc = lb && lb.porCategoria.find(p => p.categoria.toLowerCase() === c.toLowerCase());
-      return `<span class="inmChip ${pc ? pc.tipo : ""}">${esc(c)}</span>`;
-    }).join("");
+      return lb
+        ? `<button type="button" class="inmChip ${pc ? pc.tipo : ""}" data-chip="${esc(c.toLowerCase())}" aria-pressed="false" title="Ver solo esta categoría (pulsa varias para sumarlas)">${esc(c)}</button>`
+        : `<span class="inmChip ${pc ? pc.tipo : ""}">${esc(c)}</span>`;
+    }).join("") + (lb && (x.categorias || []).length > 1 ? '<button type="button" class="inmChipTodas" data-chip-todas hidden>✕ Todas</button>' : "");
     const btnCats = ed ? `<button type="button" class="btn mini" data-f="cats">${chips ? "Cambiar categorías" : "Asociar categorías"}</button>` : "";
     let libro;
     if (!lb) {
@@ -1096,6 +1132,13 @@
         <section class="tarjeta"><header><h2>Hipoteca</h2></header>
           ${hip ? `<dl class="inmFilas suelta">${hip}</dl>` : vacio("Sin hipoteca anotada.")}</section>
       </div>
+      ${(x.valoraciones || []).length + (x.compraFecha && x.precio != null ? 1 : 0) >= 2
+        ? `<section class="tarjeta" style="margin-top:14px"><header><h2>Evolución del valor</h2>
+          <span class="subt">lo que costó y cada estimación que has anotado</span></header>
+          <div class="envGraf inmEvol" id="inmEvol"></div></section>` : ""}
+      ${inv ? `<section class="tarjeta" style="margin-top:14px"><header><h2>Inquilinos y contratos</h2>
+          <span class="subt">quién vive, desde cuándo, cuánto paga y qué habéis pactado</span></header>
+        ${ed ? '<div id="inmInq"></div>' : inquilinosResumen(alq)}</section>` : ""}
       <section class="tarjeta" style="margin-top:14px"><header><h2>Ingresos y gastos</h2>
           <span class="subt">${inv ? "lo que te deja: los apuntes de sus categorías" : "lo que te cuesta: los apuntes de sus categorías"}</span></header>
         ${chips ? `<div class="inmChips" style="margin-bottom:12px">${chips}${btnCats}</div>` : ""}
@@ -1104,14 +1147,70 @@
           <span class="subt">escrituras, contratos, recibos, seguros… las notas de Documentos enlazadas a este inmueble</span></header>
         <div id="inmDocs"></div></section>` : ""}`;
 
-    if (lb) { pintaInmPeriodo(x); pintaLibroInmueble(x); }
+    if (lb) {
+      const sel = estado.inmCats.sel;
+      const marcaChips = () => {
+        cont.querySelectorAll("[data-chip]").forEach(b => {
+          const on = sel.has(b.dataset.chip);
+          b.setAttribute("aria-pressed", on); b.classList.toggle("apagado", sel.size > 0 && !on);
+        });
+        const t = cont.querySelector("[data-chip-todas]"); if (t) t.hidden = !sel.size;
+      };
+      cont.querySelectorAll("[data-chip]").forEach(b => {
+        b.onclick = () => {
+          sel.has(b.dataset.chip) ? sel.delete(b.dataset.chip) : sel.add(b.dataset.chip);
+          marcaChips(); pintaLibroInmueble(x);
+        };
+      });
+      const t = cont.querySelector("[data-chip-todas]");
+      if (t) t.onclick = () => { sel.clear(); marcaChips(); pintaLibroInmueble(x); };
+      marcaChips(); pintaInmPeriodo(x); pintaLibroInmueble(x);
+    }
+    pintaEvolucionInmueble(x);
     if (ed && window.Editor.docsInmueble) window.Editor.docsInmueble($("#inmDocs"), x.id);
+    if (ed && inv && window.Editor.inquilinosInmueble) window.Editor.inquilinosInmueble($("#inmInq"), x.id);
 
     cont.querySelector('[data-f="volver"]').onclick = () => abreInmueble(null);
     const bEd = cont.querySelector('[data-f="editar"]');
     if (bEd) bEd.onclick = () => window.Editor.editarInmueble(x.id);
     cont.querySelectorAll('[data-f="cats"]').forEach(b => { b.onclick = () => window.Editor.configInmuebles(); });
     cont.querySelectorAll("[data-deuda]").forEach(b => { b.onclick = () => window.Editor.irAEntidad("deuda", b.dataset.deuda); });
+  }
+
+  // Evolución del valor: un punto por mes desde la compra (o la primera estimación) hasta
+  // la última. Entre una estimación y la siguiente vale la anterior (escalón): es lo que
+  // sabías entonces. Los meses con una estimación o con la compra llevan su marca.
+  function pintaEvolucionInmueble(x) {
+    const cont = $("#inmEvol"); if (!cont) return;
+    const pts = (x.valoraciones || []).map(v => ({ f: v.fecha, v: v.importe, t: "Estimación: " + G.fmtEur(v.importe, 0) }));
+    if (x.compraFecha && x.precio != null) pts.push({ f: x.compraFecha, v: x.precio, t: "Compra: " + G.fmtEur(x.precio, 0), compra: true });
+    pts.sort((a, b) => a.f < b.f ? -1 : a.f > b.f ? 1 : (a.compra ? -1 : 1));
+    if (pts.length < 2) return;
+    const mes = f => f.slice(0, 7);
+    const meses = [];
+    for (let y = +pts[0].f.slice(0, 4), m = +pts[0].f.slice(5, 7); `${y}-${String(m).padStart(2, "0")}` <= mes(pts[pts.length - 1].f); m === 12 ? (y++, m = 1) : m++)
+      meses.push(`${y}-${String(m).padStart(2, "0")}-01`);
+    let j = 0, act = null;
+    const valores = meses.map(mm => { while (j < pts.length && mes(pts[j].f) <= mm.slice(0, 7)) act = pts[j++].v; return act; });
+    const eventos = pts.map(p => ({ fecha: mes(p.f) + "-01", texto: `${p.t} <small>(${G.fmtFechaCorta(p.f)})</small>`,
+      color: p.compra ? G.css("--s3") : G.css("--s1"), aro: !!p.compra, r: 5 }));
+    try {
+      G.lineaConEventos(cont, {
+        fechas: meses, valores, color: G.css("--s1"), alto: 220, eventos, desdeCero: false,
+        etiquetaX: G.fmtMes, fechaTT: G.fmtMes,
+      });
+    } catch (e) { /* sin gráfica */ }
+  }
+
+  // Sin «Mis datos» detrás (la web exportada) solo hay cifras: los datos de los inquilinos
+  // no viajan en DATOS.
+  function inquilinosResumen(alq) {
+    if (!alq) return '<p class="subt" style="margin:0">Sin inquilinos anotados.</p>';
+    return `<dl class="inmFilas suelta">
+      <dt>Inquilinos</dt><dd>${alq.inquilinos}</dd>
+      <dt>Contratos vigentes</dt><dd>${alq.vigentes} <small>de ${alq.contratos}</small></dd>
+      ${alq.rentaMensual != null ? `<dt>Renta</dt><dd>${G.fmtEur(alq.rentaMensual, 0)} al mes</dd>` : ""}
+      ${alq.proximoFin ? `<dt>Próximo fin</dt><dd>${G.fmtFecha(alq.proximoFin)}</dd>` : ""}</dl>`;
   }
 
   /* Periodo del libro de un inmueble: 12 meses (por defecto), este año, el año pasado,
@@ -1163,7 +1262,10 @@
     const cont = $("#inmLibroCuerpo"); if (!cont) return;
     const lb = x.libro, ed = conEditor();
     const r = rangoLibro(lb);
-    const aps = lb.apuntes.filter(a => a.fecha >= r.desde && a.fecha <= r.hasta);
+    const sel = estado.inmCats.sel;   // categorías elegidas en los chips (vacío = todas)
+    const aps = lb.apuntes.filter(a => a.fecha >= r.desde && a.fecha <= r.hasta
+      && (!sel.size || sel.has(String(a.categoria || "").toLowerCase())));
+    const deCats = sel.size ? ` · ${sel.size === 1 ? "1 categoría" : sel.size + " categorías"}` : "";
     let ing = 0, gas = 0;
     const cats = new Map();
     aps.forEach(a => {
@@ -1200,8 +1302,8 @@
     }).join("");
     const vacio = '<p class="subt" style="margin:0">No hay apuntes de sus categorías en este periodo.</p>';
     cont.innerHTML = `<div class="kpis">${kpisHTML([
-        { e: "Ingresos", v: G.fmtEur(ing, 0), n: r.et, cl: ing ? "pos" : "" },
-        { e: "Gastos", v: G.fmtEur(gas, 0), n: r.et },
+        { e: "Ingresos", v: G.fmtEur(ing, 0), n: r.et + deCats, cl: ing ? "pos" : "" },
+        { e: "Gastos", v: G.fmtEur(gas, 0), n: r.et + deCats },
         { e: "Neto", v: eurSigno(neto), n: "ingresos − gastos", cl: neto >= 0 ? "pos" : "neg" },
         { e: "Apuntes", v: String(aps.length), n: `de ${lb.n} en total` },
       ])}</div>
@@ -1430,17 +1532,28 @@
   // (titular, entidad y dimensiones propias).
   function flujosSel() {
     if (!D.flujosLista || !D.flujos) return D.flujos;
+    const pasa = filtroIg();
+    if (!pasa) return D.flujos;
+    return agregaFlujos(D.flujosLista.filter(pasa), D.flujos.meses);
+  }
+  // Predicado de los filtros activos de Ingresos y gastos (titular, entidad, marca,
+  // dimensiones e inmuebles), o null si no hay ninguno.
+  function filtroIg() {
     const tit = estado.titular, ent = estado.igEntidad, mar = estado.igMarca;
     const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
     const porTit = tit && tit !== "todos";
-    if (!porTit && !ent && !mar && !dimPares.length) return D.flujos;
-    const lista = D.flujosLista.filter(f =>
+    // Inmuebles: «__sin__» oculta sus apuntes, «__con__» deja solo esos, o un id concreto.
+    let inm = hayInmCats() ? estado.igInm : "";
+    if (inm && !inm.startsWith("__") && !D.inmuebles.lista.some(x => x.id === inm)) inm = "";   // uno ya borrado
+    if (!porTit && !ent && !mar && !dimPares.length && !inm) return null;
+    return f =>
       (!porTit || (f.titular || "") === tit)
       && (!ent || (f.entidad || "Sin entidad") === ent)
       && (!mar || (mar === "__con__" ? !!f.marca : mar === "__sin__" ? !f.marca : f.marca === mar))
-      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
-    return agregaFlujos(lista, D.flujos.meses);
+      && (!inm || (inm === "__sin__" ? !f.inmueble : inm === "__con__" ? !!f.inmueble : f.inmueble === inm))
+      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v);
   }
+  const hayInmCats = () => ((D.inmuebles || {}).lista || []).some(x => (x.categorias || []).length);
 
   /* ---- Periodo del panel (Este mes · Año · 12 meses · Rango personalizado) ----
      Afecta solo a Resumen (KPIs + cascada) y Categorías. Las cifras del periodo se
@@ -1466,14 +1579,8 @@
   }
   function listaFlujosFiltrada() {
     if (!D.flujosLista) return [];
-    const tit = estado.titular, ent = estado.igEntidad, mar = estado.igMarca;
-    const dimPares = Object.entries(estado.igDim || {}).filter(([, v]) => v);
-    const porTit = tit && tit !== "todos";
-    return D.flujosLista.filter(f =>
-      (!porTit || (f.titular || "") === tit)
-      && (!ent || (f.entidad || "Sin entidad") === ent)
-      && (!mar || (mar === "__con__" ? !!f.marca : mar === "__sin__" ? !f.marca : f.marca === mar))
-      && dimPares.every(([d, v]) => (f.categorias || {})[d] === v));
+    const pasa = filtroIg();
+    return pasa ? D.flujosLista.filter(pasa) : D.flujosLista;
   }
   function agregaRango(lista, desde, hasta) {
     let ing = 0, gas = 0; const cat = new Map();
@@ -1530,9 +1637,19 @@
     const cont = $("#igFiltros"); if (!cont) return;
     const ents = D.entidades || [], dims = D.dimensionesFlujos || [], marcas = D.marcas || [];
     const hayMarcados = (D.flujosLista || []).some(f => f.marca);
-    if (!ents.length && !dims.length && !hayMarcados) { cont.innerHTML = ""; return; }
+    const hayInm = hayInmCats();
+    if (!ents.length && !dims.length && !hayMarcados && !hayInm) { cont.innerHTML = ""; return; }
     estado.igDim = estado.igDim || {};
     const campos = [];
+    if (hayInm) {
+      // Los apuntes de las categorías de tus inmuebles: ocultarlos deja el día a día de casa
+      // sin el alquiler ni los gastos del piso; o verlos solos, o los de uno.
+      const sel = estado.igInm || "";
+      const ops = [{ v: "__sin__", t: "Sin los de inmuebles" }, { v: "__con__", t: "Solo los de inmuebles" }]
+        .concat(D.inmuebles.lista.filter(x => (x.categorias || []).length).map(x => ({ v: x.id, t: "🏠 " + x.nombre })));
+      campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Inmuebles</label>
+        <select data-igf="inm"><option value="">Todos los apuntes</option>${ops.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`);
+    }
     if (ents.length) {
       const usadas = [...new Set((D.flujosLista || []).map(f => f.entidad).filter(e => e && e !== "Sin entidad"))];
       const vals = [...new Set([...ents, ...usadas])];
@@ -1555,7 +1672,7 @@
       campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>${esc(dm.nombre)}</label>
         <select data-igf="dim" data-dim="${esc(dm.id)}"><option value="">Todas</option>${vals.map(v => `<option${v === sel ? " selected" : ""}>${esc(v)}</option>`).join("")}</select></span>`);
     });
-    const hayFiltro = estado.igEntidad || estado.igMarca || Object.values(estado.igDim).some(Boolean);
+    const hayFiltro = estado.igEntidad || estado.igMarca || (hayInm && estado.igInm) || Object.values(estado.igDim).some(Boolean);
     cont.innerHTML = `<span class="filtroTitulo">🔎 Filtrar apuntes:</span>${campos.join("")}` +
       (hayFiltro ? `<button class="btn mini filtroQuitar" id="igQuitar">✕ Quitar</button>` : "");
     cont.querySelectorAll("[data-igf]").forEach(s => {
@@ -1563,12 +1680,17 @@
         const k = e.target.dataset.igf;
         if (k === "ent") estado.igEntidad = e.target.value;
         else if (k === "marca") estado.igMarca = e.target.value;
+        else if (k === "inm") { estado.igInm = e.target.value; recuerda.guarda("patrimonio.igInm", estado.igInm); }
         else estado.igDim[e.target.dataset.dim] = e.target.value;
-        pintaIngresos();
+        refrescaIg();   // también las cifras de arriba (pintaFlujos), no solo la vista
       };
     });
     const bq = $("#igQuitar");
-    if (bq) bq.onclick = () => { estado.igEntidad = ""; estado.igMarca = ""; estado.igDim = {}; pintaIngresos(); };
+    if (bq) bq.onclick = () => {
+      estado.igEntidad = ""; estado.igMarca = ""; estado.igDim = {}; estado.igInm = "";
+      recuerda.guarda("patrimonio.igInm", "");
+      refrescaIg();
+    };
   }
 
   function pintaIngresos() {
@@ -1734,7 +1856,7 @@
   }
 
   // Icono de la sección a la que corresponde un aviso (homogéneo en Panel y Mis datos).
-  const AVISO_ICO = { distribucion: "📊", deudas: "💳", patrimonio: "💰", ingresos: "💶", fiscal: "🧾", notas: "🗓️" };
+  const AVISO_ICO = { distribucion: "📊", deudas: "💳", patrimonio: "💰", ingresos: "💶", fiscal: "🧾", notas: "🗓️", inmuebles: "🏠" };
   window.avisoIco = a => {
     if (a && a.destino && a.destino.tab) return AVISO_ICO[a.destino.tab] || "🗓️";
     if (a && a.pv) return AVISO_ICO[a.pv] || (a.nivel === "info" ? "ℹ️" : "⚠️");
@@ -1765,9 +1887,11 @@
     const n = al.length;
     const lineas = al.map(a => {
       const dest = a.destino && a.destino.tab === "notas";
+      const inm = a.destino && a.destino.tab === "inmuebles" && a.destino.inmueble;
       const clic = dest || (a.pv && document.getElementById("pv-" + a.pv));
       const attrs = dest
         ? ` data-dest-fecha="${esc(a.destino.fecha || "")}"`
+        : inm ? ` data-dest-inm="${esc(inm)}"`
         : (clic ? ` data-pv="${esc(a.pv)}"` : "");
       const extra = clic ? ` role="button" tabindex="0" title="${dest ? "Ir a la agenda" : "Ir a la sección"}"${attrs}` : "";
       return `<div class="avisoLinea${a.nivel === "info" ? "" : " aviso"}${clic ? " clicable" : ""}"${extra}>
@@ -1804,6 +1928,11 @@
 
     cont.querySelectorAll("[data-pv]").forEach(el => {
       const ir = () => irVista(el.dataset.pv);
+      el.onclick = ir;
+      el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
+    });
+    cont.querySelectorAll("[data-dest-inm]").forEach(el => {
+      const ir = () => window.verInmueble(el.dataset.destInm);
       el.onclick = ir;
       el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
     });
@@ -3445,12 +3574,14 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.16.1",
+    version: "1.17.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🔔", "Avisos del panel más elegantes", "La caja de avisos estrena una flecha fina integrada con el resto de la app (adiós al símbolo anterior) y muestra los avisos como filas limpias dentro de una tarjeta."],
-      ["🔎", "Filtros de Ingresos y gastos arreglados", "El filtro «Sin categoría» ya muestra los apuntes sin clasificar, volver a «Todas» recarga bien la tabla y el selector de fechas te deja escribir el año completo sin saltar."],
-      ["⌨️", "Sin atajos de una sola tecla", "Se quitan los atajos de una pulsación (1–8, V, L) que podían robar la tecla al escribir. Siguen funcionando Ctrl/⌘+K (la paleta de acciones) y Esc (quitar el filtro)."],
+      ["🏠", "Nueva zona de Inmuebles", "Tus pisos, casas, locales y garajes, aparte de la cartera para que no descuadren tus gráficos. Cada uno con su ficha: compra, valor estimado y su evolución, hipoteca, su libro de ingresos y gastos (por categorías, filtrable por periodo y por categoría) y sus documentos. Puedes marcar uno como tu vivienda habitual. Está en Panel → Inmuebles y se edita en Mis datos."],
+      ["👤", "Inquilinos y contratos", "En la ficha de cada inmueble apuntas a tus inquilinos y sus contratos (renta, día de cobro, fianza, actualización IPC o IRAV), con el contrato firmado adjunto y los datos propios que quieras. Verás la renta mensual, la rentabilidad bruta y neta y la ocupación."],
+      ["🔔", "Avisos de tus alquileres", "Fin de contrato, revisión de la renta, cobro que se acerca y alquiler sin cobrar. Se activan y ajustan en Configuración → 🏢 Inmuebles."],
+      ["🔀", "¿Tenías un piso en la cartera?", "Te avisamos y lo pasas a Inmuebles con un clic, con todo su historial de valores. Así no cuenta dos veces en tu patrimonio total del hogar, que ahora verás en Inicio."],
+      ["🔒", "Arreglo de privacidad", "La web exportada con «Ocultar importes» ya oculta todas las cifras (antes se colaban algunas). En Ingresos y gastos, un filtro nuevo para ver el día a día sin los apuntes de tus inmuebles."],
     ],
   };
   function quizaNovedades() {
@@ -3538,6 +3669,7 @@
       ["🗂️", "Categorías (pulsa para ver los apuntes)", "En qué se te va el dinero, por categoría, en el periodo elegido. Pulsa un trozo del gráfico y vas a «Mis datos → Ingresos y gastos» con esa categoría ya filtrada."],
       ["📊", "Tendencias y presupuesto", "La evolución de cada categoría y, si les pones presupuesto en Configuración, cuánto te desvías del plan cada mes."],
       ["👥", "Por titular", "Quién ingresa y quién gasta en el hogar, si hay varios titulares."],
+      ["🏠", "Sin los apuntes de tus inmuebles", "Si tienes categorías asociadas a un inmueble, el filtro «Inmuebles» te deja ver el día a día de casa sin el alquiler ni los gastos del piso («Sin los de inmuebles»), solo los de tus inmuebles, o solo los de uno. La app lo recuerda hasta que lo quites."],
       ["✍️", "De dónde salen los datos", "Los apuntes se crean en «Mis datos → Ingresos y gastos»: a mano, con plantillas recurrentes o importándolos del banco."],
     ] },
     "panel.deudas": { t: "Deudas y vencimientos", sub: "Lo que debes, cómo baja y lo que vence pronto.", p: [
@@ -3560,7 +3692,15 @@
       ["👆", "Su ficha completa", "Pulsa una tarjeta y se abre la ficha del inmueble: sus datos, la compra y el valor, la hipoteca, su libro de ingresos y gastos y sus documentos. «✎ Editar ficha» la cambia; «← Todos los inmuebles» (o volver a pulsar «Inmuebles» arriba) te devuelve a la lista."],
       ["📒", "Su libro de ingresos y gastos", "Son tus apuntes de Ingresos y gastos de las categorías que asocies al inmueble (en Configuración → 🏢 Inmuebles o en su ficha). Nada se anota dos veces y no cambia el saldo de tus cuentas. Verás los ingresos, gastos y neto del periodo, una gráfica mes a mes, el reparto por categoría y sus apuntes; pulsa una categoría para ver todos sus apuntes."],
       ["📅", "Elige el periodo", "Encima del libro eliges qué fechas ver: los últimos 12 meses (por defecto), este año, el año pasado, todo o «Rango…» para ir de una fecha a otra. Todo el libro (cifras, gráfica, categorías y apuntes) se recalcula; si el periodo pasa de dos años, la gráfica va por años. La rentabilidad neta de arriba sigue siendo siempre la de 12 meses."],
+      ["📈", "Evolución del valor", "En la ficha, una gráfica con lo que costó y cada valor estimado que has anotado, mes a mes. Cada vez que actualizas el valor estimado (con otra fecha), el anterior queda en el historial."],
+      ["🔀", "¿Tenías el piso en la cartera?", "Si antes lo apuntaste como un activo de tipo «Inmueble», aquí te avisa y te ofrece «Pasar a Inmuebles»: sale de la cartera también hacia atrás (sus gráficas quedan solo con lo financiero), sus valores pasan a la evolución del valor y sus notas lo siguen. Así no cuenta dos veces en el patrimonio del hogar."],
+      ["🏷️", "Filtra por categoría", "Los chips de sus categorías, encima del libro, son filtros: pulsa uno y el libro (cifras, gráfica, categorías y apuntes) se queda solo con esa categoría; pulsa varios para sumarlas y «✕ Todas» para volver a verlo entero. Se combina con el periodo y se quita al cambiar de inmueble."],
       ["💶", "Cash-flow y rentabilidad neta", "El cash-flow es lo que te dejó el inmueble en 12 meses (ingresos − gastos de sus categorías). La rentabilidad neta lo compara con lo que te costó, gastos de compra incluidos."],
+      ["👤", "Inquilinos y contratos", "En la ficha añades a cada inquilino (nombre, DNI, teléfono, correo) y, para cada uno, sus contratos: inicio y fin, renta mensual, día de cobro, fianza, cómo se actualiza la renta (IPC, IRAV o lo pactado) y en qué categoría se apunta el cobro. A ambos les puedes añadir datos propios con su nombre y uno o varios valores (avalistas, gastos incluidos, plaza de garaje…)."],
+      ["📎", "El contrato firmado, adjunto", "En el formulario del contrato adjuntas el propio contrato (PDF, foto…) y sus anexos; en el del inquilino, su DNI, nóminas o aval. Hay dos maneras: «Subir desde tu ordenador» (pulsa o arrastra los archivos; se guardan en tu Biblioteca, en «Inmuebles / tu inmueble / Contratos» o «Inquilinos») o «Elegir de tu Biblioteca» uno que ya tengas allí. Arriba ves la lista de lo adjunto y lo quitas con «Quitar». En la ficha se abren con un clic."],
+      ["📈", "Renta, rentabilidad bruta y ocupación", "La renta mensual suma los contratos vigentes. La rentabilidad bruta es la renta de un año sobre lo que costó el inmueble (sin descontar gastos; la neta sí los descuenta). La ocupación es la parte de tus inmuebles de inversión con un contrato vigente."],
+      ["🔔", "Avisos de tus inmuebles", "Fin de contrato, revisión anual de la renta, cobro que se acerca, alquiler sin cobrar (si pasado el día de cobro no hay ningún ingreso en su categoría) y valor estimado antiguo. Salen en la franja de avisos y abren la ficha del inmueble. Los activas y eliges su antelación en Configuración → 🏢 Inmuebles."],
+      ["🔒", "Los datos de tus inquilinos no salen de tu equipo", "Nombres, contactos y datos propios se leen de tu cartera solo cuando abres la ficha: no van en la web que exportas ni en los textos de los avisos, que solo nombran el inmueble."],
       ["📄", "Sus documentos", "Las notas de Documentos enlazadas al inmueble, con sus archivos (escrituras, contrato, recibos del IBI, el seguro…). Créalas desde la ficha o enlaza una que ya tengas; también puedes enlazarlas desde la propia nota («Relacionada con → Un inmueble»)."],
     ] },
     "panel.producto": { t: "Ficha de un componente", sub: "Todo sobre un activo concreto.", p: [
@@ -3586,12 +3726,14 @@
     ] },
     "datos.inmuebles": { t: "Mis datos · Inmuebles", sub: "La ficha de cada piso, casa, local o garaje.", p: [
       ["➕", "Añade tus inmuebles", "Con su nombre, tipo y titular. Van en su propia zona, aparte de la cartera, así que no descuadran los gráficos de tus inversiones."],
-      ["🏡", "Inversión o vivienda habitual", "Por defecto un inmueble es una inversión, con su estado (alquilado, vacío, en reforma o en venta). Uno puede ser tu vivienda habitual; solo puede haber una."],
+      ["🏡", "Inversión o vivienda habitual", "Por defecto un inmueble es una inversión, con su estado (alquilado, vacío, en reforma o en venta). Uno puede ser tu vivienda habitual; solo puede haber una (si ya la tienes, la opción sale bloqueada en los demás). Como no se alquila, al elegirla quedan bloqueados el estado y las categorías de ingresos; sus gastos sí se asocian. Si tenía inquilinos, se conservan pero no se muestran ni avisan hasta que vuelva a ser de inversión."],
       ["🧾", "Compra y valor", "Apunta la fecha, el precio y los gastos de compra (impuestos, notaría, registro, inmobiliaria). El valor estimado lo pones tú y lo actualizas cuando quieras: con él se calcula la revalorización."],
       ["🏦", "Hipoteca", "Capital pendiente, cuota mensual, tipo de interés y fecha de fin. Si ya tienes esa hipoteca como deuda en Patrimonio, puedes enlazarla: solo la señala para saltar de una a otra, no cambia ninguna cifra."],
       ["📌", "Datos del inmueble", "Dirección, referencia catastral, superficie, habitaciones y valor catastral (útil para el IBI y la declaración)."],
+      ["🔀", "Pasar a Inmuebles", "Los inmuebles que tengas en la cartera como un activo salen en un aviso arriba. «Pasar a Inmuebles» abre su ficha ya rellena (nombre, titular, tipo, último valor y la compra si la tenías anotada) para que la revises; al guardar, sale de la cartera también hacia atrás, sus valores pasan al historial del inmueble y sus notas y recordatorios lo siguen. Si no valida, no se toca nada."],
       ["📒", "Sus categorías de ingresos y gastos", "Marca en la ficha las categorías que son de ese inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes forman su libro. Una categoría solo puede ir con un inmueble. Para repartirlas todas de golpe, Configuración → 🏢 Inmuebles."],
-      ["👆", "Ver su ficha completa", "Pulsa el nombre de un inmueble para abrir su ficha en el Panel, con su libro de ingresos y gastos y sus documentos. Con ✎ lo editas aquí."],
+      ["👆", "Ver su ficha completa", "Pulsa el nombre de un inmueble para abrir su ficha en el Panel, con sus inquilinos y contratos, su libro de ingresos y gastos y sus documentos. Con ✎ lo editas aquí."],
+      ["👤", "Inquilinos y contratos", "Se añaden desde la ficha completa del inmueble (en el Panel). Aquí ves bajo el estado quién vive ahora y la renta de sus contratos vigentes."],
     ] },
     "datos.apartados": { t: "Mis datos · Reservados", sub: "Dinero que ya tiene dueño: lo apartas para un fin.", p: [
       ["🗂️", "Qué es un reservado", "Dinero de tus cuentas que mentalmente ya está comprometido: la declaración de la renta, un viaje, el cambio de coche, un fondo de imprevistos… Sigue siendo tuyo y suma a tu patrimonio."],
@@ -3632,6 +3774,7 @@
       ["🔔", "Avisos y recordatorios", "Activa o silencia cada aviso automático (concentración, vencimientos, deudas…) y elige con cuántos días de antelación avisar de un vencimiento, o tras cuántos días sin anotar/sin actualizar precios recordártelo."],
       ["🧩", "Tipos propios, marcas y entidades", "Crea tus propios tipos de activo (u oculta los de serie), define las marcas (🚩⭐❗) para tus apuntes y la lista de entidades/bancos que usas para clasificar."],
       ["🏢", "Inmuebles: sus categorías", "En la pestaña «🏢 Inmuebles» eliges a qué inmueble pertenece cada categoría de ingresos y gastos. Sus apuntes (también los que importes del banco, que tus reglas clasifican solas) forman el libro de ese inmueble. Una categoría va como mucho con un inmueble."],
+      ["🔔", "Inmuebles: sus avisos", "En la misma pestaña activas o apagas cada aviso de tus inmuebles (fin de contrato, revisión de la renta, cobro que se acerca, alquiler sin cobrar y valor estimado antiguo) y eliges su antelación o su margen. Vacío = el valor por defecto, que ves en gris."],
     ] },
     "datos.importar": { t: "Mis datos · Importar", sub: "Trae tus datos de golpe en vez de teclearlos uno a uno.", p: [
       ["🎯", "Dos destinos", "Arriba eliges si importas inversiones (a «Activos»: compras, ventas, dividendos) o movimientos de gasto (al «banco»: tus ingresos y gastos del hogar)."],

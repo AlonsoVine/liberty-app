@@ -13,6 +13,7 @@ import re
 import unicodedata
 
 from .motor import (
+    ACTUALIZACIONES_CONTRATO,
     AVISOS_CLAVES,
     ESTADOS_INMUEBLE,
     FUENTES,
@@ -448,9 +449,34 @@ def fecha_suave(valor):
 # SEÑALA la deuda de Patrimonio que le corresponde (para saltar a ella), sin mover cifras.
 # Los catálogos (TIPOS_/USOS_/ESTADOS_INMUEBLE) viven en motor.py, que también los usa.
 
-# Lo que no se edita desde la ficha (los contratos, en una próxima iteración) se conserva
-# tal cual al guardarla. Las categorías también, salvo que el formulario las mande.
-INMUEBLE_CONSERVA = ("contratos", "categorias")
+# Lo que no se edita desde la ficha (los inquilinos con sus contratos, que tienen sus
+# propios formularios) se conserva tal cual al guardarla. Las categorías también, salvo
+# que el formulario las mande. «contratos» es el nombre del diseño inicial (no se usó).
+# «historico»: las estimaciones de valor anteriores a la actual (ADR 0031).
+INMUEBLE_CONSERVA = ("contratos", "categorias", "inquilinos", "historico")
+
+
+def _historico(lista):
+    """Historial de valoraciones de un inmueble: [{fecha, importe}] ordenado, una por fecha
+    (la última manda) y hasta 300."""
+    por_fecha = {}
+    for v in lista or []:
+        if isinstance(v, dict) and v.get("fecha") and v.get("importe") is not None:
+            por_fecha[str(v["fecha"])[:10]] = round(float(v["importe"]), 2)
+    return [{"fecha": f, "importe": i} for f, i in sorted(por_fecha.items())][-300:]
+
+
+def _tipo_categoria(cfg, nombre):
+    """«ingreso» o «gasto» de una categoría: la de Configuración y, si no está, la de sus
+    apuntes (como `categoriasTodas` en el editor). None si no se sabe."""
+    k = str(nombre or "").strip().lower()
+    for c in (cfg.get("config") or {}).get("categorias") or []:
+        if str(c.get("nombre") or "").strip().lower() == k:
+            return c.get("tipo")
+    for f in cfg.get("flujos") or []:
+        if f.get("tipo") in ("ingreso", "gasto") and str(f.get("categoria") or "").strip().lower() == k:
+            return f.get("tipo")
+    return None
 
 
 def _categorias_inmueble(cfg, iid, valor, errores, ya=None):
@@ -566,6 +592,8 @@ def guarda_inmueble(cfg, datos):
                                f"«{otro.get('nombre')}».")
     manda_cats = "categorias" in datos
     cats = _categorias_inmueble(cfg, iid, datos.get("categorias"), errores) if manda_cats else None
+    if cats and uso == "habitual":   # la habitual no se alquila: sin categorías de ingresos
+        cats = [c for c in cats if _tipo_categoria(cfg, c) != "ingreso"]
     if errores:
         raise ErrorValidacion(errores)
 
@@ -597,6 +625,16 @@ def guarda_inmueble(cfg, datos):
         conserva = {k: existente[k] for k in INMUEBLE_CONSERVA if k in existente}
         if manda_cats:
             conserva.pop("categorias", None)
+        # Una estimación nueva (otra fecha) no borra la anterior: pasa al historial. Si
+        # solo se corrige la del mismo día, se sustituye.
+        antes, ahora = existente.get("valor") or {}, im.get("valor") or {}
+        hist = list(conserva.get("historico") or [])
+        if antes.get("fecha") and antes.get("importe") is not None and ahora and antes["fecha"] != ahora.get("fecha"):
+            hist.append(antes)
+        hist = [h for h in _historico(hist) if h["fecha"] != ahora.get("fecha")]
+        conserva.pop("historico", None)
+        if hist:
+            conserva["historico"] = hist
         existente.clear()
         existente.update(id=iid, **im, **conserva)
         if cats:
@@ -628,6 +666,224 @@ def borra_inmueble(cfg, iid):
         v = r.get("vinculo") or {}
         if v.get("tipo") == "inmueble" and v.get("ref") == iid:
             r.pop("vinculo", None)
+
+
+def traspasa_a_inmueble(cfg, datos):
+    """Pasa un producto de tipo «inmueble» de la cartera a la zona de Inmuebles. Es un
+    traspaso completo (ADR 0031): sale de la cartera también hacia atrás, como si nunca
+    hubiera estado en ella, y no se pierde nada:
+    - la ficha se crea con los datos del formulario (`datos`, los de `guarda_inmueble`);
+    - sin valor estimado, se toma su último valor anotado;
+    - sus valores anotados pasan al historial de valoraciones del inmueble;
+    - las notas y recordatorios que lo señalaban pasan a señalar el inmueble.
+    Todo o nada: si la ficha no valida, el producto se queda donde estaba."""
+    pid = datos.get("producto")
+    p = producto(cfg, pid)
+    if not p or p.get("tipo") != "inmueble":
+        raise ErrorValidacion(["Ese inmueble de la cartera ya no existe (¿ya lo pasaste?)."])
+    d = {k: v for k, v in datos.items() if k not in ("producto", "id")}
+    vals = sorted((v for v in cfg.get("valoraciones", []) or []
+                   if v.get("producto") == pid and v.get("fecha") and v.get("valor") is not None),
+                  key=lambda v: v["fecha"])
+    if not str(d.get("valorImporte") or "").strip() and vals:
+        d["valorImporte"], d["valorFecha"] = vals[-1]["valor"], vals[-1]["fecha"]
+    im = guarda_inmueble(cfg, d)
+    actual = (im.get("valor") or {}).get("fecha")
+    hist = _historico([{"fecha": v["fecha"], "importe": v["valor"]} for v in vals if v["fecha"] != actual])
+    if hist:
+        im["historico"] = hist
+    nuevo = {"tipo": "inmueble", "ref": im["id"]}
+
+    def cambia(v):
+        return dict(nuevo) if isinstance(v, dict) and v.get("ref") == pid and v.get("tipo") != "inmueble" else v
+    for n in cfg.get("notas", []) or []:
+        if n.get("vinculos"):
+            n["vinculos"] = [cambia(v) for v in n["vinculos"]]
+        if n.get("vinculo"):
+            n["vinculo"] = cambia(n["vinculo"])
+    for r in cfg.get("recordatorios", []) or []:
+        if r.get("vinculo"):
+            r["vinculo"] = cambia(r["vinculo"])
+    borra_producto(cfg, pid)
+    return im
+
+
+# ---------------------------------------------------------------- inquilinos y contratos
+# Cada inmueble lleva su lista de inquilinos y cada inquilino, sus contratos (uno vigente y
+# los anteriores, o varios si se alquila por habitaciones). Los ids son únicos en toda la
+# cartera (q1, q2… y c1, c2…) para poder editarlos y borrarlos por su id.
+
+def _campos_libres(valor, errores, etiqueta):
+    """Datos propios que el usuario añade a un inquilino o a un contrato: [{nombre,
+    valores: [...]}]. Un dato puede tener uno o varios valores (p. ej. dos avalistas)."""
+    if not isinstance(valor, list):
+        return []
+    out, vistos = [], set()
+    for c in valor[:40]:
+        c = c if isinstance(c, dict) else {}
+        nombre = texto(c.get("nombre"), 40)
+        vals = c.get("valores")
+        vals = vals if isinstance(vals, list) else [vals]
+        vals = [texto(v, 200) for v in vals[:10] if texto(v, 200)]
+        if not nombre and not vals:
+            continue
+        if not nombre:
+            errores.append(f"Ponle nombre a cada dato propio {etiqueta} (p. ej. «Avalista»).")
+            continue
+        if nombre.lower() in vistos:
+            errores.append(f"El dato «{nombre}» está repetido {etiqueta}.")
+            continue
+        vistos.add(nombre.lower())
+        out.append({"nombre": nombre, "valores": vals})
+    if len(out) > 30:
+        errores.append(f"Como mucho 30 datos propios {etiqueta}.")
+    return out[:30]
+
+
+def _archivos_enlazados(valor):
+    """Documentos de la Biblioteca enlazados (el contrato firmado, el DNI…), con la misma
+    forma que en las notas: [{tipo: "archivo"|"carpeta", id}]. Hasta 20, sin repetir."""
+    out, vistos = [], set()
+    for a in valor if isinstance(valor, list) else []:
+        a = a if isinstance(a, dict) else {}
+        tipo, aid = a.get("tipo"), texto(a.get("id"), 40)
+        if tipo in ("archivo", "carpeta") and aid and (tipo, aid) not in vistos:
+            vistos.add((tipo, aid))
+            out.append({"tipo": tipo, "id": aid})
+    return out[:20]
+
+
+def _inquilinos_todos(cfg):
+    return [q for im in cfg.get("inmuebles", []) or [] for q in im.get("inquilinos") or []]
+
+
+def _contratos_todos(cfg):
+    return [c for q in _inquilinos_todos(cfg) for c in q.get("contratos") or []]
+
+
+def guarda_inquilino(cfg, datos):
+    """Crea o edita un inquilino de un inmueble (`datos.inmueble`). Sus contratos se
+    conservan: se editan aparte."""
+    errores = []
+    im = next((x for x in cfg.get("inmuebles", []) or [] if x.get("id") == datos.get("inmueble")), None)
+    if not im:
+        raise ErrorValidacion(["Ese inmueble ya no existe: recarga la página."])
+    nombre = texto(datos.get("nombre"), 80)
+    if not nombre:
+        errores.append("Ponle un nombre al inquilino.")
+    email = texto(datos.get("email"), 120)
+    if email and not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        errores.append(f"El correo «{email}» no parece válido.")
+    campos_l = _campos_libres(datos.get("campos"), errores, "del inquilino")
+    if errores:
+        raise ErrorValidacion(errores)
+    nuevo = {k: v for k, v in {
+        "nombre": nombre, "documento": texto(datos.get("documento"), 30).upper(),
+        "telefono": texto(datos.get("telefono"), 30), "email": email,
+        "nota": texto(datos.get("nota"), 2000)}.items() if v}
+    if campos_l:
+        nuevo["campos"] = campos_l
+    archs = _archivos_enlazados(datos.get("archivos"))
+    if archs:
+        nuevo["archivos"] = archs
+    lista = im.setdefault("inquilinos", [])
+    qid = datos.get("id")
+    if qid:
+        q = next((x for x in lista if x.get("id") == qid), None)
+        if not q:
+            raise ErrorValidacion(["Ese inquilino ya no existe: recarga la página."])
+        contratos = q.get("contratos")
+        q.clear()
+        q.update(id=qid, **nuevo)
+        if contratos:
+            q["contratos"] = contratos
+        return q
+    q = {"id": siguiente_id(_inquilinos_todos(cfg), "q"), **nuevo}
+    lista.append(q)
+    return q
+
+
+def borra_inquilino(cfg, qid):
+    for im in cfg.get("inmuebles", []) or []:
+        ls = im.get("inquilinos") or []
+        if any(q.get("id") == qid for q in ls):
+            im["inquilinos"] = [q for q in ls if q.get("id") != qid]
+            if not im["inquilinos"]:
+                im.pop("inquilinos")
+            return
+    raise ErrorValidacion(["Ese inquilino ya no existe."])
+
+
+def guarda_contrato(cfg, datos):
+    """Crea o edita un contrato de un inquilino (`datos.inquilino`). La renta es mensual.
+    `categoria` (opcional) es la categoría de ingresos del inmueble donde se apunta el
+    cobro: con ella se vigila si ha llegado (si no, vale cualquiera de ingresos suya)."""
+    errores = []
+    im = q = None
+    for x in cfg.get("inmuebles", []) or []:
+        q = next((y for y in x.get("inquilinos") or [] if y.get("id") == datos.get("inquilino")), None)
+        if q:
+            im = x
+            break
+    if not q:
+        raise ErrorValidacion(["Ese inquilino ya no existe: recarga la página."])
+    inicio = fecha_suave(datos.get("inicio"))
+    if not inicio:
+        errores.append("Falta la fecha de inicio del contrato.")
+    fin = fecha_suave(datos.get("fin")) if str(datos.get("fin") or "").strip() else ""
+    if str(datos.get("fin") or "").strip() and not fin:
+        errores.append("La fecha de fin no es válida.")
+    if inicio and fin and fin <= inicio:
+        errores.append("El contrato tiene que terminar después de empezar.")
+    renta = numero(datos.get("renta"), "la renta mensual", errores, mayor_que=0)
+    fianza = numero(datos.get("fianza"), "la fianza", errores, obligatorio=False, minimo=0)
+    dia = numero(datos.get("diaCobro"), "el día de cobro", errores, obligatorio=False, minimo=1)
+    if dia is not None and (dia > 31 or dia != int(dia)):
+        errores.append("El día de cobro va del 1 al 31.")
+    act = datos.get("actualizacion") or "ninguna"
+    if act not in ACTUALIZACIONES_CONTRATO:
+        errores.append("Elige cómo se actualiza la renta.")
+    cat = texto(datos.get("categoria"), 40)
+    if cat and cat.lower() not in {str(c).lower() for c in im.get("categorias") or []}:
+        errores.append(f"La categoría «{cat}» no va con este inmueble: asóciala antes en su ficha "
+                       "o en Configuración → 🏢 Inmuebles.")
+    campos_l = _campos_libres(datos.get("campos"), errores, "del contrato")
+    if errores:
+        raise ErrorValidacion(errores)
+    nuevo = {k: v for k, v in {
+        "inicio": inicio, "fin": fin, "renta": round(renta, 2),
+        "diaCobro": int(dia) if dia is not None else None,
+        "fianza": round(fianza, 2) if fianza is not None else None,
+        "actualizacion": act, "categoria": cat,
+        "nota": texto(datos.get("nota"), 2000)}.items() if v not in ("", None)}
+    if campos_l:
+        nuevo["campos"] = campos_l
+    archs = _archivos_enlazados(datos.get("archivos"))
+    if archs:
+        nuevo["archivos"] = archs
+    lista = q.setdefault("contratos", [])
+    cid = datos.get("id")
+    if cid:
+        c = next((x for x in lista if x.get("id") == cid), None)
+        if not c:
+            raise ErrorValidacion(["Ese contrato ya no existe: recarga la página."])
+        c.clear()
+        c.update(id=cid, **nuevo)
+        return c
+    c = {"id": siguiente_id(_contratos_todos(cfg), "c"), **nuevo}
+    lista.append(c)
+    return c
+
+
+def borra_contrato(cfg, cid):
+    for q in _inquilinos_todos(cfg):
+        ls = q.get("contratos") or []
+        if any(c.get("id") == cid for c in ls):
+            q["contratos"] = [c for c in ls if c.get("id") != cid]
+            if not q["contratos"]:
+                q.pop("contratos")
+            return
+    raise ErrorValidacion(["Ese contrato ya no existe."])
 
 
 # ---------------------------------------------------------------- configuración
@@ -718,6 +974,18 @@ def guarda_config(cfg, datos):
     if "diasSinAnotar" in datos:
         ds = numero(datos.get("diasSinAnotar"), "los días sin anotar", errores, obligatorio=False, minimo=0)
         conf["diasSinAnotar"] = int(ds) if ds is not None else 30
+    # Avisos de los inmuebles: días (o meses) de cada uno. Vacío = el valor por defecto.
+    for k, etq in (("inmDiasFinContrato", "los días de aviso del fin de contrato"),
+                   ("inmDiasRevision", "los días de aviso de la revisión de la renta"),
+                   ("inmDiasCobro", "los días de aviso del cobro"),
+                   ("inmDiasImpago", "los días de margen del cobro"),
+                   ("inmMesesValor", "los meses de la estimación de valor")):
+        if k in datos:
+            v = numero(datos.get(k), etq, errores, obligatorio=False, minimo=0)
+            if v is None:
+                conf.pop(k, None)
+            else:
+                conf[k] = min(366, int(v))
     if "diasSinActualizar" in datos:
         dsa = numero(datos.get("diasSinActualizar"), "los días sin actualizar activos", errores, obligatorio=False, minimo=0)
         conf["diasSinActualizar"] = int(dsa) if dsa is not None else 90

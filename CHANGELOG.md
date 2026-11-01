@@ -9,10 +9,10 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
-## [No publicado] — rama `inmuebles`
+## [1.17.0] — 2026-11-01
 
-Nueva **zona de Inmuebles**, la tercera «app» de Liberty, aparte de la cartera. Se construye por
-iteraciones ([diseño](docs/diseno-inmuebles.md)) y se publicará cuando esté completa.
+Nueva **zona de Inmuebles**, la tercera «app» de Liberty, aparte de la cartera
+([diseño](docs/diseno-inmuebles.md), ADR 0028–0031).
 
 - **Iteración 1 · núcleo (ADR 0028).** Fichas de inmueble en «Mis datos → Inmuebles»: tipo,
   titular, dirección, referencia catastral, superficie, valor catastral, **compra** (fecha,
@@ -39,6 +39,45 @@ iteraciones ([diseño](docs/diseno-inmuebles.md)) y se publicará cuando esté c
     tengas). Al borrar el inmueble, el enlace se suelta.
   - **Inicio** estrena el bloque **«Tus inmuebles»**, con el **patrimonio total del hogar**:
     cartera + inmuebles − hipotecas, sin restar dos veces una hipoteca enlazada a una deuda.
+- **Inquilinos, contratos y avisos (ADR 0030).**
+  - **Inquilinos y contratos** en la ficha de cada inmueble de inversión. Cada inquilino lleva
+    nombre, DNI, teléfono y correo, y sus contratos: inicio y fin, renta mensual, día de cobro,
+    fianza, actualización de la renta (IPC, IRAV o lo pactado) y la categoría donde se apunta el
+    cobro. A ambos se les pueden añadir **datos propios** con su nombre y uno o varios valores.
+  - **El contrato firmado, adjunto al contrato**, con sus anexos, y los documentos del
+    inquilino. En el formulario hay dos maneras, cada una en su tarjeta: **subir desde tu
+    ordenador** (pulsando o arrastrando; van a la Biblioteca, a «Inmuebles / <inmueble> /
+    Contratos») o **elegir de tu Biblioteca** uno que ya esté allí. Arriba, la lista de lo
+    adjunto. En la ficha se abren con un clic.
+  - **La vivienda habitual bloquea lo que no le aplica.** En su formulario quedan bloqueados el
+    estado y las categorías de ingresos, y la opción sale bloqueada si ya lo es otro inmueble.
+    No le cuentan renta ni avisos de contrato.
+  - **Los chips de categorías de la ficha filtran su libro**: pulsa una o varias para ver solo
+    sus apuntes (cifras, gráfica y tablas); «✕ Todas» lo quita.
+  - **Renta mensual, rentabilidad bruta y ocupación** en la ficha, en la lista y en el Panel.
+  - **Avisos de los inmuebles**, que se activan y ajustan en Configuración → 🏢 Inmuebles: fin de
+    contrato, revisión anual de la renta, cobro que se acerca, **alquiler sin cobrar** y valor
+    estimado antiguo. Al pulsarlos abren la ficha del inmueble.
+  - Los datos de los inquilinos **no salen** en la web exportada ni en los textos de los avisos.
+  - **Filtro «Inmuebles» en Ingresos y gastos**: ver el día a día sin los apuntes de tus
+    inmuebles, solo esos, o solo los de uno. Se recuerda.
+  - **Panel sin activos.** Con solo inmuebles o solo ingresos y gastos, el Panel ya se calcula
+    (antes salía vacío).
+  - Arreglo: al cambiar un filtro de Ingresos y gastos (entidad, marca o dimensión), las cifras
+    de arriba no se actualizaban hasta cambiar de vista.
+  - La pestaña 🏢 Inmuebles de Configuración pasa a la izquierda de 📄 Documentos.
+  - En el filtro de categoría de Mis datos → Ingresos y gastos, **«— Sin categoría —»** sale
+    siempre (antes desaparecía si todos los apuntes estaban clasificados).
+- **Pasar a Inmuebles los pisos que tenías en la cartera (ADR 0031).**
+  - Si apuntaste un inmueble como un activo de la cartera, Panel → Inmuebles y Mis datos →
+    Inmuebles lo avisan y ofrecen **«Pasar a Inmuebles»**: su ficha sale ya rellena para
+    revisarla.
+  - Al guardar, **sale de la cartera también hacia atrás**: sus gráficas quedan solo con lo
+    financiero. Sus valores pasan al inmueble y sus notas y recordatorios lo siguen. Así ya no
+    cuenta dos veces en el patrimonio del hogar.
+  - **Evolución del valor** en la ficha: una gráfica con lo que costó y cada estimación. Al
+    actualizar el valor estimado con otra fecha, el anterior queda en el historial, y la foto de
+    un mes pasado usa el valor de entonces.
 - **Arreglo de privacidad: la web exportada con «Ocultar importes».** Fallaba de dos maneras.
   Este fallo ya estaba en la 1.16.1 y anteriores.
   - Solo se escalaba una lista de campos. Se colaban **cifras reales**: patrimonio neto y bruto,

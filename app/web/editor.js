@@ -989,7 +989,9 @@
     const filas = ls.map(x => {
       const c = x.compra || {}, v = x.valor || {}, h = x.hipoteca || {};
       const deuda = h.deudaRef ? prod(h.deudaRef) : null;
-      const uso = x.uso === "habitual" ? '<span class="pos">Vivienda habitual</span>' : esc(I.estados[x.estado] || "");
+      const alq = x.uso === "habitual" ? null : alquilerVigente(x);
+      const uso = (x.uso === "habitual" ? '<span class="pos">Vivienda habitual</span>' : esc(I.estados[x.estado] || ""))
+        + (alq ? `<small class="idp">👤 ${esc(alq.quien.join(", "))} · ${eur(alq.renta)}/mes</small>` : "");
       const hip = h.capitalPendiente != null ? eur(h.capitalPendiente) : h.cuota != null ? `<small>${eur(h.cuota)}/mes</small>` : "";
       const cats = x.categorias || [];
       return `<tr id="fila-inm-${esc(x.id)}"${x.id === E.resaltaInmueble ? ' class="resaltado"' : ""}>
@@ -1004,9 +1006,59 @@
     return `<section class="tarjeta"><header><h2>Inmuebles</h2>
         <span class="subt">Pisos, casas, locales, garajes… aparte de tu cartera: no suman en el patrimonio de tus inversiones ni en sus gráficos. Pulsa el nombre para ver su ficha completa</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoInmueble">+ Añadir inmueble</button></header>
+      ${avisoTraspaso()}
       ${filas ? envTabla("inmuebles", `<tr><th>Inmueble</th><th>Tipo</th><th>Uso</th><th>Titular</th>
         <th>Valor estimado</th><th>Compra</th><th>Hipoteca</th><th class="nosort"></th></tr>`, filas)
         : '<p class="subt">Todavía no has añadido ningún inmueble.</p>'}</section>`;
+  }
+
+  /* ------------------------------- inmuebles que aún viven en la cartera (ADR 0031) */
+  // Antes de esta zona, un piso se metía en la cartera como un activo de tipo «inmueble».
+  // Así cuenta dos veces si además se crea aquí, y no tiene ficha. Se ofrece pasarlo.
+  const inmueblesEnCartera = () => (E.cfg.productos || []).filter(p => p.tipo === "inmueble");
+  function ultimoValor(pid) {
+    const vs = (E.cfg.valoraciones || []).filter(v => v.producto === pid && v.fecha).sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+    return vs.length ? vs[vs.length - 1] : null;
+  }
+  function avisoTraspaso() {
+    const ps = inmueblesEnCartera();
+    if (!ps.length) return "";
+    return `<div class="inmTraspaso">
+      <p><b>🏠 ${ps.length === 1 ? "Tienes un inmueble dentro de tu cartera" : `Tienes ${ps.length} inmuebles dentro de tu cartera`}</b>, como un activo más.
+      Pásalo${ps.length === 1 ? "" : "s"} aquí: tendrá${ps.length === 1 ? "" : "n"} su ficha completa y no contará${ps.length === 1 ? "" : "n"} dos veces en el patrimonio del hogar.</p>
+      <ul>${ps.map(p => { const v = ultimoValor(p.id); return `<li><span>${esc(nombre(p))}${v ? ` <small>${eur(v.valor)} · ${fecha(v.fecha)}</small>` : ""}</span>
+        <button type="button" class="btn mini" data-acc="traspasarInmueble" data-id="${esc(p.id)}">Pasar a Inmuebles →</button></li>`; }).join("")}</ul></div>`;
+  }
+  // Tipo de inmueble a partir de cómo lo llamaste en la cartera («Plaza de garaje» → garaje).
+  function tipoDesdeProducto(p) {
+    const t = [p.nombre, p.corto, p.tipoDetalle].join(" ").toLowerCase();
+    const k = [["garaje", /garaje|parking|aparcamiento/], ["trastero", /trastero/], ["terreno", /terreno|parcela|solar|finca/],
+      ["casa", /casa|chalet|adosado/], ["piso", /piso|vivienda|apartamento|ático|estudio/], ["local", /local|oficina|nave/]].find(([, re]) => re.test(t));
+    return k ? k[0] : "otro";
+  }
+  function formTraspaso(pid, extra) {
+    const p = prod(pid);
+    if (!p) return;
+    const movs = (E.cfg.movimientos || []).filter(m => m.producto === pid);
+    const compras = movs.filter(m => m.tipo === "compra").sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+    const otros = movs.length - compras.length;
+    const vals = (E.cfg.valoraciones || []).filter(v => v.producto === pid);
+    const u = ultimoValor(pid);
+    const n = v => v == null ? "" : String(Math.round(v * 100) / 100).replace(".", ",");
+    // Sin compras anotadas, lo aportado que lleven sus valores (productos «a mano»).
+    const conAp = vals.filter(v => v.aportado != null && v.fecha).sort((a, b) => a.fecha < b.fecha ? -1 : 1);
+    return formInmueble(null, {
+      recargar: !!(extra && extra.recargar),
+      traspaso: { p, vals: vals.length, otros },
+      datos: {
+        nombre: p.nombre || p.corto || "", tipo: tipoDesdeProducto(p), titular: p.titular || "", nota: p.papel || "",
+        estado: /alquil/i.test([p.nombre, p.papel].join(" ")) ? "alquilado" : "vacio",
+        compraFecha: compras.length ? compras[0].fecha : conAp.length ? conAp[0].fecha : "",
+        compraPrecio: compras.length ? n(compras.reduce((s, m) => s + (+m.importe || 0), 0))
+          : conAp.length ? n(conAp[conAp.length - 1].aportado) : "",
+        valorImporte: u ? n(u.valor) : "", valorFecha: u ? u.fecha : "",
+      },
+    });
   }
 
   // La ficha se guarda agrupada (compra / valor / hipoteca) y el formulario es plano.
@@ -1056,14 +1108,14 @@
       if (!ls.length) return "";
       return `<div class="campo ancho"><span class="et">${etq}</span><div class="inmCatsForm">${ls.map(c => {
         const o = ocup[c.nombre.toLowerCase()];
-        return `<label${o ? ` class="ocupada" title="Ya va con «${esc(o.nombre)}»"` : ""}><input type="checkbox" data-inmcat value="${esc(c.nombre)}"${mias.has(c.nombre.toLowerCase()) ? " checked" : ""}${o ? " disabled" : ""}> ${esc(c.nombre)}${o ? ` <small>(${esc(o.nombre)})</small>` : ""}</label>`;
+        return `<label${o ? ` class="ocupada" title="Ya va con «${esc(o.nombre)}»"` : ""}><input type="checkbox" data-inmcat data-tipo="${tipo}" value="${esc(c.nombre)}"${mias.has(c.nombre.toLowerCase()) ? " checked" : ""}${o ? " disabled" : ""}> ${esc(c.nombre)}${o ? ` <small>(${esc(o.nombre)})</small>` : ""}</label>`;
       }).join("")}</div></div>`;
     };
     // Las que tenía asociadas y ya no están en ninguna lista: se ven (y se conservan) igual.
     const sueltas = ((x && x.categorias) || []).filter(c => !cats.some(k => k.nombre.toLowerCase() === c.toLowerCase()));
     const otras = sueltas.length ? `<div class="campo ancho"><span class="et">Otras <em>ya no están en tus categorías</em></span><div class="inmCatsForm">${sueltas.map(c =>
       `<label><input type="checkbox" data-inmcat value="${esc(c)}" checked> ${esc(c)}</label>`).join("")}</div></div>` : "";
-    const h = grupo("ingreso", "De ingresos") + grupo("gasto", "De gastos") + otras;
+    const h = grupo("ingreso", 'De ingresos <em class="inmNoAplica" hidden>no van con la vivienda habitual</em>') + grupo("gasto", "De gastos") + otras;
     return h || '<p class="subt">Aún no tienes categorías de ingresos y gastos: créalas en Configuración → Ingresos y gastos.</p>';
   }
 
@@ -1079,7 +1131,20 @@
     // Deudas que se pueden enlazar: las que no señala ya otro inmueble.
     const enlazadas = new Set(otros.map(o => (o.hipoteca || {}).deudaRef).filter(Boolean));
     const deudas = E.cfg.productos.filter(p => p.tipo === "deuda" && !enlazadas.has(p.id));
-    const f = abreModal(nuevo ? "Añadir inmueble" : "Editar " + esc(x.nombre || "inmueble"), `
+    // Traspaso desde la cartera (opts.traspaso): mismo formulario, ya relleno, y qué pasará.
+    const tr = opts.traspaso;
+    const titulo = tr ? `Pasar «${esc(nombre(tr.p))}» a Inmuebles` : nuevo ? "Añadir inmueble" : "Editar " + esc(x.nombre || "inmueble");
+    const f = abreModal(titulo, `
+      ${tr ? `<div class="inmTrInfo">
+        <p>Revisa y completa su ficha. Al guardar:</p>
+        <ul>
+          <li><b>Sale de tu cartera, también hacia atrás</b>: sus gráficas quedan como si siempre hubiera sido solo dinero e inversiones.</li>
+          ${tr.vals ? `<li>${tr.vals === 1 ? "Su valor anotado pasa" : `Sus ${tr.vals} valores anotados pasan`} a la ficha, con su <b>evolución del valor</b>.</li>` : ""}
+          <li>Las notas y recordatorios que lo señalaban pasan a señalar el inmueble.</li>
+          <li>Lo que falta (gastos de compra, hipoteca, dirección…) lo puedes poner ahora o más tarde.</li>
+        </ul>
+        ${tr.otros ? `<p class="avisoLinea">⚠ Tiene ${tr.otros === 1 ? "un movimiento que no es una compra" : `${tr.otros} movimientos que no son compras`} (rentas, ventas, comisiones) y no ${tr.otros === 1 ? "pasa" : "pasan"} a la ficha. Si son rentas cobradas, apúntalas en Ingresos y gastos con una categoría del inmueble.</p>` : ""}
+      </div>` : ""}
       ${seccion("El inmueble")}
       <div class="rejilla">
         ${campo("Nombre", '<input name="nombre" required placeholder="Piso de la calle Mayor">', "", "ancho")}
@@ -1094,7 +1159,8 @@
         ${campo("Superficie", '<input name="m2" inputmode="decimal">', "m²")}
         ${campo("Habitaciones", '<input name="habitaciones" inputmode="numeric">', "opcional")}
       </div>
-      ${habitual ? `<p class="ayuda">Tu vivienda habitual es «${esc(habitual.nombre)}»: solo puede haber una.</p>` : ""}
+      ${habitual ? `<p class="ayuda">Tu vivienda habitual es «${esc(habitual.nombre)}»: solo puede haber una. Para cambiarla, pon antes esa como inversión.</p>` : ""}
+      <p class="ayuda inmAvisoHab" hidden>🏠 <b>Vivienda habitual:</b> no se alquila, así que quedan bloqueados el estado y las categorías de ingresos${!nuevo && (x.inquilinos || []).length ? `, y sus ${(x.inquilinos || []).length === 1 ? "inquilino y contratos" : "inquilinos y contratos"} no se muestran ni avisan (se conservan, por si vuelve a ser de inversión)` : ""}. Sus gastos (comunidad, IBI, seguro…) sí se asocian: son lo que te cuesta vivir en ella.</p>
       ${seccion("Compra")}
       <div class="rejilla">
         ${campo("Fecha de compra", '<input name="compraFecha" type="date">', "opcional")}
@@ -1124,16 +1190,41 @@
     async f => {
       const d = campos(f);
       if (!nuevo) d.id = x.id;
-      d.categorias = [...f.querySelectorAll("[data-inmcat]:checked")].map(c => c.value);
-      await guarda("inmuebles", d);
+      d.categorias = [...f.querySelectorAll("[data-inmcat]:checked:not(:disabled)")].map(c => c.value);
+      await guarda(tr ? "traspasos" : "inmuebles", tr ? { ...d, producto: tr.p.id } : d);
       if (opts.recargar) return () => location.reload();
-    }, nuevo ? "Guardar inmueble" : "Guardar cambios");
+    }, tr ? "Pasar a Inmuebles" : nuevo ? "Guardar inmueble" : "Guardar cambios");
     if (!nuevo) rellena(f, inmuebleAForm(x));
-    // El estado (alquilado, vacío…) solo tiene sentido en un inmueble de inversión.
-    const est = f.querySelector(".inmEstado"), uso = f.elements.uso;
-    const muestraEstado = () => { if (est) est.hidden = uso.value !== "inversion"; };
-    uso.addEventListener("change", muestraEstado);
-    muestraEstado();
+    if (opts.datos) rellena(f, opts.datos);
+    // Vivienda habitual: no se alquila, así que el estado (alquilado, vacío…) y las categorías
+    // de ingresos se bloquean. Al volver a inversión se recupera lo que estaba marcado.
+    const uso = f.elements.uso, est = f.elements.estado, aviso = f.querySelector(".inmAvisoHab");
+    if (habitual) {   // solo puede haber una: la opción no se ofrece si ya es otra
+      const o = [...uso.options].find(o => o.value === "habitual");
+      if (o && uso.value !== "habitual") { o.disabled = true; o.textContent += ` (ya es «${habitual.nombre}»)`; }
+    }
+    // (las ya ocupadas por otro inmueble siguen bloqueadas por su cuenta)
+    const ingresos = [...f.querySelectorAll('[data-inmcat][data-tipo="ingreso"]:not(:disabled)')];
+    const marcadas = new Map(ingresos.map(c => [c, c.checked]));
+    const noAplica = new Option("— no aplica —", "");
+    let estPrevio = est.value;
+    const aplicaUso = () => {
+      const hab = uso.value === "habitual";
+      if (hab && !est.disabled) { estPrevio = est.value; est.add(noAplica, 0); est.value = ""; }
+      else if (!hab && est.disabled) { noAplica.remove(); est.value = estPrevio; }
+      est.disabled = hab;
+      f.querySelectorAll(".inmNoAplica").forEach(e => e.hidden = !hab);
+      est.closest(".inmEstado")?.classList.toggle("bloqueado", hab);
+      ingresos.forEach(c => {
+        if (hab) { if (!c.disabled) marcadas.set(c, c.checked); c.checked = false; }
+        else c.checked = marcadas.get(c);
+        c.disabled = hab;
+        c.closest("label")?.classList.toggle("bloqueada", hab);
+      });
+      aviso.hidden = !hab;
+    };
+    uso.addEventListener("change", aplicaUso);
+    aplicaUso();
     return f;
   }
 
@@ -1141,6 +1232,294 @@
     const x = inmueble(id);
     if (!confirm(`¿Borrar el inmueble «${x ? x.nombre : ""}»?\n\nHay copias automáticas en mis_datos/copias.`)) return;
     try { await borra("inmuebles", id); pinta(); } catch (e) { alert(e.message); }
+  }
+
+  /* ---------------------------------------------- inquilinos y contratos */
+  // Cada inmueble tiene sus inquilinos y cada inquilino, sus contratos. Viven en la ficha
+  // del inmueble (Panel) y se leen de la cartera en vivo: no van en los datos del Panel,
+  // así que nunca salen en la web exportada.
+  const hoyISO = () => { const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth() + 1).padStart(2, "0")}-${String(h.getDate()).padStart(2, "0")}`; };
+  function estadoContrato(c) {
+    const h = hoyISO();
+    if (c.inicio && c.inicio > h) return "futuro";
+    if (c.fin && c.fin < h) return "terminado";
+    return "vigente";
+  }
+  const EST_CONTRATO = { vigente: "Vigente", futuro: "Firmado, aún no empieza", terminado: "Terminado" };
+  // Renta de los contratos vigentes de un inmueble y los nombres de sus inquilinos.
+  function alquilerVigente(x) {
+    let renta = 0; const quien = [];
+    (x.inquilinos || []).forEach(q => (q.contratos || []).forEach(c => {
+      if (estadoContrato(c) !== "vigente") return;
+      renta += +c.renta || 0;
+      if (!quien.includes(q.nombre)) quien.push(q.nombre);
+    }));
+    return quien.length ? { renta, quien } : null;
+  }
+  const inmDeInquilino = qid => (E.cfg.inmuebles || []).find(i => (i.inquilinos || []).some(q => q.id === qid));
+  const inquilino = qid => { const i = inmDeInquilino(qid); return i ? i.inquilinos.find(q => q.id === qid) : null; };
+
+  // Datos propios (nombre + uno o varios valores) de un inquilino o de un contrato: p. ej.
+  // «Avalista: Juan, Pedro» o «Plaza de garaje: 12». Sin name: no entran en el FormData.
+  function montaCamposLibres(cont, lista) {
+    const val = v => `<span class="cLVal"><input class="cLValIn" value="${esc(v)}" placeholder="Valor" aria-label="Valor"><button type="button" class="btn mini filaX" data-clqv aria-label="Quitar este valor">✕</button></span>`;
+    const fila = c => `<div class="cLibre">
+        <input class="cLNom" value="${esc(c.nombre || "")}" placeholder="Nombre del dato (p. ej. Avalista)" aria-label="Nombre del dato" maxlength="40">
+        <div class="cLVals">${(c.valores && c.valores.length ? c.valores : [""]).map(val).join("")}
+          <button type="button" class="btn mini" data-clv title="Este dato tiene más de un valor">+ otro valor</button></div>
+        <button type="button" class="btn mini filaX" data-clq aria-label="Quitar este dato" title="Quitar este dato">🗑</button></div>`;
+    cont.innerHTML = `<div class="cLibres">${(lista || []).map(fila).join("")}</div>
+      <button type="button" class="btn mini" data-cla>+ Añadir un dato propio</button>`;
+    const ls = cont.querySelector(".cLibres");
+    cont.querySelector("[data-cla]").onclick = () => {
+      ls.insertAdjacentHTML("beforeend", fila({}));
+      const n = ls.querySelectorAll(".cLNom"); n[n.length - 1].focus();
+    };
+    ls.onclick = e => {
+      const b = e.target.closest("button"); if (!b) return;
+      if (b.hasAttribute("data-clq")) b.closest(".cLibre").remove();
+      else if (b.hasAttribute("data-clqv")) {
+        const vs = b.closest(".cLVals");
+        if (vs.querySelectorAll(".cLVal").length > 1) b.closest(".cLVal").remove(); else vs.querySelector(".cLValIn").value = "";
+      } else if (b.hasAttribute("data-clv")) {
+        b.insertAdjacentHTML("beforebegin", val(""));
+        b.previousElementSibling.querySelector("input").focus();
+      }
+    };
+  }
+  const leeCamposLibres = cont => [...cont.querySelectorAll(".cLibre")].map(r => ({
+    nombre: r.querySelector(".cLNom").value.trim(),
+    valores: [...r.querySelectorAll(".cLValIn")].map(i => i.value.trim()).filter(Boolean),
+  })).filter(c => c.nombre || c.valores.length);
+  const camposLibresHTML = cs => (cs || []).length ? `<dl class="inqCampos">${cs.map(c =>
+    `<dt>${esc(c.nombre)}</dt><dd>${(c.valores || []).map(esc).join(" · ") || "—"}</dd>`).join("")}</dl>` : "";
+
+  // Documentos de un contrato o de un inquilino: el propio contrato firmado, el DNI, las
+  // nóminas… Se suben desde aquí (van a la Biblioteca, a `ruta`, que se crea si falta) o se
+  // enlaza uno que ya esté en ella. `lista` ([{tipo, id}], como en las notas) se modifica.
+  // Arriba, la lista de lo adjunto; debajo, las dos maneras de añadir, cada una en su tarjeta:
+  // subir desde el ordenador (pulsando o arrastrando) o elegir uno que ya esté en la Biblioteca.
+  function montaAdjuntos(cont, lista, ruta) {
+    cont.innerHTML = `<div class="adj">
+      <ul class="adjLista" data-archs></ul>
+      <div class="adjModos">
+        <label class="adjModo adjZona" data-zona>
+          <input type="file" multiple hidden data-up>
+          <span class="adjModoIco" aria-hidden="true">⬆</span>
+          <b>Subir desde tu ordenador</b>
+          <small data-zest>Arrastra aquí los archivos o</small>
+          <span class="btn mini adjBoton">Elegir archivos…</span>
+          <small class="adjDest">Se guardan en tu Biblioteca, en «${ruta.map(esc).join(" / ")}».</small>
+        </label>
+        <div class="adjO" aria-hidden="true"><span>o</span></div>
+        <div class="adjModo">
+          <span class="adjModoIco" aria-hidden="true">🗂️</span>
+          <b>Elegir de tu Biblioteca</b>
+          <small>Un archivo o una carpeta que ya tengas guardados.</small>
+          <div class="adjElegir">
+            <select data-asel aria-label="Archivo de la Biblioteca"></select>
+            <button type="button" class="btn mini" data-aadd>Enlazar</button>
+          </div>
+        </div>
+      </div>
+    </div>`;
+    const contA = cont.querySelector("[data-archs]"), asel = cont.querySelector("[data-asel]");
+    const zona = cont.querySelector("[data-zona]"), zest = cont.querySelector("[data-zest]");
+    const pinta = () => {
+      contA.innerHTML = lista.length
+        ? lista.map((a, i) => `<li class="adjFila"><span class="adjNom">${nombreAdjunto(a)}</span><button type="button" class="btn mini" data-adel="${i}">Quitar</button></li>`).join("")
+        : '<li class="adjVacio">Aún no hay nada adjunto.</li>';
+      contA.querySelectorAll("[data-adel]").forEach(b => b.onclick = () => { lista.splice(+b.dataset.adel, 1); pinta(); });
+      asel.innerHTML = opcionesArchivosNota().replace("— elige un archivo o una carpeta —", "— elige uno —");
+    };
+    cont.querySelector("[data-aadd]").onclick = () => {
+      const val = asel.value; if (!val) { asel.focus(); return; }
+      const i = val.indexOf(":"), tipo = val.slice(0, i), id = val.slice(i + 1);
+      if (tipo && id && !lista.some(a => a.tipo === tipo && a.id === id)) lista.push({ tipo, id });
+      pinta();
+    };
+    const sube = async files => {
+      if (!files.length) return;
+      zona.classList.add("ocupado");
+      for (const [k, file] of files.entries()) {
+        zest.textContent = `Subiendo ${files.length > 1 ? `${k + 1} de ${files.length}` : `«${file.name}»`}…`;
+        const fd = new FormData();
+        fd.append("archivo", file);
+        fd.append("ruta", JSON.stringify(ruta));
+        try {
+          const r = await fetch("api/biblioteca/subir", { method: "POST", body: fd,
+            headers: window.CARTERA_ACTIVA ? { "X-Cartera": window.CARTERA_ACTIVA } : {} });
+          const j = await r.json().catch(() => ({}));
+          if (!r.ok || j.ok === false) throw new Error((j.errores || ["No se pudo subir."]).join("\n"));
+          E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
+          lista.push({ tipo: "archivo", id: j.item.id });
+        } catch (x) { alert(`No se pudo subir «${file.name}»: ${x.message}`); }
+      }
+      zona.classList.remove("ocupado");
+      zest.textContent = "Arrastra aquí los archivos o";
+      pinta();
+    };
+    const inp = cont.querySelector("[data-up]");
+    inp.onchange = () => { const files = [...inp.files]; inp.value = ""; sube(files); };
+    zona.ondragover = e => { e.preventDefault(); zona.classList.add("encima"); };
+    zona.ondragleave = () => zona.classList.remove("encima");
+    zona.ondrop = e => { e.preventDefault(); zona.classList.remove("encima"); sube([...(e.dataTransfer?.files || [])]); };
+    pinta();
+  }
+  // Chips de los documentos enlazados (en la ficha): el archivo se abre, la carpeta lleva a Archivos.
+  const adjuntosHTML = as => (as || []).length ? `<div class="notaLinea">${as.map(chipArchivoNota).join("")}</div>` : "";
+
+  // Tras guardar algo que cambia las cifras del Panel (renta, rentabilidad, avisos):
+  // recargar para recalcular, quedándose en la ficha.
+  const recargaFicha = () => location.reload();
+
+  function inquilinosInmueble(el, id) {
+    if (!el) return;
+    el.dataset.inm = id;
+    if (!E.cfg) { el.innerHTML = '<p class="cargando">Cargando…</p>'; return; }   // se repinta al cargar
+    const x = inmueble(id);
+    if (!x) { el.innerHTML = ""; return; }
+    const I = E.inm || {};
+    const qs = x.inquilinos || [];
+    const filaC = c => {
+      const est = estadoContrato(c);
+      const det = [c.categoria ? `cobro en «${esc(c.categoria)}»` : "", c.nota ? esc(c.nota) : ""].filter(Boolean).join(" · ");
+      const extra = det || (c.campos || []).length || (c.archivos || []).length
+        ? `<tr class="inqDet"><td colspan="7">${adjuntosHTML(c.archivos)}${det ? `<small>${det}</small>` : ""}${camposLibresHTML(c.campos)}</td></tr>` : "";
+      return `<tr><td><span class="inqEst ${est}">${EST_CONTRATO[est]}</span></td>
+        <td>${fecha(c.inicio)} → ${c.fin ? fecha(c.fin) : "<small>sin fin</small>"}</td>
+        <td style="text-align:right"><b>${eur(c.renta)}</b><small>/mes</small></td>
+        <td>${c.diaCobro ? "día " + c.diaCobro : "—"}</td>
+        <td style="text-align:right">${c.fianza != null ? eur(c.fianza) : "—"}</td>
+        <td>${esc((I.actualizaciones || {})[c.actualizacion] || "")}</td>
+        <td class="inqAcc"><button type="button" class="accIco" data-qc-ed="${esc(c.id)}" title="Editar el contrato" aria-label="Editar el contrato">✎</button>
+          <button type="button" class="accIco" data-qc-bo="${esc(c.id)}" title="Borrar el contrato" aria-label="Borrar el contrato">🗑</button></td></tr>${extra}`;
+    };
+    el.innerHTML = `<div class="inmDocs">${qs.length ? qs.map(q => {
+        const cs = (q.contratos || []).slice().sort((a, b) => String(b.inicio).localeCompare(String(a.inicio)));
+        const contacto = [q.documento ? `🪪 ${esc(q.documento)}` : "",
+          q.telefono ? `📞 <a href="tel:${esc(q.telefono.replace(/\s+/g, ""))}">${esc(q.telefono)}</a>` : "",
+          q.email ? `✉️ <a href="mailto:${esc(q.email)}">${esc(q.email)}</a>` : ""].filter(Boolean).join(" · ");
+        return `<div class="inmDoc inqCard">
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <span class="inmDocTit">👤 ${esc(q.nombre)}</span>
+            ${cs.some(c => estadoContrato(c) === "vigente") ? '<span class="inqEst vigente">Inquilino actual</span>' : ""}
+            <span class="sp"></span>
+            <button type="button" class="accIco" data-q-ed="${esc(q.id)}" title="Editar el inquilino" aria-label="Editar el inquilino">✎</button>
+            <button type="button" class="accIco" data-q-bo="${esc(q.id)}" title="Borrar el inquilino (y sus contratos)" aria-label="Borrar el inquilino">🗑</button></div>
+          ${contacto ? `<div class="inqContacto">${contacto}</div>` : ""}
+          ${adjuntosHTML(q.archivos)}
+          ${camposLibresHTML(q.campos)}
+          ${q.nota ? `<div class="inmDocTxt">${esc(q.nota)}</div>` : ""}
+          ${cs.length ? `<div class="tablaEnv inqTabla"><table class="dt"><thead><tr><th>Estado</th><th>Periodo</th><th style="text-align:right">Renta</th><th>Cobro</th><th style="text-align:right">Fianza</th><th>Actualización</th><th></th></tr></thead>
+            <tbody>${cs.map(filaC).join("")}</tbody></table></div>` : '<p class="subt" style="margin:8px 0 0">Sin contratos todavía.</p>'}
+          <div class="inmDocAcc"><button type="button" class="btn" data-q-nc="${esc(q.id)}">+ Contrato</button></div></div>`;
+      }).join("") : '<p class="subt" style="margin:0">Aún no hay inquilinos. Añade quién vive en el inmueble y, para cada uno, su contrato: la renta, el día de cobro, la fianza y cuándo empieza y termina. Con eso salen la renta mensual, la rentabilidad bruta, la ocupación y los avisos (fin de contrato, revisión de la renta, cobros).</p>'}</div>
+      <div class="inmDocAcc"><button type="button" class="btn prim" data-q="nuevo">+ Añadir inquilino</button></div>`;
+    el.querySelector('[data-q="nuevo"]').onclick = () => formInquilino(id, null);
+    el.querySelectorAll("[data-afolder]").forEach(b => { b.onclick = () => window.Editor.irACarpeta(b.dataset.afolder); });
+    el.querySelectorAll("[data-q-ed]").forEach(b => { b.onclick = () => formInquilino(id, inquilino(b.dataset.qEd)); });
+    el.querySelectorAll("[data-q-nc]").forEach(b => { b.onclick = () => formContrato(b.dataset.qNc, null); });
+    el.querySelectorAll("[data-q-bo]").forEach(b => {
+      b.onclick = async () => {
+        const q = inquilino(b.dataset.qBo); if (!q) return;
+        const n = (q.contratos || []).length;
+        if (!confirm(`¿Borrar a «${q.nombre}»${n ? ` y sus ${n} contrato${n === 1 ? "" : "s"}` : ""}?\n\nHay copias automáticas en mis_datos/copias.`)) return;
+        try { await borra("inquilinos", q.id); if (n) recargaFicha(); else inquilinosInmueble(el, id); } catch (e) { alert(e.message); }
+      };
+    });
+    el.querySelectorAll("[data-qc-ed]").forEach(b => {
+      b.onclick = () => {
+        const q = (x.inquilinos || []).find(y => (y.contratos || []).some(c => c.id === b.dataset.qcEd));
+        if (q) formContrato(q.id, q.contratos.find(c => c.id === b.dataset.qcEd));
+      };
+    });
+    el.querySelectorAll("[data-qc-bo]").forEach(b => {
+      b.onclick = async () => {
+        if (!confirm("¿Borrar este contrato?\n\nHay copias automáticas en mis_datos/copias.")) return;
+        try { await borra("contratos", b.dataset.qcBo); recargaFicha(); } catch (e) { alert(e.message); }
+      };
+    });
+  }
+
+  function formInquilino(imId, q) {
+    const nuevo = !q;
+    const archs = nuevo ? [] : (q.archivos || []).slice();
+    const f = abreModal(nuevo ? "Añadir inquilino" : "Editar " + esc(q.nombre), `
+      <div class="rejilla">
+        ${campo("Nombre", '<input name="nombre" required maxlength="80" placeholder="Nombre y apellidos">', "", "ancho")}
+        ${campo("DNI / NIE", '<input name="documento" maxlength="30">', "opcional")}
+        ${campo("Teléfono", '<input name="telefono" type="tel" maxlength="30">', "opcional")}
+        ${campo("Correo", '<input name="email" type="email" maxlength="120">', "opcional")}
+      </div>
+      ${seccion("Datos propios")}
+      <div id="qCampos"></div>
+      <p class="ayuda">Añade lo que quieras guardar de este inquilino con su nombre y su valor: avalista, cuenta de cobro, contacto de emergencia… Un dato puede tener <b>varios valores</b> (p. ej. dos avalistas): pulsa «+ otro valor».</p>
+      ${seccion("Documentos del inquilino")}
+      <p class="ayuda">Su DNI, nóminas, el aval…</p>
+      <div id="qArchs"></div>
+      <div class="rejilla">${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}</div>
+      ${nuevo ? '<p class="ayuda">Después de guardarlo, añádele su contrato con «+ Contrato».</p>' : ""}`,
+    async f => {
+      const d = campos(f);
+      d.inmueble = imId;
+      if (!nuevo) d.id = q.id;
+      d.campos = leeCamposLibres(f.querySelector("#qCampos"));
+      d.archivos = archs;
+      await guarda("inquilinos", d);
+      return () => inquilinosInmueble($("#inmInq"), imId);
+    }, nuevo ? "Guardar inquilino" : "Guardar cambios");
+    if (!nuevo) rellena(f, { nombre: q.nombre, documento: q.documento || "", telefono: q.telefono || "", email: q.email || "", nota: q.nota || "" });
+    montaCamposLibres(f.querySelector("#qCampos"), nuevo ? [] : q.campos);
+    montaAdjuntos(f.querySelector("#qArchs"), archs, ["Inmuebles", inmueble(imId).nombre, "Inquilinos"]);
+    return f;
+  }
+
+  function formContrato(qid, c) {
+    const nuevo = !c;
+    const q = inquilino(qid), im = inmDeInquilino(qid);
+    if (!q || !im) return null;
+    const I = E.inm || {};
+    // Categorías de ingresos del inmueble: en cuál se apunta el cobro de este contrato.
+    const tipos = Object.fromEntries(categoriasTodas().map(k => [k.nombre.toLowerCase(), k.tipo]));
+    const catsIng = (im.categorias || []).filter(k => tipos[k.toLowerCase()] !== "gasto");
+    const n = v => v == null ? "" : String(v).replace(".", ",");
+    const archs = nuevo ? [] : (c.archivos || []).slice();
+    const f = abreModal(nuevo ? "Nuevo contrato de " + esc(q.nombre) : "Contrato de " + esc(q.nombre), `
+      ${seccion("📎 El contrato firmado")}
+      <p class="ayuda">El propio contrato (PDF, foto…) y lo que lo acompañe: anexos, inventario, el justificante de la fianza. Se abre desde la ficha con un clic.</p>
+      <div id="cArchs"></div>
+      ${seccion("Condiciones")}
+      <div class="rejilla">
+        ${campo("Inicio", '<input name="inicio" type="date" required>')}
+        ${campo("Fin", '<input name="fin" type="date">', "vacío = sin fecha de fin")}
+        ${campo("Renta mensual", '<input name="renta" inputmode="decimal" required>', "€ al mes")}
+        ${campo("Día de cobro", '<input name="diaCobro" inputmode="numeric" placeholder="1">', "del 1 al 31")}
+        ${campo("Fianza", '<input name="fianza" inputmode="decimal">', "€, opcional")}
+        ${campo("Actualización de la renta", `<select name="actualizacion">${opciones(I.actualizaciones || { ninguna: "Sin actualización" }, "ninguna")}</select>`, "cada aniversario")}
+        ${campo("El cobro se apunta en", catsIng.length
+          ? `<select name="categoria"><option value="">Cualquiera de sus categorías de ingresos</option>${catsIng.map(k => `<option>${esc(k)}</option>`).join("")}</select>`
+          : '<select name="categoria" disabled><option value="">— el inmueble no tiene categorías de ingresos —</option></select>', "para vigilar los cobros", "ancho")}
+      </div>
+      ${catsIng.length ? "" : '<p class="ayuda">Para que la app sepa si has cobrado, asocia al inmueble una categoría de ingresos (p. ej. «Alquiler piso Mayor») en su ficha o en Configuración → 🏢 Inmuebles.</p>'}
+      ${seccion("Datos propios")}
+      <div id="cCampos"></div>
+      <p class="ayuda">Lo que hayáis pactado y quieras tener a mano: duración mínima, gastos incluidos, plaza de garaje, mascotas… Cada dato con su nombre y uno o varios valores.</p>
+      <div class="rejilla">${campo("Nota", '<textarea name="nota" rows="2"></textarea>', "opcional", "ancho")}</div>`,
+    async f => {
+      const d = campos(f);
+      d.inquilino = qid;
+      if (!nuevo) d.id = c.id;
+      d.campos = leeCamposLibres(f.querySelector("#cCampos"));
+      d.archivos = archs;
+      await guarda("contratos", d);
+      return recargaFicha;
+    }, nuevo ? "Guardar contrato" : "Guardar cambios");
+    if (!nuevo) rellena(f, { inicio: c.inicio || "", fin: c.fin || "", renta: n(c.renta), diaCobro: c.diaCobro || "", fianza: n(c.fianza),
+      actualizacion: c.actualizacion || "ninguna", categoria: c.categoria || "", nota: c.nota || "" });
+    montaCamposLibres(f.querySelector("#cCampos"), nuevo ? [] : c.campos);
+    montaAdjuntos(f.querySelector("#cArchs"), archs, ["Inmuebles", im.nombre, "Contratos"]);
+    return f;
   }
 
   async function guardaConfig(datos) {
@@ -1183,15 +1562,23 @@
     const tiposPropios = (conf.tipos || []).map(t => t.nombre);
     const objInputs = Object.entries(E.tipos).map(([clave, label]) =>
       `<label class="campo"><span class="et">${esc(label)} <em>%</em></span><input name="obj_${clave}" inputmode="decimal" placeholder="0"></label>`).join("");
-    const avisosHTML = (E.avisosCatalogo || []).map(a => `<label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
+    // Los avisos de inmuebles van en su pestaña, cada uno con su plazo al lado.
+    const UNIDAD_INM = { inmDiasFinContrato: "días antes del fin", inmDiasRevision: "días antes del aniversario",
+      inmDiasCobro: "días antes del día de cobro", inmDiasImpago: "días de margen tras el cobro", inmMesesValor: "meses de antigüedad" };
+    const defInm = (E.inm && E.inm.avisosDefecto) || {};
+    const avisosInmHTML = (E.avisosCatalogo || []).filter(a => a.grupo === "inmuebles").map(a => `<div class="avisoInm">
+        <label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
+          <span><b>${esc(a.nombre)}</b><small>${esc(a.desc)}</small></span></label>
+        <label class="campo"><span class="et">${esc(UNIDAD_INM[a.umbral] || "")}</span><input name="${esc(a.umbral)}" inputmode="numeric" placeholder="${esc(String(defInm[a.umbral] ?? ""))}"></label></div>`).join("");
+    const avisosHTML = (E.avisosCatalogo || []).filter(a => a.grupo !== "inmuebles").map(a => `<label class="interruptor ancho"><input type="checkbox" name="aviso_${esc(a.clave)}"${avisosOffCfg.includes(a.clave) ? "" : " checked"}><span class="pista"></span>
           <span><b>${esc(a.nombre)}</b><small>${esc(a.desc)}${a.umbral ? ` · Se ajusta con «${esc(UMBRAL_NOMBRE[a.umbral] || a.umbral)}»` : ""}</small></span></label>`).join("");
     const f = abreModal("Configuración", `
       <div class="cfgTabs" role="tablist">
         <button type="button" class="cfgTab activa" data-cfg="general">🏠 General del hogar</button>
         <button type="button" class="cfgTab" data-cfg="activos">📈 Activos e inversiones</button>
         <button type="button" class="cfgTab" data-cfg="flujos">💶 Ingresos y gastos</button>
-        <button type="button" class="cfgTab" data-cfg="documentos">📄 Documentos</button>
         <button type="button" class="cfgTab" data-cfg="inmuebles">🏢 Inmuebles</button>
+        <button type="button" class="cfgTab" data-cfg="documentos">📄 Documentos</button>
       </div>
 
       <div class="cfgPanel" data-cfgp="general">
@@ -1210,7 +1597,7 @@
           ${campo("Inflación anual", '<input name="inflacion" inputmode="decimal" placeholder="2,5">', "%, referencia en Evolución; puedes cambiarla también en la gráfica")}
         </div>
         ${seccion("Avisos automáticos")}
-        <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú.</p>
+        <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú. Los de tus inmuebles (contratos, cobros y valor) están en la pestaña «🏢 Inmuebles», con su antelación al lado.</p>
         <div class="rejilla">${avisosHTML}</div>
         ${seccion("Privacidad")}
         <div class="rejilla">
@@ -1321,6 +1708,9 @@
         <p class="ayuda" style="margin:2px 0 8px">Elige a qué inmueble pertenece cada categoría de ingresos y gastos. Todos los apuntes de esa categoría —los que ya tienes y los que importes del banco, que tus reglas clasifican solas— forman el <b>libro del inmueble</b>: lo que te deja o te cuesta. No se anota nada dos veces ni cambia el saldo de tus cuentas. Una categoría solo puede ir con un inmueble.</p>
         <div id="cfgInm">${cfgInmueblesHTML()}</div>
         <p class="ayuda">Consejo: crea categorías propias para cada inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor», «IBI piso Mayor») en la pestaña «💶 Ingresos y gastos» y una regla del banco para cada una. Si añades categorías nuevas, guarda y vuelve a abrir esta pestaña para verlas aquí.</p>
+        ${seccion("Avisos de tus inmuebles")}
+        <p class="ayuda" style="margin:2px 0 8px">Salen en la franja de avisos de arriba y, al pulsarlos, abren la ficha del inmueble. Activa los que quieras y elige con cuánta antelación (vacío = el valor que ves en gris). Se basan en los contratos de cada inquilino (ficha del inmueble → Inquilinos y contratos) y, los de cobro, en los ingresos de sus categorías.</p>
+        <div class="avisosInm">${avisosInmHTML}</div>
       </div>`,
     async f => {
       const d = campos(f);
@@ -1397,6 +1787,8 @@
         papeleraMax: d.papeleraMax,
         docNotasMuestra: d.docNotasMuestra,
         avisoAgendaDias: d.avisoAgendaDias,
+        inmDiasFinContrato: d.inmDiasFinContrato, inmDiasRevision: d.inmDiasRevision,
+        inmDiasCobro: d.inmDiasCobro, inmDiasImpago: d.inmDiasImpago, inmMesesValor: d.inmMesesValor,
         archivadosEnPanel: f.elements.archivadosEnPanel.checked,
         buscarActualizaciones: f.elements.buscarActualizaciones.checked,
         objetivos, monedas, categorias, dimensiones, reglasCategoria, marcas,
@@ -1424,6 +1816,9 @@
     if (f.elements.papeleraMax) f.elements.papeleraMax.value = conf.papeleraMax != null ? conf.papeleraMax : 5;
     if (f.elements.docNotasMuestra) f.elements.docNotasMuestra.value = conf.docNotasMuestra || "sueltas";
     if (f.elements.avisoAgendaDias) f.elements.avisoAgendaDias.value = conf.avisoAgendaDias != null ? conf.avisoAgendaDias : "";
+    ["inmDiasFinContrato", "inmDiasRevision", "inmDiasCobro", "inmDiasImpago", "inmMesesValor"].forEach(k => {
+      if (f.elements[k]) f.elements[k].value = conf[k] != null ? conf[k] : "";
+    });
     if (f.elements.archivadosEnPanel) f.elements.archivadosEnPanel.checked = conf.archivadosEnPanel !== false;   // por defecto cuentan
     f.elements.buscarActualizaciones.checked = !!conf.buscarActualizaciones;
     Object.entries(obj).forEach(([clave, frac]) => {
@@ -1673,14 +2068,10 @@
     const tits = E.cfg.titulares || [], marcas = E.marcas || [], dims = cfg.dimensionesFlujos || [];
     const campo = (key, label, opts, val, todas = "Todas") => `<span class="filtroCampo${val ? " activo" : ""}"><label>${esc(label)}</label>
       <select data-ff="${esc(key)}"><option value="">${todas}</option>${opts.map(o => `<option value="${esc(o.v)}"${o.v === val ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`;
-    const haySinCat = (E.cfg.flujos || []).some(f => !f.categoria);
     let h = campo("tipo", "Tipo", [{ v: "ingreso", t: "Ingresos" }, { v: "gasto", t: "Gastos" }], F.tipo || "");
-    if (cats.length || haySinCat) {
-      // «Sin categoría» (valor centinela) filtra los apuntes que no tienen ninguna.
-      const opCats = cats.map(c => ({ v: c, t: c }));
-      if (haySinCat) opCats.push({ v: SIN_CAT, t: "— Sin categoría —" });
-      h += campo("categoria", "Categoría", opCats, F.categoria || "");
-    }
+    // «Sin categoría» (valor centinela) filtra los apuntes que no tienen ninguna. Sale
+    // siempre, aunque ahora no haya ninguno: así se comprueba que todo está clasificado.
+    h += campo("categoria", "Categoría", cats.map(c => ({ v: c, t: c })).concat({ v: SIN_CAT, t: "— Sin categoría —" }), F.categoria || "");
     if (ents.length) h += campo("entidad", "Entidad", ents.map(e => ({ v: e, t: e })), F.entidad || "");
     if (tits.length > 1) h += campo("titular", "Titular", tits.map(t => ({ v: t, t })), F.titular || "");
     if (marcas.length) h += campo("marca", "Marca", [{ v: "__con__", t: "Con marca" }, { v: "__sin__", t: "Sin marca" },
@@ -2841,6 +3232,7 @@
     editarApartado: soloPropio(id => formApartado((E.cfg.apartados || []).find(a => a.id === id))),
     borrarApartado: soloPropio(borrarApartado),
     nuevoInmueble: soloPropio(() => formInmueble(null)),
+    traspasarInmueble: soloPropio(formTraspaso),
     editarInmueble: soloPropio(id => formInmueble(inmueble(id))),
     borrarInmueble: soloPropio(borrarInmueble),
     // Navegar entre una hipoteca y la deuda de Patrimonio que señala (y al revés).
@@ -4269,8 +4661,12 @@
     // concepto de un apunte (no va en los datos del Panel para que no salga en la web
     // exportada).
     editarInmueble: soloPropio(id => formInmueble(inmueble(id), { recargar: true })),
+    // Inmuebles que siguen en la cartera: el aviso del Panel y su «Pasar a Inmuebles».
+    avisoTraspaso,
+    traspasarInmueble: soloPropio(id => formTraspaso(id, { recargar: true })),
     configInmuebles: soloPropio(() => formHogar("inmuebles")),
     docsInmueble,
+    inquilinosInmueble,
     apunte: id => (E.cfg && E.cfg.flujos || []).find(f => f.id === id) || null,
     irACarpeta(id) {
       E.notasVista = "biblioteca";

@@ -455,6 +455,10 @@ ORDEN_TIPO = {"compra": 0, "comision": 1, "dividendo": 2, "venta": 3}
 TIPOS_INMUEBLE = {"piso": "Piso", "casa": "Casa", "local": "Local", "garaje": "Garaje",
                   "trastero": "Trastero", "terreno": "Terreno", "otro": "Otro"}
 USOS_INMUEBLE = {"inversion": "Inversión", "habitual": "Vivienda habitual"}
+# Cómo se actualiza la renta de un contrato cada año (aviso de revisión si no es «ninguna»).
+ACTUALIZACIONES_CONTRATO = {"ninguna": "Sin actualización", "ipc": "IPC",
+                            "irav": "Índice de alquiler de vivienda (IRAV)",
+                            "pactada": "Lo pactado en el contrato"}
 ESTADOS_INMUEBLE = {"alquilado": "Alquilado", "vacio": "Vacío", "reforma": "En reforma",
                     "venta": "En venta"}
 
@@ -514,7 +518,26 @@ AVISOS_CATALOGO = [
      "desc": "Avisa si pasan muchos días sin anotar saldos ni movimientos de tus activos o deudas.", "pv": "patrimonio", "umbral": "diasSinActualizar"},
     {"clave": "agenda-proxima", "nombre": "Fechas de la agenda que se acercan",
      "desc": "Avisa de tus recordatorios de la agenda con los días de antelación que elijas.", "pv": None, "umbral": "avisoAgendaDias"},
+    # Los de los inmuebles se configuran en su pestaña de Configuración (grupo «inmuebles»).
+    {"clave": "inm-fin-contrato", "nombre": "Fin de un contrato de alquiler", "grupo": "inmuebles",
+     "desc": "Avisa antes de que termine un contrato, y si ya terminó y no hay otro que lo siga.",
+     "pv": "inmuebles", "umbral": "inmDiasFinContrato"},
+    {"clave": "inm-revision-renta", "nombre": "Revisión anual de la renta", "grupo": "inmuebles",
+     "desc": "Avisa antes del aniversario de un contrato que se actualiza (IPC, IRAV o lo pactado).",
+     "pv": "inmuebles", "umbral": "inmDiasRevision"},
+    {"clave": "inm-cobro-proximo", "nombre": "Cobro del alquiler que se acerca", "grupo": "inmuebles",
+     "desc": "Avisa unos días antes del día de cobro de cada contrato vigente.",
+     "pv": "inmuebles", "umbral": "inmDiasCobro"},
+    {"clave": "inm-cobro-pendiente", "nombre": "Alquiler sin cobrar", "grupo": "inmuebles",
+     "desc": "Avisa si, pasado el día de cobro y el margen, no hay ningún ingreso del inmueble en su categoría.",
+     "pv": "inmuebles", "umbral": "inmDiasImpago"},
+    {"clave": "inm-valor-antiguo", "nombre": "Valor estimado sin actualizar", "grupo": "inmuebles",
+     "desc": "Avisa si la estimación del valor de un inmueble tiene más de los meses que elijas.",
+     "pv": "inmuebles", "umbral": "inmMesesValor"},
 ]
+# Umbrales por defecto de los avisos de inmuebles (Configuración → 🏢 Inmuebles).
+AVISOS_INM_DEFECTO = {"inmDiasFinContrato": 60, "inmDiasRevision": 30, "inmDiasCobro": 3,
+                      "inmDiasImpago": 5, "inmMesesValor": 12}
 AVISOS_CLAVES = {a["clave"] for a in AVISOS_CATALOGO}
 
 # Marcas por defecto para los apuntes de ingresos/gastos (editables/ampliables en Config).
@@ -810,6 +833,20 @@ def meses_hasta(fecha, n=12):
     return out[::-1]
 
 
+def estado_contrato(c, ref_iso):
+    """«vigente», «futuro» o «terminado» en la fecha `ref_iso` (AAAA-MM-DD)."""
+    if c.get("inicio") and c["inicio"] > ref_iso:
+        return "futuro"
+    if c.get("fin") and c["fin"] < ref_iso:
+        return "terminado"
+    return "vigente"
+
+
+def contratos_de(im):
+    """Los contratos de todos los inquilinos de un inmueble."""
+    return [c for q in im.get("inquilinos") or [] for c in q.get("contratos") or []]
+
+
 def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
     """Resumen de la zona de Inmuebles: cada inmueble con su coste, valor, revalorización,
     hipoteca y libro de ingresos y gastos, y los totales. Va APARTE del patrimonio de la
@@ -827,10 +864,15 @@ def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
             continue
         precio, gastos = compra.get("precio"), compra.get("gastos")
         coste = (precio or 0) + (gastos or 0) if precio is not None else None
+        # Estimaciones de valor: las anteriores (historial) y la actual. Vale la última que
+        # haya a la fecha de la foto (en la de un mes pasado, la de entonces).
         est = im.get("valor") or {}
-        valor, valor_fecha, de_compra = est.get("importe"), est.get("fecha"), False
-        if valor is not None and hasta and valor_fecha and valor_fecha > hasta:
-            valor = None
+        vals = sorted([h for h in im.get("historico") or [] if h.get("fecha") and h.get("importe") is not None]
+                      + ([{"fecha": est.get("fecha") or "", "importe": est["importe"]}]
+                         if est.get("importe") is not None else []), key=lambda h: h["fecha"])
+        if hasta:
+            vals = [h for h in vals if h["fecha"] <= hasta]
+        valor, valor_fecha, de_compra = (vals[-1]["importe"], vals[-1]["fecha"] or None, False) if vals else (None, None, False)
         if valor is None and precio is not None:   # sin estimación: vale lo que costó
             valor, valor_fecha, de_compra = precio, compra.get("fecha"), True
         # Revalorización solo con una estimación propia: sin ella no se sabe (y restar los
@@ -860,6 +902,21 @@ def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
         # los de inversión (la vivienda habitual no tiene ingresos: solo coste).
         rent_neta = (r4(libro["neto12"] / coste) if (libro and coste and uso == "inversion"
                                                      and libro["ingresos12"]) else None)
+        # Alquiler: solo cifras (los datos de los inquilinos no viajan en DATOS, para que
+        # no salgan en la web exportada; la ficha los lee de la cartera en vivo).
+        ref_iso = hasta[:10] if hasta else hoy().isoformat()
+        conts = contratos_de(im)
+        vig = [c for c in conts if estado_contrato(c, ref_iso) == "vigente"]
+        renta = round(sum(float(c.get("renta") or 0) for c in vig), 2)
+        fines = sorted(c["fin"] for c in vig if c.get("fin"))
+        alquiler = ({"inquilinos": len(im.get("inquilinos") or []), "contratos": len(conts),
+                     "vigentes": len(vig), "rentaMensual": renta if vig else None,
+                     "proximoFin": fines[0] if fines else None}
+                    if im.get("inquilinos") and uso == "inversion" else None)
+        # Rentabilidad bruta: la renta de un año sobre lo que costó (gastos de compra incluidos).
+        rent_bruta = r4(renta * 12 / coste) if (vig and renta and coste and uso == "inversion") else None
+        # Ocupado: con un contrato vigente; sin contratos anotados, lo que diga su estado.
+        ocupado = uso == "inversion" and (bool(vig) if conts else im.get("estado") == "alquilado")
         lista.append({
             "id": im["id"], "nombre": im.get("nombre") or im["id"],
             "tipo": im.get("tipo") or "piso",
@@ -872,12 +929,15 @@ def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
             "m2": im.get("m2"), "habitaciones": im.get("habitaciones"), "nota": im.get("nota", ""),
             "compraFecha": compra.get("fecha"), "precio": precio, "gastosCompra": gastos,
             "coste": r2(coste), "valor": r2(valor), "valorFecha": valor_fecha,
+            # Evolución del valor (la ficha la dibuja si hay al menos dos fechas).
+            "valoraciones": [{"fecha": h["fecha"], "importe": r2(h["importe"])} for h in vals if h["fecha"]],
             "valorDeCompra": de_compra,
             "plusvalia": plusvalia, "plusvaliaPct": r4(plusvalia / coste) if plusvalia is not None else None,
             "anios": anios, "hipoteca": hip_out,
             "neto": r2((valor or 0) - capital) if valor is not None else None,
             "categorias": list(im.get("categorias") or []),
             "libro": libro, "rentabilidadNeta": rent_neta,
+            "alquiler": alquiler, "rentabilidadBruta": rent_bruta, "ocupado": ocupado,
         })
 
     valor_tot = round(sum(x["valor"] for x in lista if x["valor"] is not None), 2)
@@ -895,13 +955,23 @@ def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
     ing12 = round(sum(lb["ingresos12"] for lb in libros), 2)
     gas12 = round(sum(lb["gastos12"] for lb in libros), 2)
     hab = next((x["libro"] for x in lista if x["libro"] and x["uso"] == "habitual"), None)
+    inv = [x for x in lista if x["uso"] == "inversion"]
+    renta_tot = round(sum((x["alquiler"] or {}).get("rentaMensual") or 0 for x in inv), 2)
+    con_renta = [x for x in inv if x["rentabilidadBruta"] is not None]
+    coste_renta = sum(x["coste"] for x in con_renta)
+    ocupados = sum(1 for x in inv if x["ocupado"])
     return {
         "lista": lista,
         "total": {
             "n": len(lista),
             "nInversion": sum(1 for x in lista if x["uso"] == "inversion"),
             "nHabitual": sum(1 for x in lista if x["uso"] == "habitual"),
-            "alquilados": sum(1 for x in lista if x["estado"] == "alquilado"),
+            "alquilados": ocupados,
+            "ocupacion": r4(ocupados / len(inv)) if inv else None,
+            # Renta de los contratos vigentes y su rentabilidad bruta conjunta.
+            "rentaMensual": renta_tot or None,
+            "rentabilidadBruta": r4(sum(x["alquiler"]["rentaMensual"] * 12 for x in con_renta) / coste_renta)
+            if coste_renta else None,
             "valor": valor_tot,
             "coste": round(sum(x["coste"] or 0 for x in lista), 2),
             # La revalorización solo compara los que tienen precio de compra y estimación.
@@ -917,6 +987,115 @@ def inmuebles_de(cfg, deudas, hasta=None, flujos=None, fecha_ref=None):
             "costeHabitual12": hab["gastos12"] if hab else None,
         },
     }
+
+
+def avisos_inmuebles(cfg, flujos, conf, hoy_d):
+    """Avisos de la zona de Inmuebles: fin de contrato, revisión de la renta, cobro que se
+    acerca, alquiler sin cobrar y valor estimado antiguo. Devuelve tuplas (texto, etiqueta,
+    nivel, clave, id del inmueble). Los umbrales salen de Configuración → 🏢 Inmuebles. En
+    los textos va el nombre del inmueble, nunca el del inquilino (la web exportada)."""
+    def umb(k):
+        v = conf.get(k)
+        return int(v) if v is not None else AVISOS_INM_DEFECTO[k]
+
+    def fes(x):
+        return f"{x.day}/{x.month}/{x.year}"
+
+    def etq(dias):
+        return "Hoy" if dias == 0 else "Mañana" if dias == 1 else f"{dias} días"
+
+    def en_mes(y, m, dia):
+        return dt.date(y, m, min(dia, calendar.monthrange(y, m)[1]))
+
+    hoy_iso = hoy_d.isoformat()
+    out = []
+    for im in cfg.get("inmuebles") or []:
+        iid, nom = im.get("id"), im.get("nombre") or im.get("id")
+        # La vivienda habitual no se alquila: sus contratos (si los tuvo) no avisan.
+        conts = contratos_de(im) if (im.get("uso") or "inversion") == "inversion" else []
+        estados = {id(c): estado_contrato(c, hoy_iso) for c in conts}
+        vig = [c for c in conts if estados[id(c)] == "vigente"]
+        hay_siguiente = any(estados[id(c)] in ("vigente", "futuro") for c in conts)
+
+        # Fin de contrato: los que terminan dentro del plazo, y los que acaban de terminar
+        # sin que haya otro vigente o firmado para después.
+        n_fin = umb("inmDiasFinContrato")
+        for c in conts:
+            try:
+                fin = d(c["fin"]) if c.get("fin") else None
+            except ValueError:
+                fin = None
+            if not fin:
+                continue
+            dias = (fin - hoy_d).days
+            if 0 <= dias <= n_fin:
+                out.append((f"El contrato de alquiler de «{nom}» termina el {fes(fin)}.",
+                            etq(dias), "info", "inm-fin-contrato", iid))
+            elif -n_fin <= dias < 0 and not hay_siguiente:
+                out.append((f"El contrato de alquiler de «{nom}» terminó el {fes(fin)} y no hay "
+                            "otro: ¿lo renuevas o lo marcas como vacío?", "Terminado", "aviso",
+                            "inm-fin-contrato", iid))
+
+        n_rev, n_cob, n_imp = umb("inmDiasRevision"), umb("inmDiasCobro"), umb("inmDiasImpago")
+        suyas = {str(x).lower() for x in im.get("categorias") or []}
+        for c in vig:
+            try:
+                ini = d(c["inicio"]) if c.get("inicio") else None
+            except ValueError:
+                ini = None
+            # Revisión de la renta en el aniversario del contrato (si se actualiza).
+            if ini and (c.get("actualizacion") or "ninguna") != "ninguna":
+                for y in (hoy_d.year, hoy_d.year + 1):
+                    ani = en_mes(y, ini.month, ini.day)
+                    if ani >= hoy_d and ani.year > ini.year:
+                        dias = (ani - hoy_d).days
+                        if dias <= n_rev and not (c.get("fin") and c["fin"] < ani.isoformat()):
+                            act = ACTUALIZACIONES_CONTRATO.get(c.get("actualizacion"), "")
+                            out.append((f"Toca revisar la renta de «{nom}» ({act}) el {fes(ani)}.",
+                                        etq(dias), "info", "inm-revision-renta", iid))
+                        break
+            dia = int(c.get("diaCobro") or 1)
+            # Cobro que se acerca: el próximo día de cobro (este mes o el siguiente).
+            prox = en_mes(hoy_d.year, hoy_d.month, dia)
+            if prox < hoy_d:
+                y, m = (hoy_d.year, hoy_d.month + 1) if hoy_d.month < 12 else (hoy_d.year + 1, 1)
+                prox = en_mes(y, m, dia)
+            dias = (prox - hoy_d).days
+            if c.get("diaCobro") and dias <= n_cob and not (c.get("fin") and c["fin"] < prox.isoformat()):
+                out.append((f"Cobro del alquiler de «{nom}» ({c.get('renta'):.0f} €) el {fes(prox)}.",
+                            etq(dias), "info", "inm-cobro-proximo", iid))
+            # Alquiler sin cobrar: el último día de cobro ya pasado (más el margen) sin
+            # ningún ingreso en su categoría (o en las de ingresos del inmueble) desde
+            # unos días antes. Sin categorías asociadas no se puede saber: no avisa.
+            cats = {c["categoria"].lower()} if c.get("categoria") else suyas
+            if not cats:
+                continue
+            venc = en_mes(hoy_d.year, hoy_d.month, dia)
+            if venc + dt.timedelta(days=n_imp) > hoy_d:
+                y, m = (hoy_d.year, hoy_d.month - 1) if hoy_d.month > 1 else (hoy_d.year - 1, 12)
+                venc = en_mes(y, m, dia)
+            if ini and venc < ini:
+                continue
+            desde = (venc - dt.timedelta(days=25)).isoformat()
+            cobrado = any(f.get("tipo") == "ingreso" and (f.get("categoria") or "").strip().lower() in cats
+                          and desde <= str(f.get("fecha") or "") <= hoy_iso for f in flujos or [])
+            if not cobrado:
+                out.append((f"No hay ningún cobro del alquiler de «{nom}» desde el {fes(venc)} "
+                            "(día de cobro). ¿Lo has recibido? Anótalo en Ingresos y gastos.",
+                            "Sin cobrar", "aviso", "inm-cobro-pendiente", iid))
+
+        # Valor estimado antiguo.
+        val = im.get("valor") or {}
+        if val.get("importe") is not None and val.get("fecha"):
+            try:
+                fv = d(val["fecha"])
+            except ValueError:
+                fv = None
+            meses = umb("inmMesesValor")
+            if fv and (hoy_d - fv).days > meses * 30.44:
+                out.append((f"El valor estimado de «{nom}» es del {fes(fv)}: actualízalo en su ficha.",
+                            "Valor", "info", "inm-valor-antiguo", iid))
+    return out
 
 
 def inmuebles_hogar(inm, neto_cartera):
@@ -1122,7 +1301,9 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         primera = pf if primera is None else min(primera, pf)
         productos.append(p)
 
-    if not (productos or otros or pasivos):
+    # Sin activos pero con inmuebles o con ingresos y gastos, el Panel sigue: esas zonas
+    # van aparte de la cartera (el eje queda en un solo día y la cartera en cero).
+    if not (productos or otros or pasivos or cfg.get("inmuebles") or cfg.get("flujos")):
         print("\nLa cartera está vacía: todavía no hay nada que calcular.")
         return None
 
@@ -2080,6 +2261,13 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
             _al(cuerpo, etq, "info", clave="agenda-proxima",
                 destino={"tab": "notas", "vista": "agenda", "fecha": fprox.isoformat()})
 
+    # --- Avisos de los inmuebles (contratos, cobros y valor): al pulsarlos abren su ficha ---
+    if not hasta:
+        # Con todos los apuntes (también los archivados): un cobro archivado sigue cobrado.
+        for txt_i, etq_i, niv_i, clave_i, iid in avisos_inmuebles(cfg, cfg.get("flujos"), _conf_av, hoy()):
+            _al(txt_i, etq_i, niv_i, pv="inmuebles", clave=clave_i,
+                destino={"tab": "inmuebles", "inmueble": iid})
+
     control = {"umbral": r4(umbral), "desviacionMax": r4(desv_max), "diasAviso": dias_aviso,
                "sumaObjetivos": r4(suma_obj)}
 
@@ -2120,6 +2308,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
     variacion = {"neto": _variacion(serie_total), "bruto": _variacion(serie_bruto),
                  "deuda": _variacion(serie_deuda) if serie_deuda else None}
 
+    cat_inm = {str(c).strip().lower(): im["id"] for im in (cfg.get("inmuebles") or [])
+               for c in (im.get("categorias") or [])}
     datos = {
         "generado": dt.datetime.now().replace(microsecond=0).isoformat(),
         "hasta": hasta,
@@ -2154,6 +2344,8 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                          "titular": _tit(f.get("titular")),
                          "entidad": (f.get("entidad") or "").strip() or "Sin entidad",
                          "marca": f.get("marca") or "",
+                         # Inmueble al que pertenece por su categoría (filtro de Ingresos y gastos).
+                         "inmueble": cat_inm.get((f.get("categoria") or "").strip().lower(), ""),
                          "categorias": f.get("categorias") or {}}
                         for f in flujos_cfg if f.get("tipo") in ("ingreso", "gasto")] if flujos_cfg else [],
         # Contadores para el panel de inicio (resumen de un vistazo).

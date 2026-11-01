@@ -388,7 +388,9 @@ def api_cartera():
                    marcas=almacen.marcas_de(cfg),
                    tiposMovimiento=almacen.TIPOS_MOV, tiposFlujo=almacen.TIPOS_FLUJO,
                    inmueble={"tipos": motor.TIPOS_INMUEBLE, "usos": motor.USOS_INMUEBLE,
-                             "estados": motor.ESTADOS_INMUEBLE})
+                             "estados": motor.ESTADOS_INMUEBLE,
+                             "actualizaciones": motor.ACTUALIZACIONES_CONTRATO,
+                             "avisosDefecto": motor.AVISOS_INM_DEFECTO})
 
 
 @app.get("/api/buscar")
@@ -398,10 +400,14 @@ def api_buscar():
 
 GUARDAR = {"productos": almacen.guarda_producto, "movimientos": almacen.guarda_movimiento,
            "valoraciones": almacen.guarda_valoracion, "apartados": almacen.guarda_apartado,
-           "flujos": almacen.guarda_flujo, "inmuebles": almacen.guarda_inmueble}
+           "flujos": almacen.guarda_flujo, "inmuebles": almacen.guarda_inmueble,
+           "inquilinos": almacen.guarda_inquilino, "contratos": almacen.guarda_contrato,
+           # Pasar un producto «inmueble» de la cartera a la zona de Inmuebles (ADR 0031).
+           "traspasos": almacen.traspasa_a_inmueble}
 BORRAR = {"productos": almacen.borra_producto, "movimientos": almacen.borra_movimiento,
           "valoraciones": almacen.borra_valoracion, "apartados": almacen.borra_apartado,
-          "flujos": almacen.borra_flujo, "inmuebles": almacen.borra_inmueble}
+          "flujos": almacen.borra_flujo, "inmuebles": almacen.borra_inmueble,
+          "inquilinos": almacen.borra_inquilino, "contratos": almacen.borra_contrato}
 AVISO_DEMO = ("Estás viendo el patrimonio de ejemplo. Pulsa «Empezar con mis datos» "
               "para crear el tuyo y poder guardar cambios.")
 
@@ -764,12 +770,21 @@ def api_bib_subir():
     if not f or not f.filename:
         return jsonify(ok=False, errores=["Elige un archivo."]), 400
     carpeta_destino = request.form.get("carpeta") or None
+    # «ruta»: alternativa a «carpeta», una lista JSON de nombres de carpeta que se crean si
+    # faltan (p. ej. ["Inmuebles", "Piso Mayor", "Contratos"] al adjuntar un contrato).
+    try:
+        partes = json.loads(request.form.get("ruta") or "[]")
+    except ValueError:
+        partes = []
+    partes = [str(p).strip()[:60] for p in partes if str(p).strip()][:5] if isinstance(partes, list) else []
     ext = os.path.splitext(f.filename)[1].lower()[:12]
     with cerrojo:
         ruta = os.path.join(carpeta(), "cartera.json")
         cfg = almacen.carga(ruta)
         if carpeta_destino and not almacen._existe_carpeta(cfg, carpeta_destino):
             return jsonify(ok=False, errores=["La carpeta donde quieres guardarlo ya no existe."]), 400
+        if not carpeta_destino and partes:
+            carpeta_destino = _bib_asegura_ruta(cfg, None, partes)
         bib_dir = os.path.join(carpeta(), "biblioteca")
         os.makedirs(bib_dir, exist_ok=True)
         arch_id = "arc_" + secrets.token_hex(6)

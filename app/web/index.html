@@ -1305,6 +1305,12 @@ body.ayudaOff .btnAyudaNav{display:none}
 .inmChip{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--borde);background:var(--sup2);color:var(--tinta2)}
 .inmChip.ingreso{border-color:color-mix(in srgb,var(--bien) 40%,var(--borde))}
 .inmChip.gasto{border-color:color-mix(in srgb,var(--mal) 40%,var(--borde))}
+button.inmChip{font-family:inherit;cursor:pointer;transition:opacity .15s,background .15s}
+button.inmChip:hover{border-color:var(--s1);color:var(--tinta)}
+button.inmChip[aria-pressed="true"]{background:color-mix(in srgb,var(--s1) 14%,var(--sup));border-color:var(--s1);color:var(--tinta);font-weight:600}
+button.inmChip.apagado{opacity:.5}
+.inmChipTodas{font:inherit;font-size:12px;border:0;background:none;color:var(--s1);cursor:pointer;padding:3px 6px}
+.inmChipTodas:hover{text-decoration:underline}
 .inmBarras{min-height:200px;margin-top:6px}
 .inmLibroVacio{padding:6px 0 2px}
 .inmDocs{display:flex;flex-direction:column;gap:10px}
@@ -1321,6 +1327,71 @@ body.ayudaOff .btnAyudaNav{display:none}
 .inmCatsForm{display:flex;flex-wrap:wrap;gap:6px 14px}
 .inmCatsForm label{display:inline-flex;align-items:center;gap:6px;font-size:13px}
 .inmCatsForm label.ocupada{color:var(--tinta3)}
+/* Inquilinos y contratos (ficha del inmueble) */
+.inqContacto{font-size:13px;color:var(--tinta2);margin-top:4px}
+.inqContacto a{color:inherit}
+.inqCampos{display:grid;grid-template-columns:max-content 1fr;gap:2px 12px;margin:6px 0 0;font-size:13px}
+.inqCampos dt{color:var(--tinta3)}
+.inqCampos dd{margin:0;color:var(--tinta)}
+.inqTabla{margin-top:10px}
+.inqTabla td,.inqTabla th{white-space:nowrap}
+.inqTabla tr.inqDet td{white-space:normal;border-top:0;padding-top:0;color:var(--tinta3)}
+.inqAcc{text-align:right}
+.inqEst{font-size:11.5px;padding:2px 8px;border-radius:999px;border:1px solid var(--borde);background:var(--sup2);color:var(--tinta2)}
+.inqEst.vigente{border-color:color-mix(in srgb,var(--bien) 45%,var(--borde));color:var(--bien)}
+.inqEst.futuro{border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));color:var(--s1)}
+.inqEst.terminado{color:var(--tinta3)}
+/* Datos propios (nombre + uno o varios valores) en los formularios */
+.cLibres{display:flex;flex-direction:column;gap:8px;margin-bottom:8px}
+.cLibre{display:grid;grid-template-columns:minmax(140px,1fr) 2fr auto;gap:8px;align-items:start}
+.cLVals{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+.cLVal{display:inline-flex;gap:4px;align-items:center}
+.cLVal input{width:150px}
+@media (max-width:560px){.cLibre{grid-template-columns:1fr auto}.cLVals{grid-column:1/-1}}
+/* Inmuebles que aún viven en la cartera: aviso con «Pasar a Inmuebles» (ADR 0031) */
+.inmTraspaso{border:1px solid color-mix(in srgb,var(--s1) 35%,var(--borde));background:color-mix(in srgb,var(--s1) 6%,var(--sup));border-radius:10px;padding:12px 14px;margin:0 0 14px;font-size:13.5px}
+.inmTraspaso p{margin:0 0 8px;color:var(--tinta2)}
+.inmTraspaso ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.inmTraspaso li{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.inmTraspaso li small{color:var(--tinta3);margin-left:6px}
+.inmTrInfo{border:1px solid var(--borde);background:var(--sup2);border-radius:10px;padding:12px 14px;margin:0 0 6px;font-size:13px;color:var(--tinta2)}
+.inmTrInfo p{margin:0 0 6px}
+.inmTrInfo ul{margin:0;padding-left:18px;display:flex;flex-direction:column;gap:3px}
+.inmTrInfo .avisoLinea{margin:10px 0 0}
+/* Evolución del valor en la ficha del inmueble */
+.inmEvol{min-height:220px}
+/* Ficha de un inmueble: lo que no aplica a la vivienda habitual queda bloqueado */
+.campo.bloqueado{opacity:.5}
+.campo.bloqueado select{cursor:not-allowed}
+.inmCatsForm label.bloqueada{opacity:.45;cursor:not-allowed}
+/* Documentos adjuntos (contrato, inquilino): lista arriba y dos maneras de añadir */
+.adj{display:flex;flex-direction:column;gap:14px;margin:4px 0 6px}
+.adjLista{list-style:none;margin:0;padding:0;border:1px solid var(--borde);border-radius:10px;overflow:hidden}
+.adjFila{display:flex;align-items:center;gap:10px;padding:8px 8px 8px 12px;font-size:13px}
+.adjFila+.adjFila{border-top:1px solid var(--borde)}
+.adjNom{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--tinta)}
+.adjVacio{padding:10px 12px;font-size:13px;color:var(--tinta3)}
+.adjModos{display:grid;grid-template-columns:1fr auto 1fr;gap:12px;align-items:stretch}
+.adjModo{display:flex;flex-direction:column;gap:4px;padding:14px;border:1px solid var(--borde);border-radius:10px;background:var(--sup);min-width:0}
+.adjModo b{font-size:13.5px;color:var(--tinta)}
+.adjModo small{font-size:12px;color:var(--tinta3);line-height:1.4}
+.adjModoIco{font-size:18px;line-height:1;margin-bottom:2px}
+.adjZona{border-style:dashed;border-width:1.5px;cursor:pointer;align-items:center;text-align:center;justify-content:center;transition:border-color .15s,background .15s}
+.adjZona:hover,.adjZona.encima{border-color:var(--s1);background:color-mix(in srgb,var(--s1) 7%,var(--sup))}
+.adjZona:focus-within{outline:2px solid var(--s1);outline-offset:2px}
+.adjZona.ocupado{opacity:.65;pointer-events:none}
+.adjZona .adjDest{margin-top:6px;font-size:11.5px}
+.adjBoton{align-self:center;margin-top:2px;pointer-events:none}
+.adjO{display:flex;align-items:center;justify-content:center;color:var(--tinta3);font-size:12px}
+.adjO span{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:1px solid var(--borde);background:var(--sup2)}
+.adjElegir{display:flex;gap:8px;margin-top:auto;padding-top:8px}
+.adjElegir select{flex:1;min-width:0}
+@media (max-width:560px){.adjModos{grid-template-columns:1fr}.adjO{margin:-4px 0}}
+.inqCard .notaLinea,.inqDet .notaLinea{margin:6px 0;display:flex;flex-wrap:wrap;gap:6px}
+/* Avisos de inmuebles en Configuración: interruptor + plazo */
+.avisosInm{display:flex;flex-direction:column;gap:10px}
+.avisoInm{display:grid;grid-template-columns:1fr 190px;gap:12px;align-items:center}
+@media (max-width:560px){.avisoInm{grid-template-columns:1fr}}
 .inmVacioTit{font-size:15px;font-weight:650;color:var(--tinta2);margin:0 0 6px}
 .inmVacioTxt{max-width:420px;margin:0 auto 14px}
 .inicioSpark{height:96px}
@@ -1983,6 +2054,7 @@ body.video .tarjetaCanal{display:none}
     <div id="inmFicha" hidden></div>
     <div id="inmLista">
     <p class="ayudaVista">Tus pisos, casas, locales y garajes, aparte de la cartera: lo que valen, lo que te costaron, lo que aún debes de ellos y lo que te dejan. No cuentan en los gráficos de tus inversiones. Pulsa uno para ver su ficha completa.</p>
+    <div id="inmTraspasoPanel"></div>
     <section class="tarjeta" id="tarjetaInmuebles" style="margin-top:8px" hidden>
       <header><h2>Inmuebles</h2><span class="subt" id="inmSub"></span><span class="sp"></span>
         <button class="btn" type="button" id="btnInmGestionar">✏️ Gestionar inmuebles</button></header>

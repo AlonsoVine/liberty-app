@@ -33,8 +33,9 @@ NO_DINERO = {
     "desviacion", "desviacionMax", "dias", "diasAviso", "diasInvertido", "diasRestantes",
     "documentos", "facturas", "habitaciones", "inflacion", "m2", "maxDD", "movimientos", "n",
     "nApuntes", "nHabitual", "nInversion", "numAportaciones", "ocupacion", "pct", "peso",
+    "contratos", "inquilinos", "ocupados", "vigentes",
     "plusvaliaPct", "racha", "ratioDeudaActivos", "rentTotal", "rentabilidad",
-    "rentabilidadNeta", "riesgo", "sharpe", "slot", "sumaObjetivos", "tae", "tasaAhorro",
+    "rentabilidadBruta", "rentabilidadNeta", "riesgo", "sharpe", "slot", "sumaObjetivos", "tae", "tasaAhorro",
     "ter", "terPonderado", "tipo", "tipoInteres", "tir", "tuTir", "twr", "umbral", "vol", "ytd",
 }
 # Bloques enteros de proporciones o índices (base 100): se copian sin tocar.
