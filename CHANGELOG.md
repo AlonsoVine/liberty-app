@@ -9,6 +9,29 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
+## [1.18.0] — 2026-11-02
+
+- **Renombrar o fusionar una categoría (ADR 0032).** En Configuración → 💶 Ingresos y gastos,
+  eliges una categoría y su nombre nuevo, y se cambia de una vez en todos los sitios: apuntes,
+  plantillas recurrentes, reglas del banco, categorías de cada inmueble, contratos y vínculos de
+  notas. Antes de aplicarlo dice cuántos elementos toca. Si el nombre nuevo ya existe, las dos se
+  **fusionan** (deben ser del mismo tipo y no pertenecer a inmuebles distintos; la que queda
+  hereda el presupuesto si no tenía). Se aplica al momento en el servidor, con copia automática.
+- **«Patrimonio» pasa a llamarse «Cartera», y tu patrimonio total va en Inicio (ADR 0033).**
+  - La pestaña del Panel y sus cifras se llaman ahora **Cartera** (cartera neta, cartera bruta,
+    «Tu cartera hoy», «Cartera neta y deudas»…), igual que las ayudas, la visita guiada, las
+    preguntas frecuentes y el informe impreso. Solo cambian los textos: los datos, los
+    identificadores y las preferencias guardadas siguen igual.
+  - Nueva card **«Tu patrimonio»** arriba del todo en Inicio: cartera neta + inmuebles netos
+    (lo que valen − sus hipotecas), con una barra del reparto y un acceso a cada lado. Una
+    hipoteca enlazada a una deuda de la cartera se muestra con su inmueble y nunca resta dos
+    veces. Sin inmuebles, tu patrimonio es tu cartera (con una invitación a añadirlos).
+  - La card «Tus inmuebles» ya no repite el total: muestra valor, hipotecas, neto inmobiliario
+    y el cash-flow (o la revalorización).
+  - El **objetivo y los hitos** se siguen midiendo con la cartera («Objetivo de tu cartera»).
+- **Arreglo:** el aviso «Tienes inmuebles dentro de tu cartera» (1.17.0) daba un error de
+  JavaScript si el Panel se pintaba antes de cargar la cartera; ahora espera a tenerla.
+
 ## [1.17.0] — 2026-11-01
 
 Nueva **zona de Inmuebles**, la tercera «app» de Liberty, aparte de la cartera

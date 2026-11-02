@@ -937,7 +937,7 @@ def guarda_config(cfg, datos):
         if nombre:
             cfg["titular"] = nombre
     if "objetivoImporte" in datos:   # meta de patrimonio (barra de progreso del panel)
-        imp = numero(datos.get("objetivoImporte"), "el objetivo de patrimonio", errores,
+        imp = numero(datos.get("objetivoImporte"), "el objetivo de tu cartera", errores,
                      obligatorio=False, minimo=0)
         obj = cfg.setdefault("objetivo", {"activo": True, "importe": 100000, "etiqueta": "Próximo objetivo"})
         if imp is not None and imp > 0:
@@ -1177,6 +1177,115 @@ def registra_categoria(cfg, nombre, tipo):
         return False
     cats.append({"nombre": nombre, "tipo": tipo})
     return True
+
+
+def renombra_categoria(cfg, de, a):
+    """Renombra una categoría de ingresos/gastos en TODA la cartera (ADR 0032): la lista de
+    Configuración (con su presupuesto), los apuntes, las plantillas recurrentes, las reglas
+    del banco, las categorías de los inmuebles, la del cobro de los contratos y las notas
+    enlazadas a la categoría. Si `a` ya existe, las dos se **fusionan** en `a` (mismo tipo;
+    si ambas iban con inmuebles distintos, no se puede). Sin distinguir mayúsculas al
+    buscar, así que también sirve para cambiar solo mayúsculas. Devuelve los recuentos."""
+    de, a = texto(de, 40), texto(a, 40)
+    if not de or not a:
+        raise ErrorValidacion(["Elige la categoría y escribe su nombre nuevo."])
+    if de.lower() == "sin categoría" or a.lower() == "sin categoría":
+        raise ErrorValidacion(["«Sin categoría» no es una categoría: no se puede renombrar ni usar como nombre."])
+    if de == a:
+        raise ErrorValidacion(["El nombre nuevo es igual al de ahora."])
+    k_de, k_a = de.lower(), a.lower()
+
+    def es(nombre, k):
+        return str(nombre or "").strip().lower() == k
+
+    conf = cfg.setdefault("config", {})
+    flujos = cfg.get("flujos", []) or []
+    if not any(es(c.get("nombre"), k_de) for c in conf.get("categorias") or []) and \
+            not any(es(f.get("categoria"), k_de) for f in flujos):
+        raise ErrorValidacion([f"La categoría «{de}» ya no existe."])
+    t_de = _tipo_categoria(cfg, de)
+    fusion = k_de != k_a and (any(es(c.get("nombre"), k_a) for c in conf.get("categorias") or [])
+                              or any(es(f.get("categoria"), k_a) for f in flujos))
+    if fusion:
+        # Al fusionar manda el nombre que ya tenía la de destino (con sus mayúsculas).
+        a = next((c.get("nombre") for c in conf.get("categorias") or [] if es(c.get("nombre"), k_a)), None) \
+            or next(str(f.get("categoria")).strip() for f in flujos if es(f.get("categoria"), k_a))
+        t_a = _tipo_categoria(cfg, a)
+        if t_de and t_a and t_de != t_a:
+            raise ErrorValidacion([f"«{de}» es de {t_de}s y «{a}» de {t_a}s: no se pueden fusionar."])
+        con = {x.get("nombre"): x for x in cfg.get("inmuebles", []) or []
+               if any(es(c, k_de) or es(c, k_a) for c in x.get("categorias") or [])}
+        if len(con) > 1:
+            raise ErrorValidacion([f"«{de}» y «{a}» van con inmuebles distintos ({', '.join(con)}). "
+                                   "Quita una de su inmueble antes de fusionarlas."])
+    n = {"apuntes": 0, "plantillas": 0, "reglas": 0, "inmuebles": 0, "contratos": 0, "notas": 0,
+         "fusion": fusion}
+
+    # Lista de Configuración: se renombra; al fusionar, sobrevive la de destino (y hereda el
+    # presupuesto si no tenía).
+    cats, nuevas = conf.get("categorias") or [], []
+    destino = next((c for c in cats if es(c.get("nombre"), k_a)), None) if fusion else None
+    for c in cats:
+        if es(c.get("nombre"), k_de):
+            if destino is not None:
+                if destino.get("presupuesto") is None and c.get("presupuesto") is not None:
+                    destino["presupuesto"] = c["presupuesto"]
+                continue
+            c = {**c, "nombre": a}
+        nuevas.append(c)
+    if cats:
+        conf["categorias"] = nuevas
+
+    for f in flujos:
+        if es(f.get("categoria"), k_de):
+            f["categoria"] = a
+            n["apuntes"] += 1
+    for r in conf.get("recurrentes", []) or []:
+        if es(r.get("categoria"), k_de):
+            r["categoria"] = a
+            n["plantillas"] += 1
+    if conf.get("reglasCategoria"):
+        reglas, vistas = [], set()
+        for r in conf["reglasCategoria"]:
+            if es(r.get("categoria"), k_de):
+                r = {**r, "categoria": a}
+                n["reglas"] += 1
+            clave = (str(r.get("palabra") or "").lower(), str(r.get("categoria") or "").lower())
+            if clave not in vistas:
+                vistas.add(clave)
+                reglas.append(r)
+        conf["reglasCategoria"] = reglas
+    for im in cfg.get("inmuebles", []) or []:
+        cs = im.get("categorias") or []
+        if any(es(c, k_de) for c in cs):
+            vistas, out = set(), []
+            for c in cs:
+                c = a if es(c, k_de) else c
+                if c.lower() not in vistas:
+                    vistas.add(c.lower())
+                    out.append(c)
+            im["categorias"] = out
+            n["inmuebles"] += 1
+        for q in im.get("inquilinos") or []:
+            for c in q.get("contratos") or []:
+                if es(c.get("categoria"), k_de):
+                    c["categoria"] = a
+                    n["contratos"] += 1
+    for nota in cfg.get("notas", []) or []:
+        tocada = False
+        if nota.get("vinculos"):
+            vs = []
+            for v in nota["vinculos"]:
+                if v.get("tipo") == "categoria" and es(v.get("ref"), k_de):
+                    v, tocada = {"tipo": "categoria", "ref": a}, True
+                if v not in vs:
+                    vs.append(v)
+            nota["vinculos"] = vs
+        v = nota.get("vinculo") or {}
+        if v.get("tipo") == "categoria" and es(v.get("ref"), k_de):
+            nota["vinculo"], tocada = {"tipo": "categoria", "ref": a}, True
+        n["notas"] += tocada
+    return n
 
 
 def registra_entidad(cfg, entidad):

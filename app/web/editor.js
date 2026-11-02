@@ -908,7 +908,7 @@
       <div class="secc">🏠 General del hogar</div>
       <table class="leyenda">
         ${fila("Nombre del patrimonio", esc(E.cfg.titular || "Mi patrimonio"))}
-        ${fila("Objetivo de patrimonio", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : sub("sin meta"))}
+        ${fila("Objetivo de tu cartera", (E.cfg.objetivo && E.cfg.objetivo.activo) ? eur(E.cfg.objetivo.importe) : sub("sin meta"))}
         ${fila("Titulares", tits.length ? tits.map(t => esc(t) + (t === ((conf.titularDefecto && tits.includes(conf.titularDefecto)) ? conf.titularDefecto : tits[0]) ? ' <span class="subt">(por defecto)</span>' : "")).join(", ") : sub("solo tú"))}
         ${fila("Colchón deseado", eur(conf.colchon || 0))}
         ${fila("Inflación de referencia", conf.inflacion != null ? pct(conf.inflacion) : sub("sin fijar"))}
@@ -1004,7 +1004,7 @@
         ${celdaAcc(x.id, { editar: "editarInmueble", borrar: "borrarInmueble" })}</tr>`;
     }).join("");
     return `<section class="tarjeta"><header><h2>Inmuebles</h2>
-        <span class="subt">Pisos, casas, locales, garajes… aparte de tu cartera: no suman en el patrimonio de tus inversiones ni en sus gráficos. Pulsa el nombre para ver su ficha completa</span>
+        <span class="subt">Pisos, casas, locales, garajes… aparte de tu cartera: no suman en tu cartera ni en sus gráficos (sí en tu patrimonio de Inicio). Pulsa el nombre para ver su ficha completa</span>
         <span class="sp"></span><button class="btn prim" data-acc="nuevoInmueble">+ Añadir inmueble</button></header>
       ${avisoTraspaso()}
       ${filas ? envTabla("inmuebles", `<tr><th>Inmueble</th><th>Tipo</th><th>Uso</th><th>Titular</th>
@@ -1015,7 +1015,8 @@
   /* ------------------------------- inmuebles que aún viven en la cartera (ADR 0031) */
   // Antes de esta zona, un piso se metía en la cartera como un activo de tipo «inmueble».
   // Así cuenta dos veces si además se crea aquí, y no tiene ficha. Se ofrece pasarlo.
-  const inmueblesEnCartera = () => (E.cfg.productos || []).filter(p => p.tipo === "inmueble");
+  // Sin la cartera cargada aún (el Panel puede pintarse antes), nada: «editor-listo» repinta.
+  const inmueblesEnCartera = () => ((E.cfg && E.cfg.productos) || []).filter(p => p.tipo === "inmueble");
   function ultimoValor(pid) {
     const vs = (E.cfg.valoraciones || []).filter(v => v.producto === pid && v.fecha).sort((a, b) => a.fecha < b.fecha ? -1 : 1);
     return vs.length ? vs[vs.length - 1] : null;
@@ -1025,7 +1026,7 @@
     if (!ps.length) return "";
     return `<div class="inmTraspaso">
       <p><b>🏠 ${ps.length === 1 ? "Tienes un inmueble dentro de tu cartera" : `Tienes ${ps.length} inmuebles dentro de tu cartera`}</b>, como un activo más.
-      Pásalo${ps.length === 1 ? "" : "s"} aquí: tendrá${ps.length === 1 ? "" : "n"} su ficha completa y no contará${ps.length === 1 ? "" : "n"} dos veces en el patrimonio del hogar.</p>
+      Pásalo${ps.length === 1 ? "" : "s"} aquí: tendrá${ps.length === 1 ? "" : "n"} su ficha completa y no contará${ps.length === 1 ? "" : "n"} dos veces en tu patrimonio.</p>
       <ul>${ps.map(p => { const v = ultimoValor(p.id); return `<li><span>${esc(nombre(p))}${v ? ` <small>${eur(v.valor)} · ${fecha(v.fecha)}</small>` : ""}</span>
         <button type="button" class="btn mini" data-acc="traspasarInmueble" data-id="${esc(p.id)}">Pasar a Inmuebles →</button></li>`; }).join("")}</ul></div>`;
   }
@@ -1180,9 +1181,9 @@
         ${campo("Cuota mensual", '<input name="hipCuota" inputmode="decimal">', "€")}
         ${campo("Tipo de interés", '<input name="hipInteres" inputmode="decimal">', "%")}
         ${campo("Fecha de fin", '<input name="hipFin" type="date">')}
-        ${deudas.length ? campo("Es esta deuda de Patrimonio", `<select name="hipDeuda"><option value="">— ninguna —</option>${deudas.map(p => `<option value="${esc(p.id)}">${esc(nombre(p))}</option>`).join("")}</select>`, "opcional", "ancho") : ""}
+        ${deudas.length ? campo("Es esta deuda de tu cartera", `<select name="hipDeuda"><option value="">— ninguna —</option>${deudas.map(p => `<option value="${esc(p.id)}">${esc(nombre(p))}</option>`).join("")}</select>`, "opcional", "ancho") : ""}
       </div>
-      ${deudas.length ? '<p class="ayuda">Enlazarla con una deuda que ya tienes en Patrimonio solo la señala, para saltar de una a otra: no cambia ninguna cifra.</p>' : ""}
+      ${deudas.length ? '<p class="ayuda">Enlazarla con una deuda que ya tienes en tu cartera solo la señala, para saltar de una a otra: no cambia ninguna cifra.</p>' : ""}
       ${seccion("Ingresos y gastos del inmueble")}
       <div class="rejilla">${casillasCategorias(x)}</div>
       <p class="ayuda">Marca las categorías que son de este inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes de Ingresos y gastos, los de antes y los que importes del banco, formarán su libro. Una categoría solo puede ir con un inmueble. También puedes repartirlas todas de una vez en Configuración → 🏢 Inmuebles.</p>
@@ -1585,7 +1586,7 @@
         ${seccion("Este patrimonio")}
         <div class="rejilla">
           ${campo("Nombre de este patrimonio", '<input name="nombreCartera" maxlength="60" required>', "aparece arriba, en el selector")}
-          ${campo("Objetivo de patrimonio", '<input name="objetivoImporte" inputmode="decimal" placeholder="100000">', "€, la meta de la barra del panel; vacío = sin meta")}
+          ${campo("Objetivo de tu cartera", '<input name="objetivoImporte" inputmode="decimal" placeholder="100000">', "€, la meta de la barra del panel; vacío = sin meta")}
         </div>
         ${seccion("Titulares del hogar")}
         <div id="edTits" class="rejilla"></div>
@@ -1651,6 +1652,15 @@
         </div>
         <p class="ayuda">Aparecen en el desplegable al anotar. En los gastos puedes añadir un presupuesto mensual con
           «= importe» (p. ej. <code>Alimentación = 600</code>); el Panel te dirá si te pasas. Si las dejas vacías, escribes la categoría a mano.</p>
+        ${seccion("Renombrar o fusionar una categoría")}
+        <div class="catRen">
+          <select data-catren-de aria-label="Categoría que quieres renombrar"></select>
+          <span class="catRenFlecha" aria-hidden="true">→</span>
+          <input data-catren-a placeholder="Nombre nuevo" maxlength="40" list="catRenLista" aria-label="Nombre nuevo" autocomplete="off">
+          <datalist id="catRenLista"></datalist>
+          <button type="button" class="btn" data-catren>Renombrar…</button>
+        </div>
+        <p class="ayuda" data-catren-info>Cambiar el nombre en la lista de arriba no cambia tus apuntes. Esto sí: lo cambia <b>en todas partes</b> (apuntes, reglas del banco, plantillas, inmuebles, contratos y notas). Si escribes el nombre de otra categoría que ya existe, las dos se <b>fusionan</b> en una.</p>
         ${seccion("Reglas para categorizar el banco")}
         <div class="rejilla">
           ${campo("Una regla por línea: «palabra = Categoría»", '<textarea name="reglasCat" rows="4" placeholder="mercadona = Alimentación\niberdrola = Suministros\nnetflix = Ocio y restaurantes"></textarea>', "", "ancho")}
@@ -1837,6 +1847,7 @@
     f.elements.entidadesTxt.value = (conf.entidades || []).join("\n");
     f.elements.dimFlujos.value = (conf.dimensionesFlujos || [])
       .map(dm => (dm.valores || []).length ? `${dm.nombre}: ${dm.valores.join(", ")}` : dm.nombre).join("\n");
+    montaRenombrarCategoria(f);
     // Pestañas del modal: General / Activos / Ingresos y gastos. Todas las secciones
     // siguen en el DOM (solo se ocultan), así que «Guardar» guarda el formulario entero.
     const paneles = f.querySelectorAll(".cfgPanel");
@@ -1849,6 +1860,72 @@
     const inicial = tabInicial && f.querySelector(`.cfgTab[data-cfg="${tabInicial}"]`);
     if (inicial) inicial.click();
     return f;
+  }
+
+  // Renombrar (o fusionar) una categoría en toda la cartera (ADR 0032). Se aplica al
+  // momento en el servidor; por eso, con cambios sin guardar en Configuración, pide
+  // guardarlos antes (al guardar, el formulario mandaría sus listas con el nombre viejo).
+  function montaRenombrarCategoria(f) {
+    const sel = f.querySelector("[data-catren-de]"), inp = f.querySelector("[data-catren-a]");
+    const info = f.querySelector("[data-catren-info]"), btn = f.querySelector("[data-catren]");
+    if (!sel) return;
+    const infoBase = info.innerHTML;
+    const cats = categoriasTodas();
+    const lc = s => String(s || "").trim().toLowerCase();
+    const nAp = k => (E.cfg.flujos || []).filter(x => lc(x.categoria) === k).length;
+    const grupo = (tipo, etq) => {
+      const ls = cats.filter(c => c.tipo === tipo);
+      return ls.length ? `<optgroup label="${etq}">${ls.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)} (${nAp(lc(c.nombre))})</option>`).join("")}</optgroup>` : "";
+    };
+    sel.innerHTML = '<option value="">— elige una categoría —</option>' + grupo("ingreso", "Ingresos") + grupo("gasto", "Gastos");
+    f.querySelector("#catRenLista").innerHTML = cats.map(c => `<option value="${esc(c.nombre)}">`).join("");
+    // Qué se va a tocar: lo mismo que cuenta el servidor.
+    const impacto = de => {
+      const k = lc(de), conf = E.cfg.config || {};
+      const ims = E.cfg.inmuebles || [];
+      return {
+        apuntes: nAp(k),
+        reglas: (conf.reglasCategoria || []).filter(r => lc(r.categoria) === k).length,
+        plantillas: (conf.recurrentes || []).filter(r => lc(r.categoria) === k).length,
+        inmuebles: ims.filter(i => (i.categorias || []).some(c => lc(c) === k)).length,
+        contratos: ims.reduce((s, i) => s + (i.inquilinos || []).reduce((t, q) => t + (q.contratos || []).filter(c => lc(c.categoria) === k).length, 0), 0),
+        notas: (E.cfg.notas || []).filter(n => (n.vinculos || [n.vinculo]).some(v => v && v.tipo === "categoria" && lc(v.ref) === k)).length,
+      };
+    };
+    const texto = n => [[n.apuntes, "apunte", "apuntes"], [n.reglas, "regla del banco", "reglas del banco"],
+      [n.plantillas, "plantilla", "plantillas"], [n.inmuebles, "inmueble", "inmuebles"], [n.contratos, "contrato", "contratos"],
+      [n.notas, "nota", "notas"]].filter(([x]) => x).map(([x, s, p]) => `${x} ${x === 1 ? s : p}`).join(", ") || "nada más que la lista";
+    const actualiza = () => {
+      const de = sel.value, a = inp.value.trim();
+      if (!de) { info.innerHTML = infoBase; return; }
+      const dest = a && lc(a) !== lc(de) ? cats.find(c => lc(c.nombre) === lc(a)) : null;
+      const orig = cats.find(c => c.nombre === de);
+      info.innerHTML = `Cambiará «${esc(de)}» en: <b>${texto(impacto(de))}</b>.`
+        + (dest ? (dest.tipo && orig && orig.tipo && dest.tipo !== orig.tipo
+          ? ` <span class="neg">«${esc(dest.nombre)}» es de ${dest.tipo}s: no se pueden fusionar.</span>`
+          : ` <b>«${esc(dest.nombre)}» ya existe: las dos se fusionarán</b> (quedará una sola, con todos sus apuntes).`) : "");
+    };
+    sel.onchange = actualiza; inp.oninput = actualiza;
+    // Cambios sin guardar en el resto del formulario (no en este bloque).
+    let sucio = false;
+    const marca = e => { if (!e.target.closest(".catRen")) sucio = true; };
+    f.addEventListener("input", marca); f.addEventListener("change", marca);
+    btn.onclick = async () => {
+      const de = sel.value, a = inp.value.trim();
+      if (!de) { sel.focus(); return; }
+      if (!a) { inp.focus(); return; }
+      if (sucio) { alert("Tienes cambios sin guardar en Configuración. Guárdalos antes de renombrar una categoría (o cierra sin guardar y vuelve a abrirla)."); return; }
+      const dest = lc(a) !== lc(de) && cats.find(c => lc(c.nombre) === lc(a));
+      if (!confirm(`${dest ? `¿Fusionar «${de}» con «${dest.nombre}»?` : `¿Renombrar «${de}» a «${a}»?`}\n\nCambiará en: ${texto(impacto(de))}.\n\nSe guarda al momento (con copia automática en mis_datos/copias).`)) return;
+      btn.disabled = true;
+      try {
+        const j = await api("POST", "api/categorias/renombrar", { de, a });
+        E.cfg = j.cartera; COP.lista = null; window.EDITOR_SUCIO = true;
+        if (window.toast) window.toast(dest ? `Fusionadas en «${dest.nombre}» ✓` : `Renombrada a «${a}» ✓`);
+        $("#modal").close();
+        formHogar("flujos");
+      } catch (x) { alert(x.message); btn.disabled = false; }
+    };
   }
 
   /* ---------------------------------------------- ingresos y gastos (flujos) */
@@ -2819,7 +2896,7 @@
       ? `<p class="imIntro">Son los <b>ingresos y gastos</b> de tu día a día (nómina, recibos, compras con tarjeta…).
           Alimentan tus <b>flujos</b> y el panel de ingresos/gastos. <span class="muted">No son inversiones: las compras de fondos,
           acciones o cripto van en «Activos e inversiones».</span></p>`
-      : `<p class="imIntro">Son los <b>productos</b> que forman tu patrimonio: fondos, ETFs, acciones, cripto, cuentas, inmuebles, deudas…
+      : `<p class="imIntro">Son los <b>productos</b> que forman tu cartera: fondos, ETFs, acciones, cripto, cuentas, deudas…
           con sus <b>compras, ventas, dividendos y saldos</b>. <span class="muted">Los gastos e ingresos corrientes van en «Datos del banco».</span></p>`;
     return `${exito}<section class="tarjeta"><header><h2>Importar datos</h2>
         <span class="subt">Trae tus datos de golpe. Antes de guardar nada verás una vista previa.</span></header>
@@ -3235,7 +3312,7 @@
     traspasarInmueble: soloPropio(formTraspaso),
     editarInmueble: soloPropio(id => formInmueble(inmueble(id))),
     borrarInmueble: soloPropio(borrarInmueble),
-    // Navegar entre una hipoteca y la deuda de Patrimonio que señala (y al revés).
+    // Navegar entre una hipoteca y la deuda de la cartera que señala (y al revés).
     irDeuda: id => window.Editor.irAEntidad("deuda", id),
     irInmueble: id => window.Editor.irAEntidad("inmueble", id),
     // La ficha ampliada (solo lectura, con su libro y sus documentos) vive en el Panel.

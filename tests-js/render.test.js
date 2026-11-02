@@ -153,7 +153,7 @@ test("imprimir ofrece resumen/detallado y genera el informe", () => {
   resumen.click();   // elige resumen -> imprime
   assert.strictEqual(llamado, 1, "al elegir un modo debería llamar a window.print");
   const hoja = window.document.getElementById("hojaInforme");
-  assert.ok(/Patrimonio neto/.test(hoja.innerHTML), "el informe debería tener el patrimonio neto");
+  assert.ok(/Cartera neta/.test(hoja.innerHTML), "el informe debería tener la cartera neta");
   assert.ok(/Distribución por tipo/.test(hoja.innerHTML), "el informe debería tener la distribución");
   // El detallado añade el informe fiscal.
   window.document.getElementById("btnImprimir").click();
@@ -418,17 +418,53 @@ test("Inmuebles: renta y rentabilidad bruta; sin «Mis datos» solo cifras del a
   assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
 });
 
-test("Inicio: bloque de inmuebles con el patrimonio del hogar; sin inmuebles, una invitación", () => {
+test("Inicio: bloque de inmuebles (sin el total, que va arriba); sin inmuebles, una invitación", () => {
   let { window, errores } = montaPanel(JSON.stringify(datosConLibro()));
   window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
   assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
   const bloque = window.document.querySelector(".megaInm");
-  assert.ok(bloque && /Patrimonio del hogar/.test(bloque.textContent));
-  assert.ok(bloque.textContent.includes("145.000"), "patrimonio del hogar: " + bloque.textContent);
+  assert.ok(bloque && /Neto inmobiliario/.test(bloque.textContent) && bloque.textContent.includes("95.000"));
+  assert.ok(!/Patrimonio del hogar/.test(bloque.textContent), "el total ya no se repite aquí");
   assert.strictEqual(bloque.querySelectorAll(".iiFila").length, 1);
   ({ window, errores } = montaPanel());
   window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
   assert.ok(window.document.querySelector(".megaInm.vacia"), "sin inmuebles: invitación a la zona");
+});
+
+test("Inicio: la card «Tu patrimonio» suma cartera + inmuebles netos, arriba del todo (ADR 0033)", () => {
+  const ver = datos => {
+    const { window, errores } = montaPanel(datos && JSON.stringify(datos));
+    window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
+    assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+    const card = window.document.querySelector("#inicioCuerpo > .inicioTotal");
+    assert.ok(card, "debería haber card de patrimonio total");
+    assert.strictEqual(window.document.querySelector("#inicioCuerpo").firstElementChild, card, "va la primera");
+    return { window, card };
+  };
+  // Con inmuebles: 50.000 de cartera + 95.000 de inmuebles netos = 145.000.
+  let { window, card } = ver(datosConLibro());
+  assert.ok(card.querySelector(".ptCifra").textContent.includes("145.000"), card.textContent);
+  const filas = [...card.querySelectorAll(".ptFila")];
+  assert.strictEqual(filas.length, 2);
+  assert.ok(/Cartera neta/.test(filas[0].textContent) && filas[0].textContent.includes("50.000"));
+  assert.ok(/Inmuebles netos/.test(filas[1].textContent) && filas[1].textContent.includes("95.000"));
+  assert.ok(card.querySelector(".ptBarra"), "barra del reparto");
+  filas[1].click();
+  assert.strictEqual(window.document.querySelector('#subtabs button[data-pv="inmuebles"]').getAttribute("aria-selected"), "true");
+  // Hipoteca enlazada a una deuda de la cartera: va con su inmueble y se le devuelve a la
+  // cartera; el total es el del motor, sin restarla dos veces.
+  const enl = datosConLibro();
+  Object.assign(enl.inmuebles.total, { hipotecasSinEnlace: 0, patrimonioHogar: 235000 });
+  ({ card } = ver(enl));
+  assert.ok(card.querySelector(".ptCifra").textContent.includes("235.000"));
+  assert.ok(card.querySelectorAll(".ptFila")[0].textContent.includes("140.000"), card.textContent);
+  assert.ok(/la hipoteca va con su inmueble/.test(card.textContent));
+  // Sin inmuebles: el patrimonio es la cartera, con una invitación a añadirlos.
+  ({ window, card } = ver());
+  assert.ok(!card.querySelector(".ptBarra"));
+  assert.ok(/Añade tus inmuebles/.test(card.textContent));
+  // La pestaña ahora se llama «Cartera» (su id interno sigue siendo «patrimonio»).
+  assert.strictEqual(window.document.querySelector('#subtabs button[data-pv="patrimonio"]').textContent, "Cartera");
 });
 
 test("web exportada con «ocultar importes»: ninguna preferencia vuelve a mostrar cantidades", () => {

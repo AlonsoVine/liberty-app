@@ -564,6 +564,13 @@ def api_config():
     return cambia(lambda cfg: almacen.guarda_config(cfg, datos))
 
 
+@app.post("/api/categorias/renombrar")
+def api_categoria_renombra():
+    """Renombra (o fusiona) una categoría en toda la cartera (ADR 0032)."""
+    d = request.get_json(silent=True) or {}
+    return cambia(lambda cfg: almacen.renombra_categoria(cfg, d.get("de"), d.get("a")))
+
+
 @app.post("/api/flujo-marca")
 def api_flujo_marca():
     """Pone o quita la marca de un apunte de ingreso/gasto (sin tocar el resto)."""

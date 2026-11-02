@@ -720,7 +720,7 @@
     cont.innerHTML = `<section class="tarjeta rmCard">
       <header><h2>Tu mes de un vistazo</h2><span class="subt">${mesNombre ? esc(mesNombre) + " · " : ""}qué ha cambiado y qué conviene hacer</span></header>
       <div class="rmCifras">
-        ${cif("Patrimonio este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes == null ? "" : (varMes >= 0 ? "pos" : "neg"), varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
+        ${cif("Cartera este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes == null ? "" : (varMes >= 0 ? "pos" : "neg"), varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
         ${em ? cif("Ahorro del mes", G.fmtEurSigno(em.ahorro), em.ahorro >= 0 ? "pos" : "neg", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
         ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
       </div>
@@ -731,7 +731,7 @@
   function pintaHero(mVis, mTodo) {
     const filtro = filtrando();
     const m = filtro ? mVis : mTodo;
-    $("#heroEtq").textContent = filtro ? "Vista filtrada" : "Patrimonio neto";
+    $("#heroEtq").textContent = filtro ? "Vista filtrada" : "Cartera neta";
     contarUnaVez($("#heroCifra"), "hero", m.valor, v => G.fmtEur(v), 680);
 
     const partes = [];
@@ -789,13 +789,13 @@
       { e: "TIR anualizada" + info("La rentabilidad real de tu dinero: tiene en cuenta cuándo metiste y sacaste cada euro. En % anual."), v: G.fmtPctSigno(m.tir), n: "rentabilidad real del dinero", cl: m.tir >= 0 ? "pos" : "neg" },
       { e: "Ritmo mensual", v: G.fmtEur(m.ritmo, 0), n: "media de los últimos 12 meses" },
       { e: "Racha", v: m.racha + (m.racha === 1 ? " mes" : " meses"), n: "aportando sin fallar" },
-      { e: "Peor caída" + info("La mayor bajada desde un máximo hasta un mínimo posterior (drawdown): cuánto llegó a caer tu patrimonio en su peor racha."), v: G.fmtPctSigno(m.caida), n: m.caidaFecha ? "del patrimonio, el " + G.fmtFecha(m.caidaFecha) : "", cl: "neg" },
+      { e: "Peor caída" + info("La mayor bajada desde un máximo hasta un mínimo posterior (drawdown): cuánto llegó a caer tu cartera en su peor racha."), v: G.fmtPctSigno(m.caida), n: m.caidaFecha ? "de la cartera, el " + G.fmtFecha(m.caidaFecha) : "", cl: "neg" },
     ];
     $("#kpis").innerHTML = kpis.map(k =>
       `<div class="kpi"><div class="e">${k.e}</div>
        <div class="v ${k.cl || ""}">${k.v}</div><div class="n">${k.n}</div></div>`).join("");
     $("#kpisNota").textContent = filtrando()
-      ? `Métricas de los ${visibles().length} componentes activos, no del patrimonio completo.` : "";
+      ? `Métricas de los ${visibles().length} componentes activos, no de toda la cartera.` : "";
   }
 
   /* Patrimonio del hogar: bruto/neto, disponible, apartados, colchón, dinero libre
@@ -806,9 +806,9 @@
     card.hidden = false;
 
     const tiles = [
-      { e: "Patrimonio bruto", v: G.fmtEur(t.patrimonioBruto, 0), n: "todo lo que tienes" },
+      { e: "Cartera bruta", v: G.fmtEur(t.patrimonioBruto, 0), n: "todo lo que tienes" },
       { e: "Deudas", v: G.fmtEur(t.deudas, 0), n: "lo que debes", cl: t.deudas ? "neg" : "" },
-      { e: "Patrimonio neto" + info("Todo lo que tienes menos lo que debes (patrimonio bruto − deudas)."), v: G.fmtEur(t.patrimonioNeto, 0), n: "bruto − deudas" },
+      { e: "Cartera neta" + info("Todo lo que tienes en la cartera menos lo que debes (cartera bruta − deudas)."), v: G.fmtEur(t.patrimonioNeto, 0), n: "bruto − deudas" },
       { e: "Disponible" + info("Dinero que puedes usar ya, sin penalización (cuentas, efectivo). Lo marcas en la ficha de cada producto."), v: G.fmtEur(t.disponible, 0), n: "liquidez inmediata" },
       { e: "No disponible", v: G.fmtEur(t.noDisponible, 0), n: "inversiones, inmuebles…" },
       { e: "Reservados", v: G.fmtEur(t.apartadosTotal, 0), n: "dinero reservado" },
@@ -840,7 +840,7 @@
         `<h3 style="font-size:13px;margin:0 0 6px;color:var(--tinta2)">Cómo ha cambiado${info("Compara tu patrimonio de ahora con el de hace un mes y hace un año, según los saldos que has anotado. «—» significa que todavía no hay datos de esa fecha.")}</h3>
          <table class="leyenda">
            <thead><tr><th></th><th${d2}>Ahora</th><th${d2}>Hace 1 mes</th><th${d2}>Δ mes</th><th${d2}>Hace 12 meses</th><th${d2}>Δ año</th></tr></thead>
-           <tbody>${fila("Patrimonio neto", vr.neto)}${fila("Patrimonio bruto", vr.bruto)}${fila("Deudas", vr.deuda, true)}</tbody>
+           <tbody>${fila("Cartera neta", vr.neto)}${fila("Cartera bruta", vr.bruto)}${fila("Deudas", vr.deuda, true)}</tbody>
          </table>`;
     }
 
@@ -848,7 +848,7 @@
     const hayTit = pt.length > 1 || (pt.length === 1 && pt[0].nombre !== "Sin asignar");
     const cont = $("#hogarTitular");
     cont.innerHTML = !hayTit ? "" :
-      `<h3 style="font-size:13px;margin:0 0 6px;color:var(--tinta2)">Patrimonio neto por titular</h3>
+      `<h3 style="font-size:13px;margin:0 0 6px;color:var(--tinta2)">Cartera neta por titular</h3>
        <table class="leyenda">` + pt.map(x =>
         `<tr><td><i style="background:${(x.color && x.color[0]) || "#888"}"></i>${esc(x.nombre)}</td>
          <td>${G.fmtEur(x.valor, 0)}</td><td>${G.fmtPct(x.peso, 0)}</td></tr>`).join("") +
@@ -1089,7 +1089,7 @@
       fila("Cuota", h.cuota != null ? G.fmtEur(h.cuota, 0) + " al mes" : ""),
       fila("Tipo de interés", h.tipoInteres != null ? G.fmtPct(h.tipoInteres, 2) : ""),
       fila("Fecha de fin", h.fechaFin ? G.fmtFecha(h.fechaFin) : ""),
-      h.deudaRef ? fila("En Patrimonio", ed ? `<button type="button" class="inmDeuda" data-deuda="${esc(h.deudaRef)}">↗ ${esc(h.deudaNombre || "Ver la deuda")}</button>` : esc(h.deudaNombre || "")) : "",
+      h.deudaRef ? fila("En tu cartera", ed ? `<button type="button" class="inmDeuda" data-deuda="${esc(h.deudaRef)}">↗ ${esc(h.deudaNombre || "Ver la deuda")}</button>` : esc(h.deudaNombre || "")) : "",
     ].join("") : "";
     const vacio = txt => `<p class="subt" style="margin:0">${txt}</p>`;
 
@@ -1462,7 +1462,7 @@
     G.multiLinea(cont, {
       fechas: corta(D.fechas), alto: 260, desdeCero: true,
       series: [
-        { nombre: "Patrimonio neto", color: G.css("--s1"), valores: corta(t.serie), destacado: true },
+        { nombre: "Cartera neta", color: G.css("--s1"), valores: corta(t.serie), destacado: true },
         { nombre: "Deudas", color: G.css("--s8"), valores: corta(t.serieDeuda) },
       ],
       formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v),
@@ -2478,7 +2478,7 @@
         <button class="btn" id="btnVerPeriodo">Ver</button>
         ${activo ? '<button class="btn" id="btnHoy">↺ Hoy</button>' : ""}
       </div>
-      ${(D.hasta && !estado.desde) ? `<div class="avisoHasta">📅 Estás viendo tu patrimonio <b>a fecha ${esc(G.fmtFecha(hd))}</b>, no los de hoy.${info("Las cantidades son las de aquella fecha. El colchón y los datos fijos de las deudas se muestran con su valor actual.")}</div>` : ""}`;
+      ${(D.hasta && !estado.desde) ? `<div class="avisoHasta">📅 Estás viendo tus datos <b>a fecha ${esc(G.fmtFecha(hd))}</b>, no los de hoy.${info("Las cantidades son las de aquella fecha. El colchón y los datos fijos de las deudas se muestran con su valor actual.")}</div>` : ""}`;
     $("#btnVerPeriodo").onclick = () => aplicar($("#inpDesde").value || null, $("#inpHasta").value || null);
     const bh = $("#btnHoy"); if (bh) bh.onclick = () => aplicar(null, null);
     cont.querySelectorAll(".periodoPresets button").forEach(b => { b.onclick = () => aplicar(b.dataset.desde || null, null); });
@@ -2520,7 +2520,7 @@
       <section class="tarjeta periodoCard">
         <header><h2>Resultado del periodo</h2><span class="subt">${esc(G.fmtFecha(fechas[iX]))} → ${esc(G.fmtFecha(hastaF))}</span></header>
         <div class="pKpis">
-          ${kpi("Cambio de patrimonio neto", G.fmtEurSigno(dNeto), cls(dNeto))}
+          ${kpi("Cambio de la cartera neta", G.fmtEurSigno(dNeto), cls(dNeto))}
           ${kpi("Rentabilidad del tramo" + info("Rentabilidad limpia del efecto de cuándo entró el dinero (TWR encadenado en el periodo)."), rent == null ? "—" : G.fmtPctSigno(rent), rent == null ? "" : cls(rent))}
           ${kpi("Aportado en el periodo", G.fmtEur(dAp))}
           ${kpi("Ingresos − gastos", G.fmtEurSigno(ing - gas), cls(ing - gas))}
@@ -2659,9 +2659,42 @@
     const progreso = metaImporte ? Math.max(0, Math.min(1, neto / metaImporte)) : null;
     const faltan = metaImporte ? Math.max(0, metaImporte - neto) : null;
 
-    let html = `<section class="inicioResumen inicioBanda">
+    // --- Card central «Tu patrimonio»: lo de TODO el hogar = cartera + inmuebles netos ---
+    // La cartera ya resta sus deudas; aquí cada hipoteca va con su inmueble (también la
+    // enlazada a una deuda de la cartera, que por eso se le devuelve a la cartera): el total
+    // es el mismo que calcula el motor (patrimonioHogar), sin restar nada dos veces.
+    const ZT = (D.inmuebles || {}).total || {};
+    const hayInm = (ZT.n || 0) > 0;
+    const totalHogar = hayInm && ZT.patrimonioHogar != null ? ZT.patrimonioHogar : neto;
+    const netoInm = hayInm ? (ZT.neto || 0) : 0;
+    const parteCartera = totalHogar - netoInm;
+    const enlazadas = hayInm ? (ZT.hipotecas || 0) - (ZT.hipotecasSinEnlace || 0) : 0;
+    const conBarra = hayInm && parteCartera > 0 && netoInm > 0;
+    const pctCar = conBarra ? parteCartera / (parteCartera + netoInm) : null;
+    const filaTotal = (ico, etq, valor, sub, go) =>
+      `<button type="button" class="ptFila" data-go="${go}">
+        <span class="ptIco" aria-hidden="true">${ico}</span>
+        <span class="ptNom">${esc(etq)}<small>${sub}</small></span>
+        <span class="ptVal">${valor}</span><span class="ptIr" aria-hidden="true">→</span></button>`;
+    let html = `<section class="tarjeta inicioTotal">
+        <header><h2>Tu patrimonio</h2><span class="subt">${hayInm ? "todo lo del hogar: tu cartera y tus inmuebles" : "hoy, todo está en tu cartera"}</span></header>
+        <div class="ptCifra">${G.fmtEur(totalHogar, 0)}</div>
+        ${conBarra ? `<div class="ptBarra" role="img" aria-label="${G.fmtPct(pctCar, 0)} en tu cartera y ${G.fmtPct(1 - pctCar, 0)} en tus inmuebles">
+          <i class="ptCar" style="width:${(pctCar * 100).toFixed(1)}%"></i><i class="ptInm"></i></div>
+        <div class="ptLeyenda"><span><i class="ptCar"></i>Cartera ${G.fmtPct(pctCar, 0)}</span><span><i class="ptInm"></i>Inmuebles ${G.fmtPct(1 - pctCar, 0)}</span></div>` : ""}
+        <div class="ptFilas">
+          ${filaTotal("📈", "Cartera neta", G.fmtEur(parteCartera, 0),
+            enlazadas ? "tus inversiones, cuentas y deudas (la hipoteca va con su inmueble)" : "tus inversiones y cuentas, menos sus deudas", "patrimonio")}
+          ${hayInm
+            ? filaTotal("🏠", "Inmuebles netos", G.fmtEur(netoInm, 0),
+              `valen ${G.fmtEur(ZT.valor || 0, 0)}${ZT.hipotecas ? " − hipotecas " + G.fmtEur(ZT.hipotecas, 0) : ""}`, "inmuebles")
+            : (!window.ESTATICO ? filaTotal("➕", "Añade tus inmuebles", "", "tu casa, pisos, locales… también son patrimonio", "inmuebles") : "")}
+        </div>
+      </section>`;
+
+    html += `<section class="inicioResumen inicioBanda">
         <div class="irCaja">
-          <div class="irEtq">Tu patrimonio en el tiempo ${deltaBadge}</div>
+          <div class="irEtq">Tu cartera en el tiempo ${deltaBadge}</div>
           <div class="inicioSpark" id="inicioSpark"></div>
         </div>
         ${metaImporte ? `<div class="irCaja">
@@ -2733,7 +2766,7 @@
       </div>
     </section>`;
 
-    // --- Mega-card «Tu patrimonio»: donut (dónde está tu dinero) + tiles ---
+    // --- Mega-card «Tu cartera»: donut (dónde está tu dinero) + tiles ---
     const ejes = [{ id: "tipo", et: "Tipo" }, { id: "clase", et: "Activo" }, { id: "entidad", et: "Entidad" }]
       .concat((D.dimensiones || []).map(dm => ({ id: "dim:" + dm.id, et: dm.nombre })));
     let eje = estado.inicioEje;
@@ -2757,7 +2790,7 @@
       ? `Rentabilidad <b class="${plus >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(plus, 0)}</b>${tir != null ? ` · TIR ${G.fmtPctSigno(tir)}` : ""} <span class="subt">sobre lo aportado</span>`
       : "";
     html += `<section class="tarjeta inicioMega megaPat">
-      <header><h2>Tu patrimonio</h2><span class="subt">dónde está tu dinero y cuánto te queda libre</span></header>
+      <header><h2>Tu cartera</h2><span class="subt">dónde está tu dinero y cuánto te queda libre</span></header>
       <div class="megaBody">
         <div class="megaGraf">
           <div class="megaGrafTop"><span class="irEtq">Dónde está tu dinero</span>${ejeCtrl}</div>
@@ -2797,12 +2830,9 @@
       </section>`;
     }
 
-    // --- Mega-card «Tus inmuebles»: la tercera zona + el patrimonio de TODO el hogar ---
+    // --- Mega-card «Tus inmuebles»: la tercera zona (el total del hogar va arriba) ---
     const ZI = D.inmuebles || {}, ti = ZI.total || {}, li = ZI.lista || [];
     if (li.length) {
-      const subHogar = ti.hipotecasSinEnlace !== ti.hipotecas
-        ? "cartera + inmuebles − hipotecas (las enlazadas ya restan como deuda)"
-        : "tu cartera + tus inmuebles − sus hipotecas";
       const filasInm = li.slice(0, 6).map(x => {
         const sub = x.libro && x.uso === "inversion" ? `<span class="${x.libro.neto12 >= 0 ? "pos" : "neg"}">${eurSigno(x.libro.neto12)}</span> en 12 meses`
           : x.uso === "habitual" ? "vivienda habitual" : esc(x.estadoNombre || "");
@@ -2812,7 +2842,7 @@
           <span class="iiVal">${G.fmtEur(x.valor, 0)}</span></button>`;
       }).join("");
       html += `<section class="tarjeta inicioMega megaInm">
-        <header><h2>Tus inmuebles</h2><span class="subt">aparte de tu cartera, y el patrimonio de todo el hogar</span></header>
+        <header><h2>Tus inmuebles</h2><span class="subt">aparte de tu cartera; juntos forman tu patrimonio</span></header>
         <div class="megaBody">
           <div class="megaGraf">
             <span class="irEtq">Tus inmuebles</span>
@@ -2820,12 +2850,12 @@
             ${li.length > 6 ? `<button type="button" class="inmVolver" data-go="inmuebles">Ver los ${li.length} →</button>` : ""}
           </div>
           <div class="megaTiles inicioGrid dos">
-            ${tile("🏠", "Patrimonio del hogar", G.fmtEur(ti.patrimonioHogar, 0), subHogar, "inmuebles", "ok")}
             ${tile("🏢", "Valor de tus inmuebles", G.fmtEur(ti.valor, 0), plural(ti.n, "inmueble", "inmuebles"), "inmuebles")}
             ${tile("🏦", "Hipotecas", G.fmtEur(ti.hipotecas || 0, 0), ti.cuotaHipotecas ? G.fmtEur(ti.cuotaHipotecas, 0) + "/mes en cuotas" : "sin hipotecas", "inmuebles", ti.hipotecas ? "warn" : "")}
+            ${tile("📐", "Neto inmobiliario", G.fmtEur(ti.neto, 0), "valor − hipotecas", "inmuebles", "ok")}
             ${ti.conLibro
               ? tile("💶", "Cash-flow 12 meses", eurSigno(ti.neto12), "lo que te dejan los de inversión", "inmuebles", ti.neto12 >= 0 ? "ok" : "warn")
-              : tile("📐", "Neto inmobiliario", G.fmtEur(ti.neto, 0), "valor − hipotecas", "inmuebles")}
+              : tile("📈", "Revalorización", ti.plusvalia != null ? eurSigno(ti.plusvalia) : "—", ti.plusvalia != null ? "sobre lo que costaron" : "pon su valor estimado", "inmuebles")}
           </div>
         </div>
       </section>`;
@@ -3193,7 +3223,7 @@
         p.nav != null ? G.fmtEur(p.nav) + (p.navFecha ? " · cierre del " + G.fmtFechaCorta(p.navFecha) : "") : null],
       ["Fuente del precio", p.fuenteTexto || p.fuentePrecio],
       ["Plusvalía ya materializada", p.realizado ? G.fmtEur(p.realizado) : null],
-      ["Peso en el patrimonio", p.peso != null ? G.fmtPct(p.peso, 1) : null],
+      ["Peso en la cartera", p.peso != null ? G.fmtPct(p.peso, 1) : null],
     ].filter(c => c[0] && c[1]);
 
     const hayVL = !!(p.navSerie && p.navSerie.some(v => v));
@@ -3574,14 +3604,12 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.17.0",
+    version: "1.18.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["🏠", "Nueva zona de Inmuebles", "Tus pisos, casas, locales y garajes, aparte de la cartera para que no descuadren tus gráficos. Cada uno con su ficha: compra, valor estimado y su evolución, hipoteca, su libro de ingresos y gastos (por categorías, filtrable por periodo y por categoría) y sus documentos. Puedes marcar uno como tu vivienda habitual. Está en Panel → Inmuebles y se edita en Mis datos."],
-      ["👤", "Inquilinos y contratos", "En la ficha de cada inmueble apuntas a tus inquilinos y sus contratos (renta, día de cobro, fianza, actualización IPC o IRAV), con el contrato firmado adjunto y los datos propios que quieras. Verás la renta mensual, la rentabilidad bruta y neta y la ocupación."],
-      ["🔔", "Avisos de tus alquileres", "Fin de contrato, revisión de la renta, cobro que se acerca y alquiler sin cobrar. Se activan y ajustan en Configuración → 🏢 Inmuebles."],
-      ["🔀", "¿Tenías un piso en la cartera?", "Te avisamos y lo pasas a Inmuebles con un clic, con todo su historial de valores. Así no cuenta dos veces en tu patrimonio total del hogar, que ahora verás en Inicio."],
-      ["🔒", "Arreglo de privacidad", "La web exportada con «Ocultar importes» ya oculta todas las cifras (antes se colaban algunas). En Ingresos y gastos, un filtro nuevo para ver el día a día sin los apuntes de tus inmuebles."],
+      ["💎", "Tu patrimonio, de un vistazo", "Arriba del todo en Inicio, una card nueva con todo lo del hogar: tu cartera neta más tus inmuebles netos (lo que valen menos sus hipotecas), con el reparto entre los dos y un acceso a cada lado."],
+      ["📈", "«Patrimonio» ahora se llama «Cartera»", "La pestaña del Panel con tus inversiones, cuentas y deudas se llama ahora Cartera, porque tus inmuebles van aparte. Tu objetivo y tus hitos se siguen midiendo con la cartera. Tus datos no cambian."],
+      ["✏️", "Renombrar o fusionar una categoría", "En Configuración → 💶 Ingresos y gastos cambias el nombre de una categoría y se actualiza en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas. Si el nombre ya existe, las dos se fusionan."],
     ],
   };
   function quizaNovedades() {
@@ -3625,20 +3653,21 @@
      al editor): las sub-vistas de «Mis datos» y «Documentos» se leen de localStorage. */
   const AYUDA = {
     "panel.inicio": { t: "Inicio", sub: "El cuadro de mando: tu patrimonio de un vistazo, con accesos directos a cada sección.", p: [
-      ["📊", "Tu mes de un vistazo", "Cuánto ha cambiado tu patrimonio este mes (en € y %), tu ahorro del mes (ingresos − gastos anotados) y tu «dinero libre para invertir». La línea «qué conviene hacer» te sugiere el siguiente paso."],
-      ["🎯", "Objetivo o próximo hito", "La barra se rellena hacia tu objetivo de patrimonio (o, si no lo has fijado, hacia el siguiente hito redondo: 10.000, 50.000…). El objetivo se define en «Mis datos → Configuración»."],
-      ["📈", "Patrimonio, reparto e ingresos", "Tres mini-gráficos: tu evolución reciente, en qué está repartido tu dinero (el anillo) y tus ingresos/gastos de los últimos meses. Pulsa el anillo para ir a Distribución."],
+      ["💎", "Tu patrimonio (arriba del todo)", "Todo lo del hogar en una cifra: tu cartera neta + tus inmuebles netos (lo que valen menos sus hipotecas). La barra te dice qué parte está en cada lado; pulsa una fila para ir a Cartera o a Inmuebles. Una hipoteca enlazada a una deuda de tu cartera se cuenta con su inmueble, nunca dos veces. Sin inmuebles, tu patrimonio es tu cartera."],
+      ["📊", "Tu mes de un vistazo", "Cuánto ha cambiado tu cartera este mes (en € y %), tu ahorro del mes (ingresos − gastos anotados) y tu «dinero libre para invertir». La línea «qué conviene hacer» te sugiere el siguiente paso."],
+      ["🎯", "Objetivo o próximo hito", "La barra se rellena hacia el objetivo de tu cartera (o, si no lo has fijado, hacia el siguiente hito redondo: 10.000, 50.000…). El objetivo se define en «Mis datos → Configuración»."],
+      ["📈", "Cartera, reparto e ingresos", "Tres mini-gráficos: la evolución reciente de tu cartera, en qué está repartido tu dinero (el anillo) y tus ingresos/gastos de los últimos meses. Pulsa el anillo para ir a Distribución."],
       ["🏅", "Tu constancia", "Tu disciplina medida: racha de meses aportando sin fallar, ritmo medio mensual, meses con apuntes y cuánto tiempo llevas siguiéndote. Pensado para motivar el hábito, no para juzgarte."],
-      ["🏠", "Tus inmuebles y el patrimonio del hogar", "Si tienes inmuebles, un bloque propio con lo que valen, sus hipotecas y lo que te dejan en 12 meses, y el patrimonio total del hogar: tu cartera + tus inmuebles − sus hipotecas. Una hipoteca que hayas enlazado a una deuda de Patrimonio no se resta dos veces. Pulsa un inmueble para abrir su ficha."],
+      ["🏠", "Tus inmuebles", "Si tienes inmuebles, un bloque propio con lo que valen, sus hipotecas, su neto y lo que te dejan en 12 meses (o cuánto se han revalorizado). Pulsa un inmueble para abrir su ficha."],
       ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos próximos. Cada tarjeta es un atajo: púlsala para ir directo a esa sección."],
       ["🔔", "Caja de avisos", "Los avisos del panel van en una caja que puedes plegar pulsando su cabecera. Una vez has visto los que estás posponiendo a conciencia, contráela y se mantiene así en todas las pestañas, sin obligarte a hacer scroll. Si aparece un aviso nuevo que no habías visto, la cabecera lo marca con «nuevo» aunque esté plegada."],
     ] },
-    "panel.patrimonio": { t: "Patrimonio", sub: "La foto completa de lo que tienes, lo que debes y lo que te queda libre.", p: [
-      ["💰", "Patrimonio neto", "La cifra grande: todo lo que tienes menos lo que debes (patrimonio bruto − deudas). Es la referencia principal de toda la app."],
-      ["📅", "Periodo", "Con el selector de arriba puedes mirar tu patrimonio a un día concreto («¿cuánto tenía el 1 de enero?»), a fin de un mes, o en un rango X→Y (y cuánto ganaste solo en ese tramo). El resto del panel se recalcula a esa fecha."],
-      ["📈", "Evolución y objetivo", "La serie de tu patrimonio en el tiempo y, debajo, la barra de progreso hacia tu objetivo con cuánto te falta."],
+    "panel.patrimonio": { t: "Cartera", sub: "La foto de tu cartera: lo que tienes en inversiones y cuentas, lo que debes y lo que te queda libre. Tus inmuebles van aparte; el total del hogar lo ves en Inicio.", p: [
+      ["💰", "Cartera neta", "La cifra grande: todo lo que tienes en la cartera menos lo que debes (cartera bruta − deudas). Es la referencia de tus gráficos, tu objetivo y tus hitos."],
+      ["📅", "Periodo", "Con el selector de arriba puedes mirar tu cartera a un día concreto («¿cuánto tenía el 1 de enero?»), a fin de un mes, o en un rango X→Y (y cuánto ganaste solo en ese tramo). El resto del panel se recalcula a esa fecha."],
+      ["📈", "Evolución y objetivo", "La serie de tu cartera en el tiempo y, debajo, la barra de progreso hacia tu objetivo con cuánto te falta."],
       ["🧮", "Indicadores clave", "Aportado (lo que has metido), plusvalía (lo ganado), rentabilidad, TIR anualizada (tiene en cuenta cuándo metiste cada euro), ritmo mensual, racha y peor caída histórica."],
-      ["🏠", "Patrimonio del hogar", "El desglose de hoy: bruto, deudas, neto, disponible (liquidez inmediata), no disponible (inversiones e inmuebles), reservados, colchón y el dinero libre = disponible − reservados − colchón."],
+      ["🏠", "Tu cartera hoy", "El desglose de hoy: bruto, deudas, neto, disponible (liquidez inmediata), no disponible (inversiones), reservados, colchón y el dinero libre = disponible − reservados − colchón."],
       ["📊", "Cómo ha cambiado", "Una tabla que compara cada cifra con hace 1 mes y hace 12 meses, para ver la tendencia."],
     ] },
     "panel.distribucion": { t: "Distribución", sub: "En qué está repartido tu dinero, y si cuadra con tu plan.", p: [
@@ -3655,7 +3684,7 @@
       ["🧾", "Por producto", "La rentabilidad de cada componente y año, desde el precio real al que compraste y con las comisiones. Para ver qué tira y qué no."],
       ["💡", "Depende de lo que anotes", "El cálculo es tan bueno como tus datos: anota tus compras y, en productos a mano, «lo aportado», en «Saldos y movimientos». Sin eso, no se puede calcular la rentabilidad real."],
     ] },
-    "panel.evolucion": { t: "Evolución", sub: "Tu patrimonio día a día, con todo el detalle.", p: [
+    "panel.evolucion": { t: "Evolución", sub: "Tu cartera día a día, con todo el detalle.", p: [
       ["📈", "La curva en el tiempo", "La serie completa, con los eventos importantes (aportaciones) marcados. Pasa el ratón para ver el valor de cada día."],
       ["🧱", "Reparto apilado", "Cambia a áreas apiladas para ver cómo crece cada componente (o cada dimensión) a lo largo del tiempo, no solo el total."],
       ["💶", "Aportado vs valor", "Separa lo que has metido tú de lo que ha crecido (o caído) por el mercado. Así ves si subes por ahorrar o por rentabilidad. En la vista «Total», al pasar el ratón el detalle muestra lo aportado, la plusvalía, la rentabilidad % y, si la activas, la línea de inflación de ese día."],
@@ -3673,7 +3702,7 @@
       ["✍️", "De dónde salen los datos", "Los apuntes se crean en «Mis datos → Ingresos y gastos»: a mano, con plantillas recurrentes o importándolos del banco."],
     ] },
     "panel.deudas": { t: "Deudas y vencimientos", sub: "Lo que debes, cómo baja y lo que vence pronto.", p: [
-      ["💳", "Tus deudas", "Préstamos, hipoteca, tarjetas… con su capital pendiente, cuota mensual e interés. Restan de tu patrimonio neto."],
+      ["💳", "Tus deudas", "Préstamos, hipoteca, tarjetas… con su capital pendiente, cuota mensual e interés. Restan de tu cartera neta."],
       ["📉", "Curva de cada deuda", "Cómo baja el capital pendiente con el tiempo, según los saldos que vas anotando cada mes."],
       ["🧮", "Cuota sobre ingresos", "Qué parte de tus ingresos se va en pagar deudas: una señal rápida de si vas holgado o ajustado."],
       ["📅", "Vencimientos", "Avisos de renovaciones, impuestos, seguros o revisiones. Se calculan con la fecha de vencimiento de cada cosa y los «días de aviso» que fijes en Configuración."],
@@ -3684,16 +3713,16 @@
       ["⚠️", "Solo informativo", "Es una ayuda para hacerte una idea, no asesoramiento ni un cálculo fiscal oficial. Contrástalo siempre con tu asesor o con los datos de tu banco/bróker."],
     ] },
     "panel.inmuebles": { t: "Inmuebles", sub: "Tus pisos, casas, locales y garajes, aparte de tu cartera.", p: [
-      ["🧱", "Por qué van aparte", "Un piso pesa tanto frente a tus fondos o cuentas que aplastaría los gráficos de tus inversiones. Por eso los inmuebles tienen su propia zona y no suman en el patrimonio ni en los gráficos de la cartera."],
+      ["🧱", "Por qué van aparte", "Un piso pesa tanto frente a tus fondos o cuentas que aplastaría los gráficos de tus inversiones. Por eso los inmuebles tienen su propia zona y no suman en la cartera ni en sus gráficos. Cartera e inmuebles juntos forman tu patrimonio, que ves arriba en Inicio."],
       ["💶", "Lo que valen y lo que te costaron", "El valor es tu estimación (la pones tú en su ficha y la actualizas cuando quieras). Lo que te costaron incluye el precio y los gastos de compra (impuestos, notaría, registro, inmobiliaria…)."],
       ["📈", "Revalorización", "La diferencia entre lo que vale hoy y lo que te costó. Solo cuenta los inmuebles a los que has puesto un valor estimado: sin estimación, se toma el precio de compra y no se inventa ninguna subida."],
-      ["🏦", "Hipoteca y neto", "Cada inmueble puede llevar su hipoteca (capital pendiente y cuota). El neto es lo que es realmente tuyo: el valor menos lo que aún debes. Si la enlazas con una deuda de Patrimonio, verás un enlace para saltar a ella."],
+      ["🏦", "Hipoteca y neto", "Cada inmueble puede llevar su hipoteca (capital pendiente y cuota). El neto es lo que es realmente tuyo: el valor menos lo que aún debes. Si la enlazas con una deuda de tu cartera, verás un enlace para saltar a ella."],
       ["🏡", "Tu vivienda habitual", "Puedes marcar uno de tus inmuebles como vivienda habitual: aparece señalado y no se le piden datos de alquiler. En su ficha ves lo que te cuesta en vez de lo que te deja."],
       ["👆", "Su ficha completa", "Pulsa una tarjeta y se abre la ficha del inmueble: sus datos, la compra y el valor, la hipoteca, su libro de ingresos y gastos y sus documentos. «✎ Editar ficha» la cambia; «← Todos los inmuebles» (o volver a pulsar «Inmuebles» arriba) te devuelve a la lista."],
       ["📒", "Su libro de ingresos y gastos", "Son tus apuntes de Ingresos y gastos de las categorías que asocies al inmueble (en Configuración → 🏢 Inmuebles o en su ficha). Nada se anota dos veces y no cambia el saldo de tus cuentas. Verás los ingresos, gastos y neto del periodo, una gráfica mes a mes, el reparto por categoría y sus apuntes; pulsa una categoría para ver todos sus apuntes."],
       ["📅", "Elige el periodo", "Encima del libro eliges qué fechas ver: los últimos 12 meses (por defecto), este año, el año pasado, todo o «Rango…» para ir de una fecha a otra. Todo el libro (cifras, gráfica, categorías y apuntes) se recalcula; si el periodo pasa de dos años, la gráfica va por años. La rentabilidad neta de arriba sigue siendo siempre la de 12 meses."],
       ["📈", "Evolución del valor", "En la ficha, una gráfica con lo que costó y cada valor estimado que has anotado, mes a mes. Cada vez que actualizas el valor estimado (con otra fecha), el anterior queda en el historial."],
-      ["🔀", "¿Tenías el piso en la cartera?", "Si antes lo apuntaste como un activo de tipo «Inmueble», aquí te avisa y te ofrece «Pasar a Inmuebles»: sale de la cartera también hacia atrás (sus gráficas quedan solo con lo financiero), sus valores pasan a la evolución del valor y sus notas lo siguen. Así no cuenta dos veces en el patrimonio del hogar."],
+      ["🔀", "¿Tenías el piso en la cartera?", "Si antes lo apuntaste como un activo de tipo «Inmueble», aquí te avisa y te ofrece «Pasar a Inmuebles»: sale de la cartera también hacia atrás (sus gráficas quedan solo con lo financiero), sus valores pasan a la evolución del valor y sus notas lo siguen. Así no cuenta dos veces en tu patrimonio."],
       ["🏷️", "Filtra por categoría", "Los chips de sus categorías, encima del libro, son filtros: pulsa uno y el libro (cifras, gráfica, categorías y apuntes) se queda solo con esa categoría; pulsa varios para sumarlas y «✕ Todas» para volver a verlo entero. Se combina con el periodo y se quita al cambiar de inmueble."],
       ["💶", "Cash-flow y rentabilidad neta", "El cash-flow es lo que te dejó el inmueble en 12 meses (ingresos − gastos de sus categorías). La rentabilidad neta lo compara con lo que te costó, gastos de compra incluidos."],
       ["👤", "Inquilinos y contratos", "En la ficha añades a cada inquilino (nombre, DNI, teléfono, correo) y, para cada uno, sus contratos: inicio y fin, renta mensual, día de cobro, fianza, cómo se actualiza la renta (IPC, IRAV o lo pactado) y en qué categoría se apunta el cobro. A ambos les puedes añadir datos propios con su nombre y uno o varios valores (avalistas, gastos incluidos, plaza de garaje…)."],
@@ -3711,7 +3740,7 @@
       ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. El botón «← Volver» te lleva de vuelta a donde viniste (Distribución o Rentabilidad)."],
     ] },
 
-    "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que suma a tu patrimonio. La base de casi todo lo demás.", p: [
+    "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que forma tu cartera. La base de casi todo lo demás.", p: [
       ["➕", "Añade cualquier cosa que suma", "Fondos, acciones, cripto, cuentas, depósitos, planes de pensiones… Cada uno con su nombre, tipo, titular y color."],
       ["🏢", "¿Pisos o locales?", "Mejor en «Mis datos → Inmuebles»: tienen su propia zona para que su valor no aplaste los gráficos de tus inversiones. Si ya tenías alguno aquí como activo, sigue funcionando igual."],
       ["🔗", "Con cotización (precio automático)", "Para fondos, acciones o cripto eliges la fuente (Morningstar, Yahoo Finance o CoinGecko) y pones su código/ISIN: la app baja el precio sola y lo actualiza con «Actualizar precios»."],
@@ -3722,13 +3751,13 @@
     "datos.deudas": { t: "Mis datos · Deudas", sub: "Préstamos, hipoteca, tarjetas… lo que resta.", p: [
       ["💳", "Añade tus deudas", "Con su tipo, titular, cuota mensual, interés y fecha de vencimiento. La cuota y el vencimiento alimentan los avisos y el ratio «cuota sobre ingresos»."],
       ["🧮", "El capital pendiente", "Lo que debes de verdad no se calcula solo: lo anotas cada mes como un saldo en «Saldos y movimientos» (igual que una cuenta, pero en negativo)."],
-      ["📉", "En el panel", "Aparecen en «Deudas y vencimientos», dibujan su curva de amortización y restan de tu patrimonio neto."],
+      ["📉", "En el panel", "Aparecen en «Deudas y vencimientos», dibujan su curva de amortización y restan de tu cartera neta."],
     ] },
     "datos.inmuebles": { t: "Mis datos · Inmuebles", sub: "La ficha de cada piso, casa, local o garaje.", p: [
       ["➕", "Añade tus inmuebles", "Con su nombre, tipo y titular. Van en su propia zona, aparte de la cartera, así que no descuadran los gráficos de tus inversiones."],
       ["🏡", "Inversión o vivienda habitual", "Por defecto un inmueble es una inversión, con su estado (alquilado, vacío, en reforma o en venta). Uno puede ser tu vivienda habitual; solo puede haber una (si ya la tienes, la opción sale bloqueada en los demás). Como no se alquila, al elegirla quedan bloqueados el estado y las categorías de ingresos; sus gastos sí se asocian. Si tenía inquilinos, se conservan pero no se muestran ni avisan hasta que vuelva a ser de inversión."],
       ["🧾", "Compra y valor", "Apunta la fecha, el precio y los gastos de compra (impuestos, notaría, registro, inmobiliaria). El valor estimado lo pones tú y lo actualizas cuando quieras: con él se calcula la revalorización."],
-      ["🏦", "Hipoteca", "Capital pendiente, cuota mensual, tipo de interés y fecha de fin. Si ya tienes esa hipoteca como deuda en Patrimonio, puedes enlazarla: solo la señala para saltar de una a otra, no cambia ninguna cifra."],
+      ["🏦", "Hipoteca", "Capital pendiente, cuota mensual, tipo de interés y fecha de fin. Si ya tienes esa hipoteca como deuda en tu cartera, puedes enlazarla: solo la señala para saltar de una a otra, no cambia ninguna cifra."],
       ["📌", "Datos del inmueble", "Dirección, referencia catastral, superficie, habitaciones y valor catastral (útil para el IBI y la declaración)."],
       ["🔀", "Pasar a Inmuebles", "Los inmuebles que tengas en la cartera como un activo salen en un aviso arriba. «Pasar a Inmuebles» abre su ficha ya rellena (nombre, titular, tipo, último valor y la compra si la tenías anotada) para que la revises; al guardar, sale de la cartera también hacia atrás, sus valores pasan al historial del inmueble y sus notas y recordatorios lo siguen. Si no valida, no se toca nada."],
       ["📒", "Sus categorías de ingresos y gastos", "Marca en la ficha las categorías que son de ese inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes forman su libro. Una categoría solo puede ir con un inmueble. Para repartirlas todas de golpe, Configuración → 🏢 Inmuebles."],
@@ -3765,9 +3794,10 @@
     ] },
     "datos.config": { t: "Mis datos · Configuración", sub: "El cerebro de la app: aquí defines cómo calcula, clasifica y te avisa. Dedicarle un rato hace que todo lo demás funcione mejor.", p: [
       ["🏠", "Hogar y titulares", "Los titulares son las personas del hogar (tú, tu pareja, «Común»…). El «titular por defecto» es el que se rellena solo al anotar un ingreso o gasto, para no elegirlo cada vez: ponlo en quien más apunta."],
-      ["🎯", "Objetivo y colchón", "El objetivo de patrimonio es la meta que ves en Inicio y Patrimonio. El colchón es la liquidez mínima que quieres tener siempre: se resta del «dinero libre para invertir» para que no lo toques."],
+      ["🎯", "Objetivo y colchón", "El objetivo de tu cartera es la meta que ves en Inicio y Cartera (se mide con la cartera neta, sin los inmuebles). El colchón es la liquidez mínima que quieres tener siempre: se resta del «dinero libre para invertir» para que no lo toques."],
       ["⚖️", "Objetivos de asignación y concentración", "Define qué % quieres en cada tipo de activo (p. ej. 60/30/10) y la app te dirá en Distribución qué mover para rebalancear. El umbral de concentración te avisa si un tipo o una entidad pesa demasiado."],
       ["🏷️", "Categorías (y presupuesto)", "Son las etiquetas de tus ingresos y gastos (Alimentación, Nómina, Ocio…). Alimentan el desplegable al anotar y el análisis «en qué se va». Si a una categoría de gasto le pones presupuesto, el panel te dice cuánto te desvías cada mes. Hace falta tenerlas creadas para que las reglas del banco funcionen."],
+      ["✏️", "Renombrar o fusionar una categoría", "En «💶 Ingresos y gastos», elige una categoría y escribe su nombre nuevo: se cambia en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas, y antes de hacerlo te dice cuántos toca. Si el nombre nuevo ya existe, las dos se fusionan en una sola (deben ser del mismo tipo). Se aplica al momento, con copia de seguridad automática."],
       ["🤖", "Reglas para el banco", "Al importar del banco, estas reglas clasifican solas tus movimientos: «si el concepto contiene MERCADONA → Alimentación». Se crean a mano aquí, o se aprenden solas marcando «recordar mis correcciones» en la vista previa de Importar. Bien puestas, te ahorran clasificar a mano cada mes."],
       ["📐", "Dimensiones de clasificación", "Ejes propios para mirar tu cartera como tú quieras, más allá de Tipo y Entidad. Creas una dimensión (p. ej. «Geografía» con valores Europa, EE. UU., Global; o «Riesgo»; o «Gestora») y luego la asignas a cada activo. Después agrupas y filtras por ella en Distribución y Evolución. También hay dimensiones para los ingresos y gastos."],
       ["📈", "Inflación y monedas", "La inflación de referencia dibuja la línea «a batir» en Evolución. Las monedas te dejan fijar un cambio manual (p. ej. USD→EUR) para valorar en euros un activo o una cuenta en otra divisa."],
@@ -4082,10 +4112,10 @@
   const irMisDatos = v => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
   const PASOS_TOUR = [
     // --- Panel: entender tus cifras ---
-    { sel: "#heroCifra", tit: "Tu patrimonio neto", txt: "La foto de todo tu patrimonio: lo que tienes menos lo que debes. Arriba, con «Periodo», lo ves a un día concreto, a fin de un mes o en un rango (y cuánto ganaste en ese tramo).", antes: () => { irA("panel"); irVista("patrimonio"); } },
-    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Empiezas en «Inicio», un resumen de todo. Las demás vistas van agrupadas por temática: tu patrimonio (Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos e Informe fiscal), tu día a día (Ingresos y gastos) y tus inmuebles, que van aparte para no descuadrar los gráficos de tus inversiones.", antes: () => irVista("inicio") },
+    { sel: "#heroCifra", tit: "Tu cartera neta", txt: "La foto de tu cartera: lo que tienes menos lo que debes (el total con tus inmuebles está en Inicio). Arriba, con «Periodo», lo ves a un día concreto, a fin de un mes o en un rango (y cuánto ganaste en ese tramo).", antes: () => { irA("panel"); irVista("patrimonio"); } },
+    { sel: "#subtabs", tit: "Las vistas del Panel", txt: "Empiezas en «Inicio», un resumen de todo. Las demás vistas van agrupadas por temática: tu cartera (Cartera, Distribución, Rentabilidad, Evolución, Deudas y vencimientos e Informe fiscal), tu día a día (Ingresos y gastos) y tus inmuebles, que van aparte para no descuadrar los gráficos de tus inversiones.", antes: () => irVista("inicio") },
     { sel: "#grafDonut", tit: "Distribución", txt: "En qué está tu dinero, por tipo, titular o tus propias dimensiones. Cambia entre Anillo y Mapa (treemap) y pulsa «⚖️ Cómo rebalancear» para ver cuánto aportar a cada cosa para volver a tus objetivos.", antes: () => irVista("distribucion") },
-    { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo crece tu patrimonio en el tiempo. Enciende y apaga componentes en la leyenda, míralo mes a mes o en reparto %, y compáralo con un indexado. Las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
+    { sel: "#grafPrincipal", tit: "Evolución", txt: "Cómo crece tu cartera en el tiempo. Enciende y apaga componentes en la leyenda, míralo mes a mes o en reparto %, y compáralo con un indexado. Las deudas se dibujan por debajo del cero.", antes: () => irVista("evolucion") },
     { sel: "#igNav", tit: "Ingresos y gastos", txt: "Entiende tu dinero: Resumen (con la cascada y tu tasa de ahorro), Categorías (en qué se va), Tendencias (mes a mes y mapa de calor) y Presupuesto con semáforo.", antes: () => irVista("ingresos") },
     { sel: "#fiscalContenido", tit: "Informe fiscal", txt: "Ganancias y pérdidas de tus ventas (coste FIFO) y los dividendos y cupones cobrados, por año y listos para la declaración. Imprímelo o guárdalo en PDF.", antes: () => irVista("fiscal") },
     { sel: "#btnPaleta", tit: "Buscar (Ctrl/⌘ + K)", txt: "Pulsa Ctrl o ⌘ + K para buscar e ir a cualquier sitio o acción al instante.", antes: () => irA("panel") },
@@ -4170,10 +4200,10 @@
         <div class="infMarca">Liberty · Informe de patrimonio</div>
         <h1>${esc(D.titular || "Mi patrimonio")}</h1>
         <div class="infFecha">A fecha ${fe}</div>
-        <div class="infNeto"><span>Patrimonio neto</span><b>${G.fmtEur(t.patrimonioNeto)}</b></div>
+        <div class="infNeto"><span>Cartera neta</span><b>${G.fmtEur(t.patrimonioNeto)}</b></div>
       </header>
       <section class="infSec"><h2>Resumen</h2><div class="infCifras">
-        ${cif("Patrimonio bruto", G.fmtEur(t.patrimonioBruto))}
+        ${cif("Cartera bruta", G.fmtEur(t.patrimonioBruto))}
         ${cif("Deudas", G.fmtEur(t.deudas || 0))}
         ${cif("Disponible", G.fmtEur(t.disponible))}
         ${cif("Dinero libre", G.fmtEur(t.dineroLibre))}
@@ -4260,7 +4290,7 @@
     c.push({ ico: "⚙️", label: "Ajustes", run: () => irA("ajustes") });
     const irPanel = pv => () => { if (estado.tab !== "panel") irA("panel"); irVista(pv); };
     const irDatos = v => () => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
-    const pvN = { inicio: "Inicio", patrimonio: "Patrimonio", distribucion: "Distribución", rentabilidad: "Rentabilidad", evolucion: "Evolución", ingresos: "Ingresos y gastos", deudas: "Deudas y vencimientos", fiscal: "Informe fiscal", inmuebles: "Inmuebles" };
+    const pvN = { inicio: "Inicio", patrimonio: "Cartera", distribucion: "Distribución", rentabilidad: "Rentabilidad", evolucion: "Evolución", ingresos: "Ingresos y gastos", deudas: "Deudas y vencimientos", fiscal: "Informe fiscal", inmuebles: "Inmuebles" };
     Object.entries(pvN).forEach(([pv, nm]) => { if (document.getElementById("pv-" + pv)) c.push({ ico: "📊", label: "Panel · " + nm, hint: "ver", run: irPanel(pv) }); });
     c.push({ ico: "⚡", label: "Anotar un gasto o ingreso", hint: "acción", run: irDatos("flujos") });
     c.push({ ico: "➕", label: "Añadir un activo", hint: "acción", run: irDatos("activos") });

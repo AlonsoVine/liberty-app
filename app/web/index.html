@@ -1348,6 +1348,10 @@ button.inmChip.apagado{opacity:.5}
 .cLVal{display:inline-flex;gap:4px;align-items:center}
 .cLVal input{width:150px}
 @media (max-width:560px){.cLibre{grid-template-columns:1fr auto}.cLVals{grid-column:1/-1}}
+/* Renombrar o fusionar una categoría (Configuración → Ingresos y gastos, ADR 0032) */
+.catRen{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto;gap:8px;align-items:center}
+.catRenFlecha{color:var(--tinta3)}
+@media (max-width:560px){.catRen{grid-template-columns:1fr}.catRenFlecha{display:none}}
 /* Inmuebles que aún viven en la cartera: aviso con «Pasar a Inmuebles» (ADR 0031) */
 .inmTraspaso{border:1px solid color-mix(in srgb,var(--s1) 35%,var(--borde));background:color-mix(in srgb,var(--s1) 6%,var(--sup));border-radius:10px;padding:12px 14px;margin:0 0 14px;font-size:13.5px}
 .inmTraspaso p{margin:0 0 8px;color:var(--tinta2)}
@@ -1468,6 +1472,27 @@ button.inmChip.apagado{opacity:.5}
 .iiNom small{display:block;font-size:11.5px;font-weight:500;color:var(--tinta3);margin-top:1px}
 .iiNom .pos{color:var(--bien)} .iiNom .neg{color:var(--mal)}
 .iiVal{flex:none;font-size:13.5px;font-weight:650;font-variant-numeric:tabular-nums}
+/* Card central «Tu patrimonio» de Inicio: el total del hogar (cartera + inmuebles netos) */
+.inicioTotal{margin-bottom:16px}
+.ptCifra{font-size:34px;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;line-height:1.1;margin:2px 0 12px}
+.ptBarra{display:flex;height:10px;border-radius:99px;overflow:hidden;background:var(--sup2)}
+.ptBarra i{display:block;height:100%}
+i.ptCar{background:var(--s1)} i.ptInm{background:var(--s3)}
+.ptBarra .ptInm{flex:1}
+.ptLeyenda{display:flex;gap:16px;flex-wrap:wrap;margin:6px 0 4px;font-size:12px;color:var(--tinta2)}
+.ptLeyenda span{display:inline-flex;align-items:center;gap:6px}
+.ptLeyenda i{width:9px;height:9px;border-radius:3px;display:inline-block}
+.ptFilas{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+@media(max-width:620px){.ptFilas{grid-template-columns:1fr}.ptCifra{font-size:28px}}
+.ptFila{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;color:var(--tinta);
+  background:var(--sup);border:1px solid var(--borde);border-radius:11px;padding:10px 12px;cursor:pointer;
+  transition:border-color .15s,transform .15s}
+.ptFila:hover{border-color:color-mix(in srgb,var(--s1) 45%,var(--borde));transform:translateX(2px)}
+.ptIco{flex:none;width:32px;height:32px;display:grid;place-items:center;border-radius:8px;background:var(--sup2);font-size:17px}
+.ptNom{flex:1;min-width:0;font-size:14px;font-weight:650}
+.ptNom small{display:block;font-size:11.5px;font-weight:500;color:var(--tinta3);margin-top:1px}
+.ptVal{flex:none;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
+.ptIr{flex:none;color:var(--tinta3)}
 .inicioGrid.dos{grid-template-columns:repeat(2,1fr)}
 @media(max-width:460px){.inicioGrid.dos{grid-template-columns:1fr}}
 .ejeChips{display:inline-flex;gap:3px;background:var(--sup2);border:1px solid var(--borde);border-radius:10px;padding:3px}
@@ -1726,7 +1751,7 @@ body.video .tarjetaCanal{display:none}
       <button data-pv="inicio" aria-selected="true">Inicio</button>
     </div>
     <div class="segm pvGrupo">
-      <button data-pv="patrimonio" aria-selected="false">Patrimonio</button>
+      <button data-pv="patrimonio" aria-selected="false">Cartera</button>
       <button data-pv="distribucion" aria-selected="false">Distribución</button>
       <button data-pv="rentabilidad" aria-selected="false">Rentabilidad</button>
       <button data-pv="evolucion" aria-selected="false">Evolución</button>
@@ -1752,11 +1777,11 @@ body.video .tarjetaCanal{display:none}
     <div id="inicioCuerpo"></div>
   </div>
 
-  <!-- ===== PATRIMONIO ===== -->
+  <!-- ===== CARTERA (el id interno sigue siendo «patrimonio») ===== -->
   <div class="pv" id="pv-patrimonio" hidden>
     <div id="resumenMes"></div>
     <section class="hero">
-      <div class="hEtq" id="heroEtq">Patrimonio neto</div>
+      <div class="hEtq" id="heroEtq">Cartera neta</div>
       <div class="hCifra" id="heroCifra">—</div>
       <div class="hSub" id="heroSub"></div>
       <div class="prog" id="progEnv" hidden>
@@ -1764,12 +1789,12 @@ body.video .tarjetaCanal{display:none}
         <div class="progPie"><span id="progIzq"></span><span id="progDer"></span></div>
       </div>
     </section>
-    <p class="ayudaVista">Tu foto de hoy: cuánto tienes, cuánto debes y cuánto te queda libre para invertir.</p>
+    <p class="ayudaVista">La foto de hoy de tu cartera: cuánto tienes, cuánto debes y cuánto te queda libre para invertir.</p>
     <p class="kpisNota subt" id="kpisNota"></p>
     <div class="kpis" id="kpis"></div>
     <section class="tarjeta" id="tarjetaHogar" style="margin-top:16px" hidden>
       <header>
-        <h2>Patrimonio del hogar</h2>
+        <h2>Tu cartera hoy</h2>
         <span class="subt" id="hogarSub">Foto de hoy: qué tienes, qué debes y cuánto queda libre</span>
       </header>
       <div class="kpis" id="hogarGrid"></div>
@@ -1882,10 +1907,10 @@ body.video .tarjetaCanal{display:none}
 
   <!-- ===== EVOLUCIÓN (incluye el mes a mes) ===== -->
   <div class="pv" id="pv-evolucion" hidden>
-    <p class="ayudaVista">Cómo cambia tu patrimonio en el tiempo y qué pasó cada mes.</p>
+    <p class="ayudaVista">Cómo cambia tu cartera en el tiempo y qué pasó cada mes.</p>
     <section class="tarjeta" style="margin-top:8px">
       <header>
-        <h2>Evolución del patrimonio</h2>
+        <h2>Evolución de la cartera</h2>
         <span class="subt" id="evolNota"></span>
         <div class="sep"></div>
         <div class="segm" id="segVista"></div>
@@ -1899,7 +1924,7 @@ body.video .tarjetaCanal{display:none}
       </div>
     </section>
     <section class="tarjeta" id="tarjetaDeudaEvol" style="margin-top:16px" hidden>
-      <header><h2>Patrimonio neto y deudas</h2><span class="subt">Cómo evolucionan en el tiempo</span></header>
+      <header><h2>Cartera neta y deudas</h2><span class="subt">Cómo evolucionan en el tiempo</span></header>
       <div class="envGraf" id="grafDeuda"></div>
     </section>
     <section class="tarjeta" style="margin-top:16px">
@@ -1907,7 +1932,7 @@ body.video .tarjetaCanal{display:none}
       <div class="envGraf" id="grafBarras"></div>
     </section>
     <section class="tarjeta" style="margin-top:16px">
-      <header><h2>Hitos</h2><span class="subt">La primera vez que el patrimonio cruzó cada cifra</span></header>
+      <header><h2>Hitos</h2><span class="subt">La primera vez que tu cartera cruzó cada cifra</span></header>
       <div class="hitos" id="hitos"></div>
     </section>
     <section class="hero" style="padding-bottom:0;margin-top:20px">
@@ -2242,7 +2267,7 @@ body.video .tarjetaCanal{display:none}
     <details class="faq"><summary>¿Cómo está organizada la app ahora?</summary><div>
       <p>Arriba tienes estos botones:</p>
       <ul>
-        <li><b>📊 Panel</b>: mirar tus números. Dentro tiene pestañas: <b>Patrimonio</b> (tu foto de hoy),
+        <li><b>📊 Panel</b>: mirar tus números. Dentro tiene pestañas: <b>Inicio</b> (tu patrimonio total y un resumen de todo), <b>Cartera</b> (tu foto de hoy),
           <b>Distribución</b> (en qué está el dinero, con un botón <b>Anillo / Mapa</b> para verlo como anillo o como
           mapa de bloques), <b>Rentabilidad</b> (cuánto gana), <b>Evolución</b> (cómo cambia en el tiempo y el mes a
           mes), <b>Ingresos y gastos</b> (con sub-pestañas <b>Resumen · Categorías · Tendencias · Presupuesto</b>) y
@@ -2274,7 +2299,7 @@ body.video .tarjetaCanal{display:none}
     <details class="faq"><summary>¿Para qué sirven los titulares?</summary><div>
       <p>Son las personas del hogar (por ejemplo, Yo, Novia y «Común»). Se definen en <b>Configuración</b> y
       luego asignas cada producto, deuda o reservado a un titular. El patrimonio sigue siendo uno solo, pero puedes
-      ver cuánto le corresponde a cada uno (Panel → Patrimonio). Puedes marcar un <b>titular por defecto</b>: lo que
+      ver cuánto le corresponde a cada uno (Panel → Cartera). Puedes marcar un <b>titular por defecto</b>: lo que
       dejes sin asignar cuenta bajo él. Si solo hay un titular, la app oculta los filtros y columnas de titular para no meter ruido.</p></div></details>
 
     <details class="faq"><summary>¿Qué es «disponible» y el «dinero libre para invertir»?</summary><div>
@@ -2287,8 +2312,8 @@ body.video .tarjetaCanal{display:none}
       devolverás…): no resta de tu patrimonio, pero sí del dinero libre. El <b>colchón</b> es la liquidez mínima que
       quieres mantener siempre. Ambos se configuran en <b>Mis datos</b> (Reservados y Configuración).</p></div></details>
 
-    <details class="faq"><summary>Patrimonio bruto y patrimonio neto, ¿en qué se diferencian?</summary><div>
-      <p><b>Bruto</b> = todo lo que tienes (activos). <b>Neto</b> = bruto − deudas. En el Panel → Patrimonio ves los dos.</p></div></details>
+    <details class="faq"><summary>Bruto y neto, ¿en qué se diferencian? ¿Y cartera y patrimonio?</summary><div>
+      <p><b>Bruto</b> = todo lo que tienes (activos). <b>Neto</b> = bruto − deudas. En el Panel → Cartera ves los dos. La <b>cartera</b> son tus inversiones, cuentas y deudas; tu <b>patrimonio</b> es la cartera más tus inmuebles netos (lo que valen menos sus hipotecas), y lo ves arriba del todo en Inicio.</p></div></details>
 
     <details class="faq"><summary>¿Cómo registro una deuda (hipoteca, préstamo, tarjeta)?</summary><div>
       <p>En <b>Mis datos → Deudas → «+ Añadir deuda»</b>: pon el capital inicial, la TAE, la cuota y las fechas.
@@ -2406,8 +2431,8 @@ body.video .tarjetaCanal{display:none}
       (por ejemplo, <code>USD 0,92</code>). Luego, en la ficha del producto elige esa moneda y anota sus saldos en
       esa divisa: la app los pasa a euros. Es un tipo de cambio único (aproximado).</p></div></details>
 
-    <details class="faq"><summary>¿Cómo cambio la meta de patrimonio (la barra de progreso)?</summary><div>
-      <p>En <b>Configuración</b>, campo <b>«Objetivo de patrimonio»</b>. Pon la cifra que quieras (no tiene por qué
+    <details class="faq"><summary>¿Cómo cambio la meta de mi cartera (la barra de progreso)?</summary><div>
+      <p>En <b>Configuración</b>, campo <b>«Objetivo de tu cartera»</b>. Pon la cifra que quieras (no tiene por qué
       ser 100.000 €); déjalo vacío si no quieres una meta.</p></div></details>
 
     <details class="faq"><summary>¿Puedo buscar y ordenar en las tablas de Mis datos?</summary><div>
@@ -2467,11 +2492,11 @@ body.video .tarjetaCanal{display:none}
     <p><b>Las pestañas, de un vistazo:</b></p>
     <ul>
       <li><b>📊 Panel</b> — la foto de tu patrimonio y los análisis. Abre en <b>Inicio</b>, un resumen
-        de un vistazo (tu patrimonio en el tiempo, dónde está tu dinero, ingresos y gastos, tu constancia y
-        accesos directos a todo); las demás vistas van agrupadas por temática: tu patrimonio
-        (<i>Patrimonio, Distribución, Rentabilidad, Evolución, Deudas y vencimientos</i> e <i>Informe fiscal</i>)
+        de un vistazo (tu patrimonio total con cartera e inmuebles, tu cartera en el tiempo, dónde está tu dinero, ingresos y gastos, tu constancia y
+        accesos directos a todo); las demás vistas van agrupadas por temática: tu cartera
+        (<i>Cartera, Distribución, Rentabilidad, Evolución, Deudas y vencimientos</i> e <i>Informe fiscal</i>)
         y tu día a día (<i>Ingresos y gastos</i>). Arriba puedes incluso
-        ver cómo estaba tu patrimonio <i>a fin de un mes pasado</i>.</li>
+        ver cómo estaba tu cartera <i>a fin de un mes pasado</i>.</li>
       <li><b>✏️ Mis datos</b> — donde <b>añades y editas</b> tus activos, deudas, reservados, ingresos y gastos,
         saldos y movimientos; también la configuración, importar y las <b>copias de seguridad</b> (que guardan
         también tus facturas y tus archivos, por si necesitas recuperarlo todo).</li>
