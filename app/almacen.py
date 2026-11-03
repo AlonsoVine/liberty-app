@@ -151,7 +151,7 @@ def slug(texto, existentes):
 
 
 def siguiente_id(lista, prefijo):
-    nums = [int(x["id"][1:]) for x in lista if re.fullmatch(prefijo + r"\d+", str(x.get("id", "")))]
+    nums = [int(x["id"][len(prefijo):]) for x in lista if re.fullmatch(prefijo + r"\d+", str(x.get("id", "")))]
     return f"{prefijo}{max(nums, default=0) + 1}"
 
 
@@ -274,6 +274,8 @@ def borra_producto(cfg, pid):
     cfg["productos"] = [p for p in cfg["productos"] if p["id"] != pid]
     cfg["movimientos"] = [m for m in cfg.get("movimientos", []) if m.get("producto") != pid]
     cfg["valoraciones"] = [v for v in cfg.get("valoraciones", []) if v.get("producto") != pid]
+    if cfg.get("alertasPrecio"):
+        cfg["alertasPrecio"] = [a for a in cfg["alertasPrecio"] if a.get("producto") != pid]
     for c in cfg.get("comparador", []):
         if c.get("pesos"):
             c["pesos"].pop(pid, None)
@@ -432,6 +434,54 @@ def borra_apartado(cfg, aid):
     cfg["apartados"] = [a for a in cfg.get("apartados", []) if a.get("id") != aid]
     if len(cfg["apartados"]) == antes:
         raise ErrorValidacion(["Ese reservado ya no existe."])
+
+
+# ---------------------------------------------------------------- alertas de precio
+# «Avísame si este fondo cae un 10 %» (ADR 0035). Se vigila el precio de los que cotizan
+# y el valor de los que llevas a mano; el motor las convierte en avisos del Panel.
+CONDICIONES_ALERTA = {"cae": "cae un % desde la referencia", "sube": "sube un % desde la referencia",
+                      "menor": "baja de un importe", "mayor": "supera un importe"}
+
+
+def guarda_alerta(cfg, datos):
+    errores = []
+    p = producto(cfg, datos.get("producto"))
+    if not p:
+        errores.append("Elige el activo que quieres vigilar.")
+    cond = datos.get("condicion")
+    if cond not in CONDICIONES_ALERTA:
+        errores.append("Elige cuándo quieres que te avise.")
+    pct = cond in ("cae", "sube")
+    valor = numero(datos.get("valor"), "el porcentaje" if pct else "el importe", errores, mayor_que=0)
+    if pct and valor is not None and cond == "cae" and valor >= 100:
+        errores.append("La caída tiene que ser menor del 100 %.")
+    ref = numero(datos.get("ref"), "el precio de referencia", errores, obligatorio=pct, mayor_que=0) if pct else None
+    if errores:
+        raise ErrorValidacion(errores)
+    al = {"producto": p["id"], "condicion": cond,
+          # El % se guarda como fracción (10 % -> 0.1), igual que el resto de porcentajes.
+          "valor": round(valor / 100, 6) if pct else round(valor, 6),
+          "ref": round(ref, 6) if ref is not None else None,
+          "refFecha": fecha_suave(datos.get("refFecha")) if pct else "",
+          "nota": texto(datos.get("nota"), 120)}
+    al = {k: v for k, v in al.items() if v not in ("", None)}
+    lista = cfg.setdefault("alertasPrecio", [])
+    existente = next((a for a in lista if a.get("id") == datos.get("id")), None) if datos.get("id") else None
+    if existente:
+        aid = existente["id"]
+        existente.clear()
+        existente.update(id=aid, **al)
+        return existente
+    al = {"id": siguiente_id(lista, "al"), **al}
+    lista.append(al)
+    return al
+
+
+def borra_alerta(cfg, aid):
+    antes = len(cfg.get("alertasPrecio", []))
+    cfg["alertasPrecio"] = [a for a in cfg.get("alertasPrecio", []) if a.get("id") != aid]
+    if len(cfg["alertasPrecio"]) == antes:
+        raise ErrorValidacion(["Esa alerta ya no existe."])
 
 
 def fecha_suave(valor):
@@ -928,6 +978,11 @@ def sanea_dimensiones(lista, previas):
     return dims
 
 
+# Las cards de Inicio que se pueden ordenar, ocultar y poner a media anchura (ADR 0036).
+BLOQUES_INICIO = ("patrimonio", "libertad", "banda", "constancia", "cartera", "ingresos",
+                  "inmuebles", "archivo")
+
+
 def guarda_config(cfg, datos):
     """Ajusta los parámetros del hogar: colchón y lista de titulares."""
     errores = []
@@ -1158,6 +1213,31 @@ def guarda_config(cfg, datos):
         # como fracción (2,5 % -> 0.025). Vacío = sin valor por defecto.
         inf = numero(datos.get("inflacion"), "la inflación", errores, obligatorio=False, minimo=0)
         conf["inflacion"] = round(inf / 100, 4) if inf is not None else None
+    if "inicio" in datos:
+        # Inicio a tu gusto (ADR 0036): orden, cards ocultas, cards a media anchura y modo
+        # compacto. Se guarda en la cartera: es el mismo Inicio en todos los dispositivos.
+        # None = volver al de fábrica.
+        ini = datos.get("inicio")
+        if ini is None:
+            conf.pop("inicio", None)
+        elif isinstance(ini, dict):
+            def ids(lista):
+                out = []
+                for x in lista if isinstance(lista, list) else []:
+                    if x in BLOQUES_INICIO and x not in out:
+                        out.append(x)
+                return out
+            conf["inicio"] = {"orden": ids(ini.get("orden")), "ocultas": ids(ini.get("ocultas")),
+                              "medias": ids(ini.get("medias")), "compacto": bool(ini.get("compacto"))}
+        else:
+            errores.append("La disposición de Inicio no es válida.")
+    if "tasaRetirada" in datos:
+        # Libertad financiera (ADR 0035): % que se puede retirar al año de la cartera sin
+        # agotarla. Vacío = el 4 % de siempre.
+        tr = numero(datos.get("tasaRetirada"), "la tasa de retirada", errores, obligatorio=False, mayor_que=0)
+        if tr is not None and tr > 20:
+            errores.append("La tasa de retirada tiene que ser de un 20 % como mucho.")
+        conf["tasaRetirada"] = round(tr / 100, 4) if tr is not None else None
     if errores:
         raise ErrorValidacion(errores)
     return {"config": conf, "titulares": cfg.get("titulares", [])}

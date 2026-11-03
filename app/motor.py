@@ -518,6 +518,9 @@ AVISOS_CATALOGO = [
      "desc": "Avisa si pasan muchos días sin anotar saldos ni movimientos de tus activos o deudas.", "pv": "patrimonio", "umbral": "diasSinActualizar"},
     {"clave": "agenda-proxima", "nombre": "Fechas de la agenda que se acercan",
      "desc": "Avisa de tus recordatorios de la agenda con los días de antelación que elijas.", "pv": None, "umbral": "avisoAgendaDias"},
+    {"clave": "alerta-precio", "nombre": "Alertas de precio",
+     "desc": "Avisa cuando se cumple una alerta que has puesto en la ficha de un activo (p. ej. «si cae un 10 %»).",
+     "pv": "producto", "umbral": None},
     # Los de los inmuebles se configuran en su pestaña de Configuración (grupo «inmuebles»).
     {"clave": "inm-fin-contrato", "nombre": "Fin de un contrato de alquiler", "grupo": "inmuebles",
      "desc": "Avisa antes de que termine un contrato, y si ya terminó y no hay otro que lo siga.",
@@ -1098,14 +1101,188 @@ def avisos_inmuebles(cfg, flujos, conf, hoy_d):
     return out
 
 
-def inmuebles_hogar(inm, neto_cartera):
+def inmuebles_hogar(inm, neto_cartera, eje=None, serie_cartera=None, pasivos=None):
     """Añade a los totales de Inmuebles el patrimonio total del hogar (lo que muestra
     Inicio): el neto de la cartera + el valor de los inmuebles − las hipotecas que NO
-    están ya enlazadas a una deuda de Patrimonio (esas ya restan en el neto de la cartera)."""
+    están ya enlazadas a una deuda de la cartera (esas ya restan en el neto de la cartera).
+    Con el eje diario y la serie de la cartera, también su evolución (`serieHogar`)."""
     t = inm["total"]
     t["patrimonioCartera"] = r2(neto_cartera)
     t["patrimonioHogar"] = r2((neto_cartera or 0) + t["valor"] - t["hipotecasSinEnlace"]) if t["n"] else None
+    if t["n"] and eje:
+        t["serieHogar"] = serie_hogar(inm["lista"], eje, serie_cartera, pasivos,
+                                      t["patrimonioHogar"], t["neto"])
     return inm
+
+
+TASA_RETIRADA = 0.04   # la «regla del 4 %»: lo que se puede retirar al año sin agotar el capital
+
+
+def libertad_financiera(ig_mes, mes_ref, disponible, cartera, renta_inmuebles, tasa=None):
+    """Cuánto tiempo vivirías con lo que tienes y cuánto te falta para la independencia
+    financiera (ADR 0035). El gasto medio es el de los meses COMPLETOS (sin el mes en curso,
+    que va a medias) desde el primero con apuntes, hasta 12. Sin un mes completo, None.
+
+    - mesesDisponible: lo disponible (liquidez inmediata) entre el gasto medio.
+    - progreso: renta pasiva (lo que la cartera da a la tasa de retirada + la renta de los
+      alquileres) entre el gasto medio; 1 = independencia financiera.
+    - carteraObjetivo: la cartera que haría falta para que, con los alquileres, cubra el gasto."""
+    tasa = tasa if tasa and 0 < tasa < 1 else TASA_RETIRADA
+    con_datos = [k for k, v in ig_mes.items() if v.get("gasto") or v.get("ingreso")]
+    if not con_datos:
+        return None
+    primero = min(con_datos)
+    y, m = int(mes_ref[:4]), int(mes_ref[5:7])
+    gastos = []
+    for _ in range(12):
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+        clave = f"{y:04d}-{m:02d}"
+        if clave < primero:
+            break
+        gastos.append((ig_mes.get(clave) or {}).get("gasto") or 0.0)
+    gasto = sum(gastos) / len(gastos) if gastos else 0.0
+    if gasto <= 0:
+        return None
+    cartera = max(0.0, cartera or 0.0)
+    renta_c = cartera * tasa / 12
+    renta_i = max(0.0, renta_inmuebles or 0.0)
+    objetivo = max(0.0, gasto - renta_i) * 12 / tasa
+    return {"gastoMedio": r2(gasto), "mesesMedia": len(gastos), "tasaRetirada": tasa,
+            "disponible": r2(disponible), "mesesDisponible": round(disponible / gasto, 1),
+            "cartera": r2(cartera), "mesesCartera": round(cartera / gasto, 1),
+            "rentaCartera": r2(renta_c), "rentaInmuebles": r2(renta_i), "rentaPasiva": r2(renta_c + renta_i),
+            "progreso": r4((renta_c + renta_i) / gasto),
+            "carteraObjetivo": r2(objetivo), "falta": r2(max(0.0, objetivo - cartera))}
+
+
+def _num_es(x, dec=2):
+    t = f"{x:,.{dec}f}"
+    return t.replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def alertas_precio(lista, activos):
+    """Alertas de precio que se cumplen hoy (ADR 0035). Los que cotizan se vigilan por su
+    precio (`nav`); los que llevas a mano, por su valor. Devuelve [(texto, id_producto)]."""
+    por_id = {p["id"]: p for p in activos}
+    out = []
+    for a in lista or []:
+        p = por_id.get(a.get("producto"))
+        if not p:
+            continue
+        cotiza = p.get("origen") in ("csv", "ordenes") and p.get("nav")
+        actual = p.get("nav") if cotiza else p.get("valor")
+        if actual is None:
+            continue
+        que = "su precio" if cotiza else "su valor"
+        nom = p.get("corto") or p.get("nombre")
+        cond, v, ref = a.get("condicion"), float(a.get("valor") or 0), a.get("ref")
+        txt = None
+        if cond in ("cae", "sube") and ref:
+            var = round(actual / float(ref) - 1, 9)   # sin el ruido de coma flotante: 90/100 cae justo un 10 %
+            if (cond == "cae" and var <= -v) or (cond == "sube" and var >= v):
+                verbo = "ha caído" if var < 0 else "ha subido"
+                txt = (f"«{nom}»: {que} {verbo} un {_num_es(abs(var) * 100, 1)} % desde "
+                       f"{_num_es(float(ref))} € (tu alerta: {_num_es(v * 100, 0)} %).")
+        elif cond == "menor" and actual < v:
+            txt = f"«{nom}»: {que} ({_num_es(actual)} €) ha bajado de {_num_es(v)} €, como pediste."
+        elif cond == "mayor" and actual > v:
+            txt = f"«{nom}»: {que} ({_num_es(actual)} €) ha superado {_num_es(v)} €, como pediste."
+        if txt:
+            out.append((txt + (f" {a['nota']}" if a.get("nota") else ""), p["id"]))
+    return out
+
+
+def _capital_hacia_atras(capital, cuota, tipo, meses):
+    """Capital pendiente de una hipoteca k meses antes de hoy (k = 0…meses), deshaciendo
+    la amortización francesa: C(k+1) = (C(k) + cuota) / (1 + i). Sin cuota, el de hoy."""
+    out, c = [capital], capital
+    i = (tipo or 0) / 12
+    for _ in range(meses):
+        if cuota:
+            c = (c + cuota) / (1 + i) if i > 0 else c + cuota
+        out.append(c)
+    return out
+
+
+def serie_hogar(lista, eje, serie_cartera, pasivos, total_hoy, inmuebles_hoy):
+    """Evolución mensual del patrimonio del hogar (ADR 0034): cartera neta + inmuebles
+    netos. Va en su propio eje mensual, que empieza en lo más antiguo de la cartera o de los
+    inmuebles (una casa comprada antes de abrir la cartera también cuenta) y acaba en la
+    fecha de la foto, que cuadra con la card de hoy.
+
+    - Valor de cada inmueble: la última estimación a esa fecha; antes de la primera, el
+      precio desde la compra. Antes de la compra (o de su primera fecha conocida), no está.
+    - Hipoteca enlazada a una deuda de la cartera: su serie real (la de la deuda). Sin
+      enlace solo se sabe el capital de hoy: se reconstruye hacia atrás con la cuota y el
+      interés (`estimada`). Desde la compra, y nunca por encima de lo que costó.
+    - Cartera: su serie diaria (antes de su primer día, 0).
+    Como en la card, cada hipoteca va con su inmueble: «inmuebles» = valor − hipotecas y
+    «cartera» = total − inmuebles (la deuda enlazada se le devuelve a la cartera)."""
+    fin, ini_eje = eje[-1], eje[0]
+    pas = {e["id"]: e["serie"] for e in pasivos or [] if e.get("id")}
+    inms, estimada, inicio = [], False, ini_eje
+    for x in lista:
+        vals = sorted((v["fecha"], v["importe"]) for v in x.get("valoraciones") or [] if v.get("importe") is not None)
+        desde = x.get("compraFecha") or (vals[0][0] if vals else None)
+        if not desde:
+            continue
+        desde = d(desde[:10])
+        if desde > fin:
+            continue
+        inicio = min(inicio, desde)
+        h = x.get("hipoteca") or {}
+        cap = float(h.get("capitalPendiente") or 0)
+        enl = pas.get(h.get("deudaRef")) if h.get("deudaRef") else None
+        if cap and not enl and h.get("cuota"):
+            estimada = True
+        inms.append({"desde": desde, "vals": vals, "precio": x.get("precio"), "tope": x.get("coste") or x.get("precio"),
+                     "cap": cap, "cuota": float(h.get("cuota") or 0), "tipo": h.get("tipoInteres"), "enl": enl})
+
+    # Eje: el último día de cada mes desde el de inicio, y la fecha de la foto al final.
+    fechas, y, m = [], inicio.year, inicio.month
+    while (y, m) < (fin.year, fin.month):
+        sig = dt.date(y + (m == 12), m % 12 + 1, 1)
+        fechas.append(sig - dt.timedelta(days=1))
+        y, m = sig.year, sig.month
+    fechas.append(fin)
+    meses_atras = (fin.year - inicio.year) * 12 + fin.month - inicio.month
+    for im in inms:
+        if im["cap"] and not im["enl"]:
+            im["capitales"] = _capital_hacia_atras(im["cap"], im["cuota"], im["tipo"], meses_atras)
+
+    cartera, inmuebles, total = [], [], []
+    for f in fechas:
+        idx = (f - ini_eje).days
+        neto = (serie_cartera[idx] or 0) if 0 <= idx < len(serie_cartera or []) else 0.0
+        valor = hip = hip_sin = 0.0
+        for im in inms:
+            if f < im["desde"]:
+                continue
+            iso = f.isoformat()
+            previas = [v for fv, v in im["vals"] if fv <= iso]
+            valor += previas[-1] if previas else (im["precio"] or 0)
+            if im["enl"] and 0 <= idx < len(im["enl"]):
+                hip += -(im["enl"][idx] or 0)          # la deuda viene en negativo
+            elif im["cap"]:
+                k = (fin.year - f.year) * 12 + fin.month - f.month
+                c = im["capitales"][k] if im.get("capitales") else im["cap"]
+                c = min(c, im["tope"]) if im["tope"] else c
+                hip += c
+                hip_sin += c
+        tot = neto + valor - hip_sin
+        total.append(r2(tot))
+        inmuebles.append(r2(valor - hip))
+        cartera.append(r2(tot - (valor - hip)))
+    # El último punto es la foto de hoy: las mismas cifras que la card (valor en vivo de la
+    # cartera y el capital de cada hipoteca según su ficha).
+    if total_hoy is not None and total:
+        total[-1] = r2(total_hoy)
+        inmuebles[-1] = r2(inmuebles_hoy)
+        cartera[-1] = r2(total_hoy - inmuebles_hoy)
+    return {"fechas": [f.isoformat() for f in fechas], "total": total, "cartera": cartera,
+            "inmuebles": inmuebles, "hipotecaEstimada": estimada}
 
 
 def construir(cfg, carpeta, descargar=True, hasta=None):
@@ -2267,6 +2444,10 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
         for txt_i, etq_i, niv_i, clave_i, iid in avisos_inmuebles(cfg, cfg.get("flujos"), _conf_av, hoy()):
             _al(txt_i, etq_i, niv_i, pv="inmuebles", clave=clave_i,
                 destino={"tab": "inmuebles", "inmueble": iid})
+        # --- Alertas de precio que ha puesto el usuario: al pulsarlas abren la ficha del activo ---
+        for txt_a, pid in alertas_precio(cfg.get("alertasPrecio"), activos):
+            _al(txt_a, "Alerta", "aviso", pv="producto", clave="alerta-precio",
+                destino={"tab": "producto", "producto": pid})
 
     control = {"umbral": r4(umbral), "desviacionMax": r4(desv_max), "diasAviso": dias_aviso,
                "sumaObjetivos": r4(suma_obj)}
@@ -2310,6 +2491,22 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
 
     cat_inm = {str(c).strip().lower(): im["id"] for im in (cfg.get("inmuebles") or [])
                for c in (im.get("categorias") or [])}
+    # Zona de Inmuebles: aparte del patrimonio de la cartera (no suma en «total»).
+    zona_inm = inmuebles_hogar(
+        inmuebles_de(cfg, deudas_detalle, fecha_extracto.isoformat() if hasta else None,
+                     flujos=flujos_cfg, fecha_ref=fecha_extracto), neto,
+        eje=eje, serie_cartera=serie_total, pasivos=ser_pasivos)
+    # Libertad financiera (ADR 0035): la cartera es la de la card «Tu patrimonio» (la
+    # hipoteca enlazada va con su casa) y los alquileres, la renta de los contratos vigentes
+    # o, sin contratos, lo que cobraron de media en 12 meses.
+    zt = zona_inm["total"]
+    cartera_libre = neto + ((zt["hipotecas"] - zt["hipotecasSinEnlace"]) if zt["n"] else 0)
+    renta_inm = zt.get("rentaMensual") or ((zt.get("ingresos12") or 0) / 12)
+    # El mes en curso es el de hoy (o el del mes pasado que se está viendo), no el del último
+    # dato: si no has anotado nada desde septiembre, octubre cuenta como un mes sin gastos.
+    ref_lib = fecha_extracto if hasta else hoy()
+    libertad = libertad_financiera(ig_mes, f"{ref_lib.year:04d}-{ref_lib.month:02d}", disponible, cartera_libre, renta_inm,
+                                   (cfg.get("config") or {}).get("tasaRetirada"))
     datos = {
         "generado": dt.datetime.now().replace(microsecond=0).isoformat(),
         "hasta": hasta,
@@ -2331,10 +2528,12 @@ def construir(cfg, carpeta, descargar=True, hasta=None):
                              if (n.get("vinculo") or {}).get("ref")}),
         "apartados": apartados_out,
         "deudas": deudas_detalle,
-        # Zona de Inmuebles: aparte del patrimonio de la cartera (no suma en «total»).
-        "inmuebles": inmuebles_hogar(
-            inmuebles_de(cfg, deudas_detalle, fecha_extracto.isoformat() if hasta else None,
-                         flujos=flujos_cfg, fecha_ref=fecha_extracto), neto),
+        "inmuebles": zona_inm,
+        "libertad": libertad,
+        # Inicio a tu gusto (ADR 0036): orden, ocultas, medias y compacto; None = el de fábrica.
+        "inicio": (cfg.get("config") or {}).get("inicio"),
+        # Alertas de precio (las lee la ficha de cada activo para listarlas y editarlas).
+        "alertasPrecio": cfg.get("alertasPrecio") or [],
         "flujos": flujos_out,
         # Flujos crudos (acotados a 'hasta') para filtrar por titular/entidad/dimensión
         # en el cliente, sin recalcular en el servidor: el Panel reagrega al vuelo.

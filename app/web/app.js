@@ -71,20 +71,43 @@
 
   // Aviso breve (toast) que aparece y se va solo, para confirmar acciones. El 2.º
   // argumento (opcional) tiñe el acento lateral: "ok" | "aviso" | "error".
-  window.toast = (msg, tipo) => {
+  // accion = {texto, fn}: un botón dentro del aviso (p. ej. «Deshacer» tras borrar), que
+  // entonces dura más y también responde a Ctrl+Z (ADR 0035).
+  let _toastAccion = null;
+  const ocultaToast = t => {
+    t.classList.remove("ver");
+    _toastAccion = null;
+    setTimeout(() => { try { if (!t.classList.contains("ver")) t.hidden = true; } catch (e) { /* noop */ } }, 260);
+  };
+  window.toast = (msg, tipo, accion) => {
     const t = document.getElementById("toast");
     if (!t) return;
     t.textContent = msg;
-    t.classList.remove("ok", "aviso", "error");
+    t.classList.remove("ok", "aviso", "error", "conAccion");
     if (tipo) t.classList.add(tipo);
+    _toastAccion = accion && accion.fn ? accion : null;
+    if (_toastAccion) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "toastAcc";
+      b.textContent = accion.texto || "Deshacer";
+      b.onclick = () => { const a = _toastAccion; ocultaToast(t); if (a) a.fn(); };
+      t.append(" ", b);
+      t.classList.add("conAccion");
+    }
     t.hidden = false;
     requestAnimationFrame(() => t.classList.add("ver"));
     clearTimeout(t._t);
-    t._t = setTimeout(() => {
-      t.classList.remove("ver");
-      setTimeout(() => { try { t.hidden = true; } catch (e) { /* noop */ } }, 260);
-    }, 2200);
+    t._t = setTimeout(() => ocultaToast(t), _toastAccion ? 8000 : 2200);
   };
+  document.addEventListener("keydown", e => {
+    if (!_toastAccion || !(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== "z" || e.shiftKey) return;
+    if (e.target.closest && e.target.closest("input, textarea, select, [contenteditable]")) return;
+    e.preventDefault();
+    const t = document.getElementById("toast"), a = _toastAccion;
+    if (t) { clearTimeout(t._t); ocultaToast(t); }
+    a.fn();
+  });
 
   const recuerda = {
     lee(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
@@ -120,8 +143,41 @@
     // La web exportada con «ocultar importes» lo trae fijado: ninguna preferencia de quien
     // la abra puede volver a mostrar las cantidades.
     window.OCULTAR_IMPORTES = OCULTOS_AL_EXPORTAR || pref("ocultar", "0") === "1";
+    document.body.classList.toggle("importesOcultos", window.OCULTAR_IMPORTES === true);
+    sincronizaOjo();
   }
   const OCULTOS_AL_EXPORTAR = window.ESTATICO === true && window.OCULTAR_IMPORTES === true;
+
+  // Botón 👁 de la barra superior (ADR 0035): el mismo «Ocultar importes» de Ajustes, a un
+  // clic, para enseñar la app sin revelar tu dinero. En la web exportada sin importes no
+  // aparece: ahí no se pueden volver a mostrar.
+  // Ojo abierto (se ven) y cerrado (ocultos), dibujados: no hay emoji de ojo cerrado.
+  const _svgOjo = d => `<svg class="icoOjo" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+  const OJO_ABIERTO = _svgOjo('<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>');
+  const OJO_CERRADO = _svgOjo('<path d="M2 10c2.4 3.6 5.8 5.5 10 5.5S19.6 13.6 22 10"/><path d="M5.5 13.6 4 16M9.4 15.2 8.8 18M14.6 15.2l.6 2.8M18.5 13.6 20 16"/>');
+  window.OJO_ABIERTO = OJO_ABIERTO; window.OJO_CERRADO = OJO_CERRADO;
+  function sincronizaOjo() {
+    const b = document.getElementById("btnOcultar");
+    if (!b) return;
+    if (OCULTOS_AL_EXPORTAR) { b.hidden = true; return; }
+    const on = window.OCULTAR_IMPORTES === true;
+    b.setAttribute("aria-pressed", String(on));
+    b.innerHTML = on ? OJO_CERRADO : OJO_ABIERTO;
+    b.title = on ? "Mostrar los importes" : "Ocultar los importes (modo privado)";
+    b.setAttribute("aria-label", b.title);
+  }
+  function alternaOcultar() {
+    recuerda.guarda("patrimonio.ocultar", window.OCULTAR_IMPORTES ? "0" : "1");
+    aplicaPrefs();
+    pintaAjustes();
+    if (_repinta) _repinta();
+    const td = $("#tab-datos");
+    if (window.Editor && window.Editor.mostrar && td && !td.hidden) {
+      try { window.Editor.mostrar(); } catch (e) { /* el editor aún no ha cargado */ }
+    }
+    if (window.toast) window.toast(window.OCULTAR_IMPORTES ? "Importes ocultos" : "Importes visibles");
+  }
+  { const bo = $("#btnOcultar"); if (bo) bo.onclick = alternaOcultar; }
   aplicaPrefs();
 
   // Sombra sutil en la barra superior solo cuando se ha desplazado la página.
@@ -1856,7 +1912,7 @@
   }
 
   // Icono de la sección a la que corresponde un aviso (homogéneo en Panel y Mis datos).
-  const AVISO_ICO = { distribucion: "📊", deudas: "💳", patrimonio: "💰", ingresos: "💶", fiscal: "🧾", notas: "🗓️", inmuebles: "🏠" };
+  const AVISO_ICO = { distribucion: "📊", deudas: "💳", patrimonio: "💰", ingresos: "💶", fiscal: "🧾", notas: "🗓️", inmuebles: "🏠", producto: "🔔" };
   window.avisoIco = a => {
     if (a && a.destino && a.destino.tab) return AVISO_ICO[a.destino.tab] || "🗓️";
     if (a && a.pv) return AVISO_ICO[a.pv] || (a.nivel === "info" ? "ℹ️" : "⚠️");
@@ -1888,10 +1944,13 @@
     const lineas = al.map(a => {
       const dest = a.destino && a.destino.tab === "notas";
       const inm = a.destino && a.destino.tab === "inmuebles" && a.destino.inmueble;
+      // Alerta de precio: abre la ficha del activo (si sigue en la cartera).
+      const prodDest = a.destino && a.destino.tab === "producto" && buscaProd(a.destino.producto) && a.destino.producto;
       const clic = dest || (a.pv && document.getElementById("pv-" + a.pv));
       const attrs = dest
         ? ` data-dest-fecha="${esc(a.destino.fecha || "")}"`
         : inm ? ` data-dest-inm="${esc(inm)}"`
+        : prodDest ? ` data-dest-prod="${esc(prodDest)}"`
         : (clic ? ` data-pv="${esc(a.pv)}"` : "");
       const extra = clic ? ` role="button" tabindex="0" title="${dest ? "Ir a la agenda" : "Ir a la sección"}"${attrs}` : "";
       return `<div class="avisoLinea${a.nivel === "info" ? "" : " aviso"}${clic ? " clicable" : ""}"${extra}>
@@ -1928,6 +1987,11 @@
 
     cont.querySelectorAll("[data-pv]").forEach(el => {
       const ir = () => irVista(el.dataset.pv);
+      el.onclick = ir;
+      el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
+    });
+    cont.querySelectorAll("[data-dest-prod]").forEach(el => {
+      const ir = () => abreFicha(el.dataset.destProd, "distribucion");
       el.onclick = ir;
       el.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); ir(); } };
     });
@@ -2631,6 +2695,179 @@
      PANEL · INICIO (resumen de un vistazo de TODA la app)
      ================================================================ */
   let _inicioAnimado = false;
+  /* ---- Inicio a tu gusto (ADR 0036) ----
+     Las cards de Inicio se pueden reordenar, ocultar y poner a media anchura, y hay un modo
+     compacto (solo las cifras, sin gráficos). Se guarda en la cartera (config.inicio): es el
+     mismo Inicio en todos los dispositivos. El orden de fábrica es el de BLOQUES_INICIO. */
+  const BLOQUES_INICIO = [
+    { id: "patrimonio", nom: "Tu patrimonio" }, { id: "libertad", nom: "Tu libertad financiera" },
+    { id: "banda", nom: "Tu cartera en el tiempo y tu objetivo" }, { id: "constancia", nom: "Tu constancia" },
+    { id: "cartera", nom: "Tu cartera" }, { id: "ingresos", nom: "Ingresos y gastos" },
+    { id: "inmuebles", nom: "Tus inmuebles" }, { id: "archivo", nom: "Tu archivo y tus avisos" },
+  ];
+  const IDS_INICIO = BLOQUES_INICIO.map(b => b.id);
+  let _inicioLocal = null;   // la disposición mientras se personaliza (se guarda sola)
+  function disposicionInicio() {
+    const L = _inicioLocal || D.inicio || {};
+    const solo = xs => (Array.isArray(xs) ? xs : []).filter((x, i, a) => IDS_INICIO.includes(x) && a.indexOf(x) === i);
+    // Orden completo: el guardado y, si falta alguna card (p. ej. una nueva de otra versión),
+    // se coloca detrás de la que la precede en el orden de fábrica.
+    const orden = solo(L.orden);
+    IDS_INICIO.forEach((id, i) => {
+      if (orden.includes(id)) return;
+      const prev = IDS_INICIO.slice(0, i).reverse().find(x => orden.includes(x));
+      orden.splice(prev ? orden.indexOf(prev) + 1 : 0, 0, id);
+    });
+    return { orden, ocultas: solo(L.ocultas), medias: solo(L.medias), compacto: !!L.compacto };
+  }
+  function montaInicio(B, L) {
+    const editar = !!estado.inicioEditar && !window.ESTATICO;
+    const nom = id => (BLOQUES_INICIO.find(b => b.id === id) || {}).nom || id;
+    let barra = "";
+    if (editar) {
+      barra = `<div class="inicioPers editando">
+        <span class="ipTxt"><b>Personaliza tu Inicio</b> · arrastra ⋮⋮ (o usa ↑ ↓) para ordenar, el ojo para ocultar y ↔ para el ancho. Se guarda solo y vale para toda la familia.</span>
+        <label class="interruptor"><input type="checkbox" id="ipCompacto"${L.compacto ? " checked" : ""}><span class="pista"></span><span>Compacto</span></label>
+        <button type="button" class="btn mini" id="ipReset">Restablecer</button>
+        <button type="button" class="btn prim mini" id="ipListo">Listo</button></div>`;
+    } else if (!window.ESTATICO) {
+      barra = `<div class="inicioPers"><button type="button" class="btn mini" id="ipAbrir" title="Ordena, oculta o cambia el ancho de las tarjetas de Inicio">✎ Personalizar</button></div>`;
+    }
+    const bloques = L.orden.filter(id => B[id]).map(id => {
+      const oculta = L.ocultas.includes(id), media = L.medias.includes(id);
+      if (oculta && !editar) return "";
+      const ctrl = editar ? `<div class="ieBarra" data-ie="${id}">
+          <span class="ieAsa" draggable="true" title="Arrastra para mover" aria-hidden="true">⋮⋮</span>
+          <b class="ieNom">${esc(nom(id))}</b>${oculta ? '<span class="ieEst">oculta</span>' : ""}
+          <button type="button" class="accIco" data-ie-ojo="${id}" aria-pressed="${String(!oculta)}" title="${oculta ? "Mostrar" : "Ocultar"}" aria-label="${oculta ? "Mostrar" : "Ocultar"} ${esc(nom(id))}">${oculta ? OJO_CERRADO : OJO_ABIERTO}</button>
+          <button type="button" class="accIco" data-ie-ancho="${id}" title="${media ? "Ponerla ancha" : "Ponerla a media anchura"}" aria-label="Cambiar el ancho de ${esc(nom(id))}">${media ? "⇔" : "↔"}</button>
+          <button type="button" class="accIco" data-ie-mueve="-1" data-ie-id="${id}" title="Subir" aria-label="Subir ${esc(nom(id))}">↑</button>
+          <button type="button" class="accIco" data-ie-mueve="1" data-ie-id="${id}" title="Bajar" aria-label="Bajar ${esc(nom(id))}">↓</button></div>` : "";
+      return `<div class="inicioBloque${media ? " media" : ""}${oculta ? " oculta" : ""}${editar ? " editando" : ""}" data-bloque="${id}">${ctrl}${B[id]}</div>`;
+    }).join("");
+    $("#inicioCuerpo").classList.toggle("compacto", L.compacto);
+    return barra + bloques;
+  }
+  let _guardaInicioT = null;
+  function guardaInicio(L) {
+    _inicioLocal = L;
+    clearTimeout(_guardaInicioT);
+    _guardaInicioT = setTimeout(async () => {
+      try {
+        const cab = { "Content-Type": "application/json" };
+        if (window.CARTERA_ACTIVA) cab["X-Cartera"] = window.CARTERA_ACTIVA;
+        const r = await fetch("api/config", { method: "POST", headers: cab, body: JSON.stringify({ inicio: L }) });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j.ok === false) throw new Error((j.errores || ["No he podido guardar tu Inicio."]).join("\n"));
+        D.inicio = L;
+      } catch (e) { if (window.toast) window.toast(e.message, "error"); }
+    }, 500);
+  }
+  function cableaPersonalizar(cont, m) {
+    const repinta = () => pintaInicio(m);
+    const L = disposicionInicio();
+    const cambia = fn => { fn(L); guardaInicio(L); repinta(); };
+    const ab = cont.querySelector("#ipAbrir");
+    if (ab) ab.onclick = () => { estado.inicioEditar = true; repinta(); };
+    const listo = cont.querySelector("#ipListo");
+    if (!listo) return;
+    listo.onclick = () => { estado.inicioEditar = false; repinta(); if (window.toast) window.toast("Inicio guardado ✓", "ok"); };
+    cont.querySelector("#ipReset").onclick = () => {
+      if (!confirm("¿Volver al Inicio de fábrica (todas las tarjetas, en su orden y anchas)?")) return;
+      _inicioLocal = { orden: IDS_INICIO.slice(), ocultas: [], medias: [], compacto: false };
+      guardaInicio(_inicioLocal);
+      repinta();
+    };
+    cont.querySelector("#ipCompacto").onchange = e => cambia(x => { x.compacto = e.target.checked; });
+    const alterna = (lista, id) => { const i = lista.indexOf(id); if (i >= 0) lista.splice(i, 1); else lista.push(id); };
+    cont.querySelectorAll("[data-ie-ojo]").forEach(b => { b.onclick = () => cambia(x => alterna(x.ocultas, b.dataset.ieOjo)); });
+    cont.querySelectorAll("[data-ie-ancho]").forEach(b => { b.onclick = () => cambia(x => alterna(x.medias, b.dataset.ieAncho)); });
+    // Mover = intercambiar con la card vecina que se ve (las que no tienen datos no cuentan).
+    const visibles = () => [...cont.querySelectorAll(".inicioBloque")].map(el => el.dataset.bloque);
+    const mueve = (id, paso) => cambia(x => {
+      const vis = visibles(), j = vis.indexOf(id) + paso;
+      if (j < 0 || j >= vis.length) return;
+      const a = x.orden.indexOf(id), b = x.orden.indexOf(vis[j]);
+      [x.orden[a], x.orden[b]] = [x.orden[b], x.orden[a]];
+    });
+    cont.querySelectorAll("[data-ie-mueve]").forEach(b => {
+      b.onclick = () => { const id = b.dataset.ieId; mueve(id, +b.dataset.ieMueve);
+        const n = $(`[data-ie-mueve="${b.dataset.ieMueve}"][data-ie-id="${id}"]`); if (n) n.focus(); };
+    });
+    // Arrastrar y soltar: delante o detrás de la card sobre la que sueltas, según la mitad.
+    let arrastrada = null;
+    cont.querySelectorAll(".ieAsa").forEach(a => {
+      a.ondragstart = e => {
+        arrastrada = a.closest(".inicioBloque").dataset.bloque;
+        try { e.dataTransfer.setData("text/plain", arrastrada); e.dataTransfer.effectAllowed = "move"; } catch (x) { /* noop */ }
+      };
+      a.ondragend = () => { arrastrada = null; cont.querySelectorAll(".soltar").forEach(x => x.classList.remove("soltar")); };
+    });
+    cont.querySelectorAll(".inicioBloque").forEach(el => {
+      el.ondragover = e => { if (!arrastrada) return; e.preventDefault(); el.classList.add("soltar"); };
+      el.ondragleave = () => el.classList.remove("soltar");
+      el.ondrop = e => {
+        e.preventDefault();
+        const destino = el.dataset.bloque, origen = arrastrada;
+        arrastrada = null;
+        if (!origen || origen === destino) { repinta(); return; }
+        const r = el.getBoundingClientRect(), detras = e.clientY > r.top + r.height / 2;
+        cambia(x => {
+          x.orden.splice(x.orden.indexOf(origen), 1);
+          x.orden.splice(x.orden.indexOf(destino) + (detras ? 1 : 0), 0, origen);
+        });
+      };
+    });
+  }
+
+  // Meses → texto legible: días si no llega a un mes, años a partir de dos.
+  function tiempoVida(meses) {
+    if (meses == null || isNaN(meses)) return "—";
+    const n = (v, d) => v.toLocaleString("es-ES", { maximumFractionDigits: d });
+    if (meses < 1) { const d = Math.round(meses * 30.4); return d === 1 ? "1 día" : n(d, 0) + " días"; }
+    if (meses < 24) return n(meses, meses < 10 ? 1 : 0) + (meses === 1 ? " mes" : " meses");
+    return n(meses / 12, meses < 120 ? 1 : 0) + " años";
+  }
+
+  // Card «Tu libertad financiera» de Inicio (ADR 0035): cuánto vivirías con lo que tienes y
+  // cuánto cubre ya tu renta pasiva de lo que gastas. Sin un mes completo de gastos, invita
+  // a anotarlos (no en la web exportada).
+  function cardLibertad(L) {
+    if (!L) {
+      if (window.ESTATICO) return "";
+      return `<section class="tarjeta inicioLibre vacia">
+        <header><h2>Tu libertad financiera</h2><span class="subt">cuánto tiempo te da lo que tienes</span></header>
+        <p class="ayuda" style="margin:0 0 12px">Anota tus gastos de al menos un mes completo y aquí verás cuántos meses vivirías con lo que tienes y cuánto te falta para la independencia financiera.</p>
+        <button type="button" class="btn" data-go="apuntar">📒 Anotar ingresos y gastos</button>
+      </section>`;
+    }
+    const prog = Math.max(0, L.progreso || 0), lleno = Math.min(1, prog);
+    const tasa = G.fmtPct(L.tasaRetirada, (L.tasaRetirada * 100) % 1 ? 1 : 0);
+    const rentaTxt = L.rentaInmuebles > 0
+      ? `tu cartera al ${tasa} (${G.fmtEur(L.rentaCartera, 0)}) + alquileres (${G.fmtEur(L.rentaInmuebles, 0)})`
+      : `lo que podrías sacar de tu cartera al ${tasa} al año`;
+    const celda = (ico, etq, num, sub, go) =>
+      `<div class="lfCelda" data-go="${go}" role="button" tabindex="0">
+        <span class="lfEtq">${ico} ${etq}</span><b class="lfNum">${num}</b><span class="lfSub">${sub}</span></div>`;
+    return `<section class="tarjeta inicioLibre">
+      <header><h2>Tu libertad financiera</h2><span class="subt">cuánto tiempo te da lo que tienes</span></header>
+      <div class="lfGrid">
+        ${celda("🛟", "Con lo disponible", tiempoVida(L.mesesDisponible),
+          `vivirías con tu dinero a mano (${G.fmtEur(L.disponible, 0)})`, "patrimonio")}
+        ${celda("📈", "Con toda tu cartera", tiempoVida(L.mesesCartera),
+          "si dejaras de ingresar y no rentara nada", "patrimonio")}
+        <div class="lfCelda lfFi" data-go="config" role="button" tabindex="0" title="Ajusta la tasa de retirada en Configuración">
+          <span class="lfEtq">🕊️ Independencia financiera</span>
+          <b class="lfNum">${G.fmtPct(prog, 0)}</b>
+          <div class="progBarra lfBarra" role="img" aria-label="${G.fmtPct(prog, 0)} de tu gasto cubierto"><div class="progRelleno" style="width:${(lleno * 100).toFixed(1)}%"></div></div>
+          <span class="lfSub">${prog >= 1 ? "¡Tu renta pasiva ya cubre lo que gastas! 🎉"
+            : `de tu gasto cubierto: ${G.fmtEur(L.rentaPasiva, 0)}/mes, ${rentaTxt}. Te faltan ${G.fmtEur(L.falta, 0)} de cartera.`}</span>
+        </div>
+      </div>
+      <p class="lfNota">Con tu gasto medio de ${G.fmtEur(L.gastoMedio, 0)}/mes (${L.mesesMedia === 1 ? "el último mes completo" : "los últimos " + L.mesesMedia + " meses completos"}). Una estimación para orientarte, no una promesa: no cuenta impuestos ni inflación.</p>
+    </section>`;
+  }
+
   function pintaInicio(m) {
     const cont = $("#inicioCuerpo"); if (!cont) return;
     const t = D.total || {};
@@ -2676,8 +2913,20 @@
         <span class="ptIco" aria-hidden="true">${ico}</span>
         <span class="ptNom">${esc(etq)}<small>${sub}</small></span>
         <span class="ptVal">${valor}</span><span class="ptIr" aria-hidden="true">→</span></button>`;
-    let html = `<section class="tarjeta inicioTotal">
+    // Evolución (ADR 0034): serie mensual del motor; con 2 puntos o más.
+    const SH = hayInm && ZT.serieHogar && (ZT.serieHogar.fechas || []).length >= 2 ? ZT.serieHogar : null;
+    let deltaHogar = "";
+    if (SH) {
+      const k = Math.max(0, SH.total.length - 13), dv = SH.total[SH.total.length - 1] - SH.total[k];
+      const tramo = k > 0 ? "en 12 meses" : "desde " + G.fmtFecha(SH.fechas[0]);
+      deltaHogar = `<span class="spDelta ${dv >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(dv, 0)} ${tramo}</span>`;
+    }
+    // Cada card es un bloque con nombre: así se pueden ordenar, ocultar y poner a media anchura
+    // (ADR 0036). Un bloque vacío ("") no se pinta.
+    const B = {};
+    B.patrimonio = `<section class="tarjeta inicioTotal">
         <header><h2>Tu patrimonio</h2><span class="subt">${hayInm ? "todo lo del hogar: tu cartera y tus inmuebles" : "hoy, todo está en tu cartera"}</span></header>
+        <div class="ptCuerpo${SH ? " conGraf" : ""}"><div class="ptResumen">
         <div class="ptCifra">${G.fmtEur(totalHogar, 0)}</div>
         ${conBarra ? `<div class="ptBarra" role="img" aria-label="${G.fmtPct(pctCar, 0)} en tu cartera y ${G.fmtPct(1 - pctCar, 0)} en tus inmuebles">
           <i class="ptCar" style="width:${(pctCar * 100).toFixed(1)}%"></i><i class="ptInm"></i></div>
@@ -2689,10 +2938,18 @@
             ? filaTotal("🏠", "Inmuebles netos", G.fmtEur(netoInm, 0),
               `valen ${G.fmtEur(ZT.valor || 0, 0)}${ZT.hipotecas ? " − hipotecas " + G.fmtEur(ZT.hipotecas, 0) : ""}`, "inmuebles")
             : (!window.ESTATICO ? filaTotal("➕", "Añade tus inmuebles", "", "tu casa, pisos, locales… también son patrimonio", "inmuebles") : "")}
+        </div></div>
+        ${SH ? `<div class="ptEvol">
+          <div class="irEtq">Cómo ha crecido ${deltaHogar}</div>
+          <div class="ptGraf" id="inicioHogarGraf"></div>
+          ${SH.hipotecaEstimada ? '<p class="ptNota">Las hipotecas sin enlazar a una deuda se estiman hacia atrás con su cuota y su interés.</p>' : ""}
+        </div>` : ""}
         </div>
       </section>`;
 
-    html += `<section class="inicioResumen inicioBanda">
+    B.libertad = cardLibertad(D.libertad);
+
+    B.banda = `<section class="inicioResumen inicioBanda">
         <div class="irCaja">
           <div class="irEtq">Tu cartera en el tiempo ${deltaBadge}</div>
           <div class="inicioSpark" id="inicioSpark"></div>
@@ -2737,7 +2994,7 @@
     const trayVal = dias == null ? "—" : (anios >= 1 ? anios.toFixed(1) : anios.toFixed(2));
     const traySub = dias == null ? "sin histórico aún" : (anios === 1 ? "año siguiéndote" : "años siguiéndote");
     const trayExtra = dias == null ? "" : `${G.nfNum.format(dias)} días`;
-    html += `<section class="tarjeta hud">
+    B.constancia = `<section class="tarjeta hud">
       <header><h2>Tu constancia</h2><span class="subt">tu disciplina, al mando</span></header>
       <div class="hudGrid">
         <div class="hudCell c1" data-go="evolucion" role="button" tabindex="0">
@@ -2789,7 +3046,7 @@
     const rentCaption = plus != null
       ? `Rentabilidad <b class="${plus >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(plus, 0)}</b>${tir != null ? ` · TIR ${G.fmtPctSigno(tir)}` : ""} <span class="subt">sobre lo aportado</span>`
       : "";
-    html += `<section class="tarjeta inicioMega megaPat">
+    B.cartera = `<section class="tarjeta inicioMega megaPat">
       <header><h2>Tu cartera</h2><span class="subt">dónde está tu dinero y cuánto te queda libre</span></header>
       <div class="megaBody">
         <div class="megaGraf">
@@ -2812,7 +3069,7 @@
     if (em || hayBarras) {
       const mediaAhorro = fl && fl.media12 && fl.media12.ahorro;
       const subAhorro = em && em.tasaAhorro != null ? "el " + G.fmtPct(em.tasaAhorro, 0) + " de tus ingresos" : "este mes";
-      html += `<section class="tarjeta inicioMega megaIng">
+      B.ingresos = `<section class="tarjeta inicioMega megaIng">
         <header><h2>Ingresos y gastos</h2><span class="subt">tu mes y la tendencia reciente</span></header>
         <div class="megaBody">
           <div class="megaTiles inicioGrid dos">
@@ -2841,7 +3098,7 @@
           <span class="iiNom">${esc(x.nombre)}<small>${sub}</small></span>
           <span class="iiVal">${G.fmtEur(x.valor, 0)}</span></button>`;
       }).join("");
-      html += `<section class="tarjeta inicioMega megaInm">
+      B.inmuebles = `<section class="tarjeta inicioMega megaInm">
         <header><h2>Tus inmuebles</h2><span class="subt">aparte de tu cartera; juntos forman tu patrimonio</span></header>
         <div class="megaBody">
           <div class="megaGraf">
@@ -2860,7 +3117,7 @@
         </div>
       </section>`;
     } else if (!window.ESTATICO) {
-      html += `<section class="tarjeta inicioMega megaInm vacia">
+      B.inmuebles = `<section class="tarjeta inicioMega megaInm vacia">
         <header><h2>Tus inmuebles</h2><span class="subt">pisos, tu casa, locales, garajes…</span></header>
         <p class="ayuda" style="margin:0 0 12px">Lleva aparte tus inmuebles: lo que valen, su hipoteca, lo que te dejan o te cuestan (con tus propios apuntes de ingresos y gastos) y sus documentos. Así ves también el <b>patrimonio total de tu hogar</b> sin descuadrar los gráficos de tus inversiones.</p>
         <button type="button" class="btn" data-go="inmuebles">🏠 Ir a Inmuebles</button>
@@ -2874,15 +3131,18 @@
     const subVenc = prox
       ? (prox.diasRestantes <= 0 ? "vencido: " + (prox.nombre || "") : `${prox.nombre || ""} en ${prox.diasRestantes} días`)
       : "nada a la vista";
-    html += `<h3 class="inicioTit">Tu archivo y tus avisos</h3><div class="inicioGrid">
+    B.archivo = `<section class="inicioArchivo"><h3 class="inicioTit">Tu archivo y tus avisos</h3><div class="inicioGrid">
       ${tile("🗂️", "Documentos", String(C.documentos || 0), "en tu biblioteca", "biblioteca")}
       ${tile("🧾", "Facturas", String(C.facturas || 0), "tickets y facturas", "facturas")}
       ${tile("📒", "Apuntes", String(C.apuntes || 0), "ingresos y gastos anotados", "ingresos")}
       ${tile("⚠️", "Avisos", String(nAlertas), subAviso, "patrimonio", nAlertas ? "warn" : "ok")}
       ${tile("📅", "Vencimientos", String(nVenc), subVenc, "deudas", (prox && prox.diasRestantes <= 7) ? "warn" : "")}
-    </div>`;
+    </div></section>`;
 
-    cont.innerHTML = html;
+    const LI = disposicionInicio();
+    const dibuja = !LI.compacto;   // en compacto los gráficos no se ven: no se dibujan
+    cont.innerHTML = montaInicio(B, LI);
+    cableaPersonalizar(cont, m);
 
     // Ensamblado: las tarjetas de Inicio aparecen escalonadas, solo la primera vez por
     // carga (al cambiar de pestaña ya hay crossfade, así que no se solapan). La opacidad
@@ -2910,14 +3170,28 @@
       faroBarra(pf, pct, "inicioMeta");
     }
 
+    const hg = $("#inicioHogarGraf");
+    if (dibuja && hg && SH) {
+      try {
+        G.multiLinea(hg, {
+          fechas: SH.fechas, alto: 210, desdeCero: true,
+          series: [
+            { nombre: "Tu patrimonio", color: G.css("--tinta"), valores: SH.total, destacado: true },
+            { nombre: "Cartera neta", color: G.css("--s1"), valores: SH.cartera },
+            { nombre: "Inmuebles netos", color: G.css("--s3"), valores: SH.inmuebles },
+          ],
+          formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v, 0),
+        });
+      } catch (e) { /* sin gráfica */ }
+    }
     const sp = $("#inicioSpark");
-    if (sp) { try { G.sparkPro(sp, { valores: serieNeto, fechas: D.fechas || [], color: G.css("--s1") }); } catch (e) { /* sin línea */ } }
+    if (dibuja && sp) { try { G.sparkPro(sp, { valores: serieNeto, fechas: D.fechas || [], color: G.css("--s1") }); } catch (e) { /* sin línea */ } }
     const spr = $("#hudSparkRitmo");
-    if (spr) { try { const serie = (apm.total || []).slice(-12); if (serie.filter(x => x != null).length > 1) G.mini(spr, serie, G.css("--s4")); } catch (e) { /* sin spark */ } }
+    if (dibuja && spr) { try { const serie = (apm.total || []).slice(-12); if (serie.filter(x => x != null).length > 1) G.mini(spr, serie, G.css("--s4")); } catch (e) { /* sin spark */ } }
     const ar = $("#hudAro");
     if (ar) { try { G.aro(ar, { pct: pctAp, color: G.css("--s3"), tam: 96, centro: String(mesesApunte.size), sub: transcurridos ? "de " + transcurridos : "" }); } catch (e) { /* sin aro */ } }
     const dn = $("#inicioDonut");
-    if (dn && grupos.length) {
+    if (!dibuja) { /* compacto: sin donut */ } else if (dn && grupos.length) {
       try {
         G.donut(dn, {
           datos: grupos.slice(0, 8), alto: 210,
@@ -2927,7 +3201,7 @@
       } catch (e) { /* sin donut */ }
     } else if (dn) { dn.innerHTML = '<p class="vacio">Añade activos para ver el reparto.</p>'; }
     const bar = $("#inicioBarras");
-    if (bar && fl && fl.meses && fl.meses.length) {
+    if (dibuja && bar && fl && fl.meses && fl.meses.length) {
       try {
         const n = Math.min(6, fl.meses.length), i0 = fl.meses.length - n;
         G.barrasAgrupadas(bar, {
@@ -2944,7 +3218,7 @@
     const acciones = {
       inicio: ir("inicio"), patrimonio: ir("patrimonio"), distribucion: ir("distribucion"),
       rentabilidad: ir("rentabilidad"), evolucion: ir("evolucion"), ingresos: ir("ingresos"), deudas: ir("deudas"),
-      facturas: irDatos("facturas"), biblioteca: irBib,
+      facturas: irDatos("facturas"), biblioteca: irBib, apuntar: irDatos("flujos"), config: irDatos("config"),
       inmuebles: () => { estado.inmSel = null; recuerda.guarda("patrimonio.inmSel", ""); irVista("inmuebles"); },
     };
     cont.querySelectorAll(".iiFila[data-inm]").forEach(b => { b.onclick = () => window.verInmueble(b.dataset.inm); });
@@ -3206,6 +3480,52 @@
     pintaTablaFondo(p);
   }
 
+  // Alertas de precio del activo (ADR 0035): «avísame si cae un 10 %». Los que cotizan se
+  // vigilan por su precio y los que llevas a mano, por su valor. Cuando una se cumple, el
+  // motor la convierte en aviso del Panel; aquí se ve su estado con el precio de hoy.
+  function estadoAlerta(a, actual) {
+    if (actual == null) return null;
+    if (a.condicion === "cae" || a.condicion === "sube") {
+      if (!a.ref) return null;
+      const v = Math.round((actual / a.ref - 1) * 1e9) / 1e9;   // como el motor: sin ruido de coma flotante
+      return { var: v, cumple: a.condicion === "cae" ? v <= -a.valor : v >= a.valor };
+    }
+    return { cumple: a.condicion === "menor" ? actual < a.valor : actual > a.valor };
+  }
+  function pintaAlertasFicha(p) {
+    const el = $("#alertasFicha");
+    if (!el) return;
+    if (window.ESTATICO) { el.innerHTML = ""; return; }
+    const cotiza = (p.origen === "csv" || p.origen === "ordenes") && !!p.nav;
+    const actual = cotiza ? p.nav : p.valor;
+    const que = cotiza ? "el precio" : "el valor";
+    const lista = (D.alertasPrecio || []).filter(a => a.producto === p.id);
+    const txt = a => a.condicion === "cae" ? `Si ${que} cae un ${G.fmtPct(a.valor, 0)} desde ${G.fmtEur(a.ref)}`
+      : a.condicion === "sube" ? `Si ${que} sube un ${G.fmtPct(a.valor, 0)} desde ${G.fmtEur(a.ref)}`
+      : a.condicion === "menor" ? `Si ${que} baja de ${G.fmtEur(a.valor)}` : `Si ${que} supera ${G.fmtEur(a.valor)}`;
+    const filas = lista.map(a => {
+      const st = estadoAlerta(a, actual);
+      const est = !st ? "" : st.cumple ? '<span class="alEst si">🔔 se cumple</span>'
+        : `<span class="alEst">vigilando${st.var != null ? ` · ahora ${G.fmtPctSigno(st.var, 1)}` : ""}</span>`;
+      return `<div class="alFila"><span class="alTxt">${esc(txt(a))}${a.nota ? `<small>${esc(a.nota)}</small>` : ""}</span>${est}
+        <button type="button" class="accIco" data-al-ed="${esc(a.id)}" title="Editar" aria-label="Editar la alerta">✎</button>
+        <button type="button" class="accIco" data-al-del="${esc(a.id)}" title="Quitar" aria-label="Quitar la alerta">✕</button></div>`;
+    }).join("");
+    el.innerHTML = `<div class="alertasFicha"><div class="alCab"><b>🔔 Alertas de precio</b>
+        <button type="button" class="btn mini" data-al-nueva>＋ Nueva alerta</button></div>
+      ${filas || `<p class="subt" style="margin:4px 0 0">Pide que te avise si ${que} cae o sube un %, o si cruza un importe.</p>`}</div>`;
+    const listo = nuevas => { D.alertasPrecio = nuevas; pintaAlertasFicha(p); };
+    const ed = (aid) => {
+      if (!window.Editor || !window.Editor.editarAlerta) { alert("Un momento: la app aún está cargando."); return; }
+      window.Editor.editarAlerta(p.id, { cotiza, actual, alerta: lista.find(a => a.id === aid) }, listo);
+    };
+    el.querySelector("[data-al-nueva]").onclick = () => ed(null);
+    el.querySelectorAll("[data-al-ed]").forEach(b => { b.onclick = () => ed(b.dataset.alEd); });
+    el.querySelectorAll("[data-al-del]").forEach(b => {
+      b.onclick = () => window.Editor && window.Editor.borrarAlerta && window.Editor.borrarAlerta(b.dataset.alDel, listo);
+    });
+  }
+
   function pintaFichaFondo(p) {
     const sec = $("#fondoFicha");
     sec.style.setProperty("--c", color(p));
@@ -3244,7 +3564,8 @@
       <div id="ventanas"></div>
       ${pocos ? '<p class="subt" style="margin:0 0 12px">Solo hay un valor anotado, así que aún no hay curva. Anota más en «Mis datos → Saldos y movimientos».</p>' : ""}
       <div class="envGraf" id="grafFondo"></div>
-      <div class="tramos" id="tramosLey"></div>`;
+      <div class="tramos" id="tramosLey"></div>
+      <div id="alertasFicha"></div>`;
 
     // "Al cierre" es la cifra comparable con MyInvestor, que fuera de horario
     // se queda en el último cierre. "En vivo" sigue al bitcoin a cualquier hora.
@@ -3276,6 +3597,7 @@
       }
     }
     $("#ventanas").innerHTML = html;
+    pintaAlertasFicha(p);
 
     const bNota = $("#fichaNota");
     if (bNota) bNota.onclick = () => { if (window.Editor && window.Editor.verEntidad) window.Editor.verEntidad(p.id); };
@@ -3604,12 +3926,15 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.18.0",
+    version: "1.19.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["💎", "Tu patrimonio, de un vistazo", "Arriba del todo en Inicio, una card nueva con todo lo del hogar: tu cartera neta más tus inmuebles netos (lo que valen menos sus hipotecas), con el reparto entre los dos y un acceso a cada lado."],
-      ["📈", "«Patrimonio» ahora se llama «Cartera»", "La pestaña del Panel con tus inversiones, cuentas y deudas se llama ahora Cartera, porque tus inmuebles van aparte. Tu objetivo y tus hitos se siguen midiendo con la cartera. Tus datos no cambian."],
-      ["✏️", "Renombrar o fusionar una categoría", "En Configuración → 💶 Ingresos y gastos cambias el nombre de una categoría y se actualiza en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas. Si el nombre ya existe, las dos se fusionan."],
+      ["📈", "Cómo ha crecido tu patrimonio", "Junto a «Tu patrimonio», en Inicio, su evolución mes a mes: el total, tu cartera y tus inmuebles, con lo que ha cambiado en 12 meses."],
+      ["🕊️", "Tu libertad financiera", "Una card nueva en Inicio: cuántos meses vivirías con tu dinero a mano y con toda tu cartera, y cuánto de lo que gastas cubre ya tu renta pasiva (cartera + alquileres)."],
+      ["🔔", "Alertas de precio", "En la ficha de cada activo: «avísame si cae un 10 %», «si baja de…» o «si supera…». Cuando se cumple, te avisa en el Panel."],
+      ["↩️", "Deshacer al borrar", "¿Te has equivocado? Justo después de borrar, pulsa «Deshacer» en el aviso de abajo (o Ctrl+Z) y vuelve tal cual, con sus facturas."],
+      ["✎", "Inicio a tu gusto", "Con «Personalizar» ordenas las tarjetas, ocultas las que no uses, pones dos lado a lado o eliges un Inicio compacto. Se guarda en tu cartera, para todos tus dispositivos."],
+      ["👁", "Ocultar importes, a un clic", "El ojo de la barra de arriba oculta las cifras al momento, también en Mis datos. Y el botón de imprimir es ahora solo la impresora."],
     ],
   };
   function quizaNovedades() {
@@ -3654,12 +3979,15 @@
   const AYUDA = {
     "panel.inicio": { t: "Inicio", sub: "El cuadro de mando: tu patrimonio de un vistazo, con accesos directos a cada sección.", p: [
       ["💎", "Tu patrimonio (arriba del todo)", "Todo lo del hogar en una cifra: tu cartera neta + tus inmuebles netos (lo que valen menos sus hipotecas). La barra te dice qué parte está en cada lado; pulsa una fila para ir a Cartera o a Inmuebles. Una hipoteca enlazada a una deuda de tu cartera se cuenta con su inmueble, nunca dos veces. Sin inmuebles, tu patrimonio es tu cartera."],
+      ["📈", "Cómo ha crecido tu patrimonio", "A su lado, su evolución mes a mes: el total, tu cartera neta y tus inmuebles netos, desde lo más antiguo que tengas (también una casa comprada antes de empezar la cartera), con cuánto ha cambiado en 12 meses. Cada inmueble vale su última estimación de esa fecha (o su precio desde la compra): cuantas más estimaciones anotes, más fiel será la curva. Las hipotecas enlazadas usan la historia de su deuda; las demás se estiman hacia atrás con su cuota y su interés."],
+      ["🕊️", "Tu libertad financiera", "Cuánto tiempo te da lo que tienes, con tu gasto medio (los últimos meses completos de ingresos y gastos, hasta 12): cuántos meses vivirías con tu dinero a mano (lo «disponible») y con toda tu cartera si dejaras de ingresar. Y el % hacia la independencia financiera: cuánto de lo que gastas cubre ya tu renta pasiva, que es lo que podrías sacar de tu cartera cada año sin agotarla (la regla del 4 %, que cambias en Configuración) más la renta de tus alquileres. Te dice también cuánta cartera te falta. Es una orientación: no cuenta impuestos ni inflación."],
       ["📊", "Tu mes de un vistazo", "Cuánto ha cambiado tu cartera este mes (en € y %), tu ahorro del mes (ingresos − gastos anotados) y tu «dinero libre para invertir». La línea «qué conviene hacer» te sugiere el siguiente paso."],
       ["🎯", "Objetivo o próximo hito", "La barra se rellena hacia el objetivo de tu cartera (o, si no lo has fijado, hacia el siguiente hito redondo: 10.000, 50.000…). El objetivo se define en «Mis datos → Configuración»."],
       ["📈", "Cartera, reparto e ingresos", "Tres mini-gráficos: la evolución reciente de tu cartera, en qué está repartido tu dinero (el anillo) y tus ingresos/gastos de los últimos meses. Pulsa el anillo para ir a Distribución."],
       ["🏅", "Tu constancia", "Tu disciplina medida: racha de meses aportando sin fallar, ritmo medio mensual, meses con apuntes y cuánto tiempo llevas siguiéndote. Pensado para motivar el hábito, no para juzgarte."],
       ["🏠", "Tus inmuebles", "Si tienes inmuebles, un bloque propio con lo que valen, sus hipotecas, su neto y lo que te dejan en 12 meses (o cuánto se han revalorizado). Pulsa un inmueble para abrir su ficha."],
       ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos próximos. Cada tarjeta es un atajo: púlsala para ir directo a esa sección."],
+      ["✎", "Personaliza tu Inicio", "Con «✎ Personalizar» (arriba a la derecha) cada tarjeta lleva una barra: arrástrala por ⋮⋮ (o usa ↑ ↓) para cambiar el orden, 👁 para ocultarla (se ve en gris mientras editas) y ↔ para ponerla a media anchura y tener dos lado a lado. «Compacto» deja solo las cifras, sin gráficos, para verlo todo de un vistazo. Se guarda solo, en tu cartera: es el mismo Inicio en todos tus dispositivos y para toda la familia. «Restablecer» vuelve al de fábrica y «Listo» termina."],
       ["🔔", "Caja de avisos", "Los avisos del panel van en una caja que puedes plegar pulsando su cabecera. Una vez has visto los que estás posponiendo a conciencia, contráela y se mantiene así en todas las pestañas, sin obligarte a hacer scroll. Si aparece un aviso nuevo que no habías visto, la cabecera lo marca con «nuevo» aunque esté plegada."],
     ] },
     "panel.patrimonio": { t: "Cartera", sub: "La foto de tu cartera: lo que tienes en inversiones y cuentas, lo que debes y lo que te queda libre. Tus inmuebles van aparte; el total del hogar lo ves en Inicio.", p: [
@@ -3736,6 +4064,7 @@
       ["🔎", "Sus números", "Valor de hoy, lo aportado, plusvalía, rentabilidad y TIR solo de ese activo."],
       ["📈", "Su evolución", "El precio y el valor del activo en el tiempo, con tus aportaciones marcadas sobre la curva."],
       ["🧾", "Aportaciones o saldos", "Si cotiza, la lista de compras (pulsa una fila para ir a ese movimiento). Si se valora a mano, tus saldos anotados y un botón para anotar uno nuevo."],
+      ["🔔", "Alertas de precio", "«Avísame si este fondo cae un 10 %»: con «＋ Nueva alerta» eliges si quieres saber cuándo su precio cae o sube un % desde una referencia (de partida, el de hoy), o cuándo baja de un importe o lo supera. En los que llevas a mano se vigila su valor. Cuando se cumple, sale un aviso en el Panel que te trae aquí; mientras, ves cuánto se ha movido. Se comprueba al actualizar los precios. Puedes apagar todas desde Configuración → Avisos."],
       ["🔀", "Cambia de componente", "Con el selector de arriba saltas a la ficha de cualquier otro componente, sin volver atrás."],
       ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. El botón «← Volver» te lleva de vuelta a donde viniste (Distribución o Rentabilidad)."],
     ] },
@@ -3777,7 +4106,8 @@
       ["🏦", "Importar en vez de teclear", "Si tienes muchos movimientos, no los teclees: tráelos del banco desde «Importar». Con las reglas y categorías bien puestas, llegan ya clasificados."],
       ["🔎", "Filtra y busca", "Arriba tienes filtros por tipo, categoría, titular, entidad, importe y fechas, más un buscador de texto. Pulsa una categoría del panel y llegas aquí ya filtrado."],
       ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un apunte la lista ya no salta al principio: te quedas donde estabas. Y con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez."],
-      ["🗄️", "Archivar o borrar lo antiguo", "«🗄 Archivar / borrar…» actúa sobre todo lo anterior a una fecha: archívalo (lo oculta de la lista, reversible, para «dejar solo este año») o bórralo para siempre. Las facturas de lo borrado se conservan. En Configuración → Ingresos y gastos eliges si lo archivado sigue contando en el panel o no."],
+      ["↩️", "¿Te has equivocado? Deshacer", "Justo después de borrar, el aviso de abajo trae «↩ Deshacer» durante unos segundos (también con Ctrl+Z): lo borrado vuelve tal cual, con sus facturas. Si entretanto has cambiado otra cosa, ya no se puede así; entonces vuelve atrás desde «Copias»."],
+      ["🗄️", "Archivar o borrar lo antiguo", "«🗄 Archivar / borrar…» actúa sobre todo lo anterior a una fecha: archívalo (lo oculta de la lista, reversible, para «dejar solo este año») o bórralo (con «Deshacer» justo después). Las facturas de lo borrado se conservan. En Configuración → Ingresos y gastos eliges si lo archivado sigue contando en el panel o no."],
     ] },
     "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus inversiones: aquí se registra lo que compras y lo que vale.", p: [
       ["🧾", "Movimientos (productos que cotizan)", "Compra, venta, dividendo o comisión, con unidades e importe. Con eso el panel calcula tu coste medio por orden de compra (FIFO), la plusvalía y la TIR de cada producto."],
@@ -3785,7 +4115,7 @@
       ["📅", "Cierre del mes", "El botón «Cierre del mes» te deja anotar de golpe el saldo de todas tus cuentas, depósitos, planes y deudas. El gesto de cada mes para tenerlo todo al día."],
       ["🔎", "Filtros potentes", "Filtra los movimientos por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas. Al llegar desde la Distribución, el grupo viene ya filtrado."],
       ["🎯", "Resaltado", "Si llegas aquí pulsando una aportación o un saldo del panel, esa fila concreta queda resaltada hasta que elijas otra."],
-      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un movimiento la lista ya no vuelve al principio. Con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez. Aquí la historia se mantiene: no hay borrado por fecha."],
+      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un movimiento la lista ya no vuelve al principio. Con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez. Aquí la historia se mantiene: no hay borrado por fecha. Si te equivocas, pulsa «↩ Deshacer» en el aviso que sale justo después (o Ctrl+Z)."],
     ] },
     "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas, unidos a tus apuntes.", p: [
       ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto, para tener el justificante a mano cuando lo necesites."],
@@ -3800,6 +4130,7 @@
       ["✏️", "Renombrar o fusionar una categoría", "En «💶 Ingresos y gastos», elige una categoría y escribe su nombre nuevo: se cambia en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas, y antes de hacerlo te dice cuántos toca. Si el nombre nuevo ya existe, las dos se fusionan en una sola (deben ser del mismo tipo). Se aplica al momento, con copia de seguridad automática."],
       ["🤖", "Reglas para el banco", "Al importar del banco, estas reglas clasifican solas tus movimientos: «si el concepto contiene MERCADONA → Alimentación». Se crean a mano aquí, o se aprenden solas marcando «recordar mis correcciones» en la vista previa de Importar. Bien puestas, te ahorran clasificar a mano cada mes."],
       ["📐", "Dimensiones de clasificación", "Ejes propios para mirar tu cartera como tú quieras, más allá de Tipo y Entidad. Creas una dimensión (p. ej. «Geografía» con valores Europa, EE. UU., Global; o «Riesgo»; o «Gestora») y luego la asignas a cada activo. Después agrupas y filtras por ella en Distribución y Evolución. También hay dimensiones para los ingresos y gastos."],
+      ["🕊️", "Tasa de retirada", "Lo que podrías sacar al año de tu cartera sin agotarla, para la «libertad financiera» de Inicio. Vacío = el 4 % de siempre; si quieres ir más seguro, pon un 3 o un 3,5 %."],
       ["📈", "Inflación y monedas", "La inflación de referencia dibuja la línea «a batir» en Evolución. Las monedas te dejan fijar un cambio manual (p. ej. USD→EUR) para valorar en euros un activo o una cuenta en otra divisa."],
       ["🔔", "Avisos y recordatorios", "Activa o silencia cada aviso automático (concentración, vencimientos, deudas…) y elige con cuántos días de antelación avisar de un vencimiento, o tras cuántos días sin anotar/sin actualizar precios recordártelo."],
       ["🧩", "Tipos propios, marcas y entidades", "Crea tus propios tipos de activo (u oculta los de serie), define las marcas (🚩⭐❗) para tus apuntes y la lista de entidades/bancos que usas para clasificar."],
@@ -3816,7 +4147,7 @@
     "datos.copias": { t: "Mis datos · Copias de seguridad", sub: "Tus datos son tuyos: guárdalos y recupéralos cuando quieras.", p: [
       ["💾", "Dos formatos", "El .zip lo lleva TODO (tus datos, las facturas y los archivos de tu biblioteca); el .json es más ligero pero solo los datos. Para mudarte de ordenador sin perder nada, usa el .zip."],
       ["♻️", "Recuperar o empezar de cero", "Puedes restaurar una copia sobre tu patrimonio actual, o crear uno nuevo a partir de ella sin tocar el que tienes."],
-      ["↩️", "Deshacer", "La app guarda copias automáticas al cambiar cosas, así que casi siempre puedes volver atrás si te equivocas."],
+      ["↩️", "Deshacer", "Justo después de borrar algo, el aviso de abajo trae «↩ Deshacer» (o pulsa Ctrl+Z). Más tarde, la app guarda copias automáticas al cambiar cosas, así que casi siempre puedes volver atrás si te equivocas: «Deshacer el último cambio» recupera la última."],
       ["🔒", "Tuya y local", "La copia la guardas tú donde quieras (un USB, la nube que tú elijas…). Liberty nunca la sube a ningún sitio."],
     ] },
 
@@ -3854,7 +4185,7 @@
 
     "ajustes": { t: "Ajustes", sub: "Cómo se ve la app. Se guarda en este navegador y no afecta a tus datos.", p: [
       ["🎨", "Aspecto", "Tema claro, oscuro o automático (según tu sistema) y tamaño del texto, hasta muy grande, para leer cómodo."],
-      ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades: así puedes enseñar la pantalla o compartir una captura sin revelar tu dinero."],
+      ["🔎", "Ocultar importes", "Muestra «•••» en vez de las cantidades (también en Mis datos): así puedes enseñar la pantalla o compartir una captura sin revelar tu dinero. Lo tienes también a un clic en el ojo de la barra de arriba (ojo cerrado = ocultos)."],
       ["🖥️", "Vista amplia y Modo vídeo", "Vista amplia agranda filas y botones (mejor para tocar). Modo vídeo pone la app a pantalla completa para presentar o grabar."],
       ["ⓘ", "Botones de ayuda", "Muestra u oculta la «i» de ayuda de cada pantalla (esta misma). Déjalos si estás empezando; ocúltalos cuando ya te manejes."],
       ["🏁", "Pantalla de inicio", "Elige qué se abre al arrancar: la última pantalla que usaste o siempre el Panel."],

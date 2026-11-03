@@ -14,7 +14,9 @@
   /* ---------------------------------------------- utilidades */
   const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g,
     c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const eur = v => v == null ? "—" : Number(v).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
+  // Con «Ocultar importes» (👁 de la barra) las tablas de Mis datos tampoco enseñan cifras.
+  const eur = v => window.OCULTAR_IMPORTES === true ? "•••"
+    : v == null ? "—" : Number(v).toLocaleString("es-ES", { style: "currency", currency: "EUR" });
   const num = (v, d = 4) => v == null ? "—" : Number(v).toLocaleString("es-ES", { maximumFractionDigits: d });
   const fecha = iso => iso ? `${iso.slice(8, 10)}/${iso.slice(5, 7)}/${iso.slice(0, 4)}` : "—";
   const hoy = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 10); };
@@ -77,8 +79,73 @@
     E.cfg = j.cartera;
     COP.lista = null;
     window.EDITOR_SUCIO = true;
-    if (window.toast) window.toast("Borrado ✓");
+    avisoBorrado(j, "Borrado ✓");
     return j;
+  }
+  // Tras un borrado, el aviso de abajo ofrece «Deshacer» (y Ctrl+Z) mientras dura (ADR 0035).
+  function avisoBorrado(j, msg) {
+    if (!window.toast) return;
+    window.toast(msg, null, j && j.deshacer ? { texto: "↩ Deshacer", fn: () => deshazBorrado(j.deshacer) } : null);
+  }
+  // Alerta de precio de un activo (ADR 0035), desde su ficha del Panel. ctx = {cotiza,
+  // actual, alerta}: el Panel sabe el precio de hoy; la alerta, si se edita una. Al guardar
+  // o borrar, `listo(alertas)` recibe la lista nueva para repintar la ficha sin recargar.
+  async function formAlerta(pid, ctx, listo) {
+    if (!E.cfg) await carga();
+    const a = ctx.alerta || null, que = ctx.cotiza ? "el precio" : "el valor";
+    const num = v => v == null ? "" : String(+(+v).toFixed(6)).replace(".", ",");
+    const cond = (a && a.condicion) || "cae";
+    const f = abreModal(a ? "Editar alerta" : "Nueva alerta de precio", `
+      <p class="ayuda" style="margin:0 0 12px">Te aviso en el Panel cuando ${que} de <b>${esc(nombre(prod(pid)))}</b> cumpla esto${ctx.actual ? ` (hoy: ${eur(ctx.actual)})` : ""}. Se comprueba cada vez que se actualizan los precios.</p>
+      <div class="rejilla">
+        ${campo("Avísame si " + que, `<select name="condicion">${opciones({ cae: "cae un…", sube: "sube un…", menor: "baja de…", mayor: "supera…" }, cond)}</select>`)}
+        ${campo('<span data-etq-valor></span>', '<input name="valor" inputmode="decimal" required>')}
+        ${campo("Desde", '<input name="ref" inputmode="decimal">', "€, la referencia del %; de partida, el de hoy", "alRef")}
+        ${campo("Nota", '<input name="nota" maxlength="120" placeholder="p. ej. «buen momento para aportar»">', "opcional", "ancho")}
+      </div>`,
+    async f2 => {
+      const d = campos(f2);
+      const j = await api("POST", "api/alertas", { ...d, id: a ? a.id : undefined, producto: pid,
+        refFecha: a && a.ref && leeNum(d.ref) === a.ref ? a.refFecha : hoy() });
+      E.cfg = j.cartera;
+      window.EDITOR_SUCIO = true;
+      if (window.toast) window.toast("Alerta guardada ✓");
+      if (listo) listo(E.cfg.alertasPrecio || []);
+    }, a ? "Guardar cambios" : "Crear alerta");
+    const sel = f.elements.condicion;
+    const ajusta = () => {
+      const pct = sel.value === "cae" || sel.value === "sube";
+      f.querySelector("[data-etq-valor]").textContent = pct ? "Porcentaje (%)" : "Importe (€)";
+      f.elements.valor.placeholder = pct ? "10" : (ctx.actual ? num(ctx.actual) : "");
+      f.querySelector(".alRef").style.display = pct ? "" : "none";
+    };
+    sel.onchange = ajusta;
+    f.elements.ref.value = num(a && a.ref != null ? a.ref : ctx.actual);
+    if (a) f.elements.valor.value = num(a.condicion === "cae" || a.condicion === "sube" ? a.valor * 100 : a.valor);
+    if (a && a.nota) f.elements.nota.value = a.nota;
+    ajusta();
+  }
+  async function borraAlerta(aid, listo) {
+    if (!confirm("¿Quitar esta alerta de precio?")) return;
+    const refresca = () => { if (listo) listo((E.cfg && E.cfg.alertasPrecio) || []); };
+    try {
+      const j = await api("DELETE", `api/alertas/${encodeURIComponent(aid)}`);
+      E.cfg = j.cartera; COP.lista = null; window.EDITOR_SUCIO = true;
+      refresca();
+      if (window.toast) window.toast("Alerta quitada ✓", null, j.deshacer
+        ? { texto: "↩ Deshacer", fn: async () => { await deshazBorrado(j.deshacer); refresca(); } } : null);
+    } catch (x) { alert(x.message); }
+  }
+  async function deshazBorrado(token) {
+    try {
+      const j = await api("POST", "api/deshacer", { token });
+      E.cfg = j.cartera;
+      COP.lista = null;
+      window.EDITOR_SUCIO = true;
+      avisa(j.avisos);
+      pintaScroll();
+      if (window.toast) window.toast("Recuperado ✓", "ok");
+    } catch (x) { if (x.message !== "cartera cambiada") alert(x.message); }
   }
   // Re-render de «Mis datos» conservando la posición de scroll: al borrar una fila
   // (apunte o movimiento) la lista no salta al principio, para poder seguir borrando.
@@ -451,7 +518,7 @@
       const j = await api("POST", `api/${coll}-borrar`, { ids });
       E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
       E.selModo = null; E.selIds = new Set();
-      if (window.toast) window.toast("Borrado ✓");
+      avisoBorrado(j, "Borrado ✓");
       pintaScroll();
       const h = j.adjuntosHuerfanos;
       if (h && (h.archivos || []).length) alert(`Hecho. ${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}`);
@@ -912,6 +979,7 @@
         ${fila("Titulares", tits.length ? tits.map(t => esc(t) + (t === ((conf.titularDefecto && tits.includes(conf.titularDefecto)) ? conf.titularDefecto : tits[0]) ? ' <span class="subt">(por defecto)</span>' : "")).join(", ") : sub("solo tú"))}
         ${fila("Colchón deseado", eur(conf.colchon || 0))}
         ${fila("Inflación de referencia", conf.inflacion != null ? pct(conf.inflacion) : sub("sin fijar"))}
+        ${fila("Tasa de retirada", conf.tasaRetirada != null ? pct(conf.tasaRetirada) : sub("4 % (la regla de siempre)"))}
         ${fila("Avisos automáticos", catal.length ? `${catal.length - avisosOff.length} de ${catal.length} activos` + (avisosOff.length ? ` · ${avisosOff.length} desactivado${avisosOff.length === 1 ? "" : "s"}` : "") : "—")}
         ${fila("Buscar actualizaciones", conf.buscarActualizaciones ? "Sí" : "No")}
       </table>
@@ -1592,10 +1660,11 @@
         <div id="edTits" class="rejilla"></div>
         <p class="ayuda">El primero eres tú. Si le cambias el nombre, se actualiza en todos tus activos, apuntes y reservados.
           Añade más miembros con «+ Añadir titular». <b>Con un solo titular</b>, la app no te pregunta por titular en ningún sitio ni muestra los filtros por titular.</p>
-        ${seccion("Colchón e inflación")}
+        ${seccion("Colchón, inflación y libertad financiera")}
         <div class="rejilla">
           ${campo("Colchón deseado", '<input name="colchon" inputmode="decimal" placeholder="3000">', "€, liquidez mínima")}
           ${campo("Inflación anual", '<input name="inflacion" inputmode="decimal" placeholder="2,5">', "%, referencia en Evolución; puedes cambiarla también en la gráfica")}
+          ${campo("Tasa de retirada", '<input name="tasaRetirada" inputmode="decimal" placeholder="4">', "%, lo que podrías sacar al año de tu cartera sin agotarla; vacío = la regla del 4 %")}
         </div>
         ${seccion("Avisos automáticos")}
         <p class="ayuda" style="margin:2px 0 8px">Activa o desactiva cada aviso. Así sabes de qué te avisa la app y de qué no: los que desactives tendrás que vigilarlos tú. Los de tus inmuebles (contratos, cobros y valor) están en la pestaña «🏢 Inmuebles», con su antelación al lado.</p>
@@ -1788,6 +1857,7 @@
         objetivoImporte: d.objetivoImporte,
         colchon: d.colchon,
         inflacion: d.inflacion,
+        tasaRetirada: d.tasaRetirada,
         titulares, renombresTitular, titularDefecto, tipos, tiposOcultos, avisosOff,
         umbralConcentracion: d.umbralConcentracion,
         desviacionMax: d.desviacionMax,
@@ -1811,6 +1881,7 @@
     f.elements.objetivoImporte.value = (E.cfg.objetivo && E.cfg.objetivo.activo) ? (E.cfg.objetivo.importe || "") : "";
     f.elements.colchon.value = conf.colchon || "";
     f.elements.inflacion.value = conf.inflacion != null ? +(conf.inflacion * 100).toFixed(2) : "";
+    f.elements.tasaRetirada.value = conf.tasaRetirada != null ? +(conf.tasaRetirada * 100).toFixed(2) : "";
     const _tits0 = (E.cfg.titulares || []).length ? E.cfg.titulares : ["Yo"];
     const _titDef = (conf.titularDefecto && _tits0.includes(conf.titularDefecto)) ? conf.titularDefecto : _tits0[0];
     montaFilasEdit(f.querySelector("#edTits"), _tits0, "Nombre del titular", "Añadir titular", { defecto: _titDef });
@@ -2249,7 +2320,7 @@
       }
       const j = await api("POST", "api/flujos-masa", { accion, hasta: d.hasta });
       E.cfg = j.cartera; window.EDITOR_SUCIO = true; COP.lista = null;
-      if (window.toast) window.toast("Hecho ✓");
+      avisoBorrado(j, "Hecho ✓");
       const h = j.adjuntosHuerfanos;
       if (h && (h.archivos || []).length) {
         setTimeout(() => alert(`${h.archivos.length} factura${h.archivos.length > 1 ? "s" : ""} de los apuntes borrados se conserva${h.archivos.length > 1 ? "n" : ""} en tu carpeta:\n\n${h.carpeta}`), 60);
@@ -2262,7 +2333,7 @@
         ? "Los apuntes archivados desaparecen de esta lista (vuelves a verlos con «Ver archivados»). No se borran y siguen contando en el panel."
         : v === "desarchivar"
           ? "Vuelve a mostrar en la lista los apuntes de ese periodo que estuvieran archivados."
-          : "Elimina definitivamente esos apuntes. No se puede deshacer; quedan copias automáticas en tu carpeta de datos y las facturas se conservan.";
+          : "Elimina esos apuntes. Justo después puedes pulsar «Deshacer» en el aviso de abajo; más tarde, quedan las copias automáticas. Las facturas se conservan en tu carpeta.";
     };
     f.querySelectorAll("[name=accion]").forEach(r => r.onchange = ayuda);
     ayuda();
@@ -4742,6 +4813,9 @@
     avisoTraspaso,
     traspasarInmueble: soloPropio(id => formTraspaso(id, { recargar: true })),
     configInmuebles: soloPropio(() => formHogar("inmuebles")),
+    // Alertas de precio desde la ficha de un activo del Panel (ADR 0035).
+    editarAlerta: soloPropio(formAlerta),
+    borrarAlerta: soloPropio(borraAlerta),
     docsInmueble,
     inquilinosInmueble,
     apunte: id => (E.cfg && E.cfg.flujos || []).find(f => f.id === id) || null,

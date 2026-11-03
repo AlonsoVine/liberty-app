@@ -9,6 +9,37 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
+## [1.19.0] — 2026-11-03
+
+- **Cómo ha crecido tu patrimonio (ADR 0034).** La card «Tu patrimonio» de Inicio lleva al lado
+  su evolución mes a mes: total, cartera neta e inmuebles netos, con el cambio en 12 meses.
+  Empieza en lo más antiguo de la cartera o de los inmuebles. Cada inmueble vale su última
+  estimación a esa fecha (o su precio desde la compra); la hipoteca enlazada usa la serie de su
+  deuda y la que no, se reconstruye hacia atrás con su cuota e interés (se indica). El último
+  punto es la foto de hoy, igual que la card.
+- **Tu libertad financiera (ADR 0035).** Nueva card en Inicio, bajo «Tu patrimonio»: cuántos
+  meses vivirías con lo disponible y con toda tu cartera (con tu gasto medio de los últimos meses
+  completos, hasta 12), y el % hacia la independencia financiera: cuánto de tu gasto cubre ya tu
+  renta pasiva (la cartera a la tasa de retirada —el 4 % por defecto, ajustable en
+  Configuración— más tus alquileres), con la cartera que te falta.
+- **Alertas de precio (ADR 0035).** En la ficha de cada activo: «avísame si cae / sube un X %
+  desde…», «si baja de…» o «si supera…» (en los que van a mano, su valor). Cuando se cumple,
+  sale un aviso en el Panel que abre la ficha. Se pueden apagar en Configuración → Avisos; se
+  borran con su activo.
+- **«Deshacer» al borrar (ADR 0035).** Tras borrar algo en Mis datos (uno, varios o «lo
+  anterior a una fecha») o quitar una alerta, el aviso de abajo trae «↩ Deshacer» unos segundos,
+  también con Ctrl+Z. Vuelve tal cual, con sus facturas. Si entretanto ha cambiado algo, no pisa
+  nada y remite a las copias.
+- **Inicio a tu gusto (ADR 0036).** «✎ Personalizar» en Inicio: arrastra (o ↑ ↓) para
+  ordenar las tarjetas, 👁 para ocultarlas y ↔ para ponerlas a media anchura (dos lado a lado).
+  «Compacto» deja solo las cifras, sin gráficos. Se guarda en la cartera: el mismo Inicio en
+  todos los dispositivos. «Restablecer» vuelve al de fábrica.
+- **Ojo en la barra superior (ADR 0035).** «Ocultar importes» a un clic (ojo cerrado = ocultos).
+  Ahora oculta también las cifras de Mis datos. El botón de imprimir queda solo con la impresora.
+- **Arreglo:** las cifras «+X €» que debían ir sin céntimos (rentabilidad y ahorro medio de
+  Inicio, proyección…) los enseñaban: `fmtEurSigno` ignoraba los decimales.
+- **Arreglo interno:** `siguiente_id` solo admitía prefijos de una letra.
+
 ## [1.18.0] — 2026-11-02
 
 - **Renombrar o fusionar una categoría (ADR 0032).** En Configuración → 💶 Ingresos y gastos,

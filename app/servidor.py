@@ -403,8 +403,10 @@ GUARDAR = {"productos": almacen.guarda_producto, "movimientos": almacen.guarda_m
            "flujos": almacen.guarda_flujo, "inmuebles": almacen.guarda_inmueble,
            "inquilinos": almacen.guarda_inquilino, "contratos": almacen.guarda_contrato,
            # Pasar un producto «inmueble» de la cartera a la zona de Inmuebles (ADR 0031).
-           "traspasos": almacen.traspasa_a_inmueble}
+           "traspasos": almacen.traspasa_a_inmueble,
+           "alertas": almacen.guarda_alerta}
 BORRAR = {"productos": almacen.borra_producto, "movimientos": almacen.borra_movimiento,
+          "alertas": almacen.borra_alerta,
           "valoraciones": almacen.borra_valoracion, "apartados": almacen.borra_apartado,
           "flujos": almacen.borra_flujo, "inmuebles": almacen.borra_inmueble,
           "inquilinos": almacen.borra_inquilino, "contratos": almacen.borra_contrato}
@@ -412,10 +414,22 @@ AVISO_DEMO = ("Estás viendo el patrimonio de ejemplo. Pulsa «Empezar con mis d
               "para crear el tuyo y poder guardar cambios.")
 
 
-def cambia(fn, recalc=True):
+# «Deshacer» justo después de borrar (ADR 0035): un único hueco en memoria con la cartera
+# tal como estaba antes del último borrado. Solo vale mientras nadie haya escrito después
+# (se comprueba con la huella del fichero) y durante unos minutos; si no, quedan las copias.
+_DESHACER = {}
+DESHACER_SEGUNDOS = 600
+
+
+def _huella(cfg):
+    return json.dumps(cfg, sort_keys=True, ensure_ascii=False)
+
+
+def cambia(fn, recalc=True, deshacible=False):
     """Aplica un cambio a la cartera, la guarda (con copia automática) y, si procede,
     recalcula el panel. Con recalc=False (notas, tablero…) no se recalcula: esos datos
-    no afectan a las cifras del panel y así van más ágiles."""
+    no afectan a las cifras del panel y así van más ágiles. Con deshacible=True (los
+    borrados) la respuesta trae un `deshacer` para volver atrás desde el aviso."""
     if modo() == "demo":
         return jsonify(ok=False, errores=[AVISO_DEMO]), 403
     # La cartera activa es estado compartido: si otro dispositivo la cambió mientras este
@@ -431,12 +445,56 @@ def cambia(fn, recalc=True):
         ruta = os.path.join(carpeta(), "cartera.json")
         try:
             cfg = almacen.carga(ruta)
+            antes = copy.deepcopy(cfg) if deshacible else None
             item = fn(cfg)
         except almacen.ErrorValidacion as e:
             return jsonify(ok=False, errores=e.errores), 400
         almacen.guarda(ruta, cfg)
+        _DESHACER.clear()
+        token = None
+        if deshacible:
+            token = secrets.token_hex(12)
+            _DESHACER.update(token=token, cartera=activa, antes=antes, huella=_huella(cfg),
+                             hora=time.time(), renombres=[])
         datos = recalcula(descargar="faltan") if recalc else None
-    return jsonify(ok=True, item=item, cartera=cfg, avisos=(datos or {}).get("avisos", []))
+    return jsonify(ok=True, item=item, cartera=cfg, avisos=(datos or {}).get("avisos", []),
+                   **({"deshacer": token} if token else {}))
+
+
+@app.post("/api/deshacer")
+def api_deshacer():
+    """Vuelve a dejar la cartera como estaba antes del último borrado (botón «Deshacer»
+    del aviso). Si desde entonces ha cambiado algo, no pisa nada y remite a las copias."""
+    if modo() == "demo":
+        return jsonify(ok=False, errores=[AVISO_DEMO]), 403
+    token = str((request.get_json(silent=True) or {}).get("token") or "")
+    no_se_puede = ["Ya no se puede deshacer: ha pasado demasiado tiempo o ha habido otro cambio "
+                   "después. Puedes volver atrás desde «Mis datos → Copias»."]
+    with cerrojo:
+        s = dict(_DESHACER)
+        if (not s or not token or not secrets.compare_digest(token, s["token"])
+                or time.time() - s["hora"] > DESHACER_SEGUNDOS or id_activa() != s["cartera"]):
+            return jsonify(ok=False, errores=no_se_puede), 409
+        ruta = os.path.join(carpeta(), "cartera.json")
+        try:
+            actual = almacen.carga(ruta)
+        except almacen.ErrorValidacion as e:
+            return jsonify(ok=False, errores=e.errores), 400
+        if _huella(actual) != s["huella"]:
+            _DESHACER.clear()
+            return jsonify(ok=False, errores=no_se_puede), 409
+        # Las facturas de los apuntes borrados se renombraron para encontrarlas: vuelven a
+        # su nombre para que el apunte recuperado las siga teniendo.
+        for nuevo, original in reversed(s["renombres"]):
+            if os.path.exists(nuevo) and not os.path.exists(original):
+                try:
+                    os.rename(nuevo, original)
+                except OSError:
+                    pass
+        almacen.guarda(ruta, s["antes"])
+        _DESHACER.clear()
+        datos = recalcula(descargar="faltan")
+    return jsonify(ok=True, cartera=s["antes"], avisos=(datos or {}).get("avisos", []))
 
 
 @app.post("/api/<coleccion>")
@@ -473,7 +531,7 @@ def api_borrar(coleccion, ident):
     if coleccion == "flujos" and modo() != "demo":
         fl = next((x for x in cartera().get("flujos", []) if x.get("id") == ident), None)
         adjs = (fl or {}).get("adjuntos", []) or []
-    resp = cambia(lambda cfg: BORRAR[coleccion](cfg, ident))
+    resp = cambia(lambda cfg: BORRAR[coleccion](cfg, ident), deshacible=True)
     if adjs and not isinstance(resp, tuple):   # tuple = error (jsonify, código); Response = OK
         huerfanos = _conserva_adjuntos_huerfanos(fl, adjs)
         if huerfanos["archivos"]:
@@ -497,6 +555,9 @@ def _conserva_adjuntos_huerfanos(fl, adjs):
         try:
             os.rename(origen, destino)
             finales.append(os.path.basename(destino))
+            with cerrojo:   # «Deshacer» devuelve cada factura a su nombre (ADR 0035)
+                if _DESHACER:
+                    _DESHACER["renombres"].append((destino, origen))
         except OSError:
             finales.append(os.path.basename(origen))
     return {"carpeta": os.path.abspath(adj_dir), "archivos": finales}
@@ -528,7 +589,7 @@ def api_flujos_borrar():
     if modo() != "demo":
         porid = {x.get("id"): x for x in cartera().get("flujos", [])}
         conserva = [porid[i] for i in ids if i in porid and porid[i].get("adjuntos")]
-    resp = cambia(lambda cfg: almacen.borra_flujos(cfg, ids))
+    resp = cambia(lambda cfg: almacen.borra_flujos(cfg, ids), deshacible=True)
     return _responde_con_huerfanos(resp, conserva)
 
 
@@ -536,7 +597,7 @@ def api_flujos_borrar():
 def api_movimientos_borrar():
     """Borra varios movimientos a la vez (selección múltiple)."""
     d = request.get_json(silent=True) or {}
-    return cambia(lambda cfg: almacen.borra_movimientos(cfg, d.get("ids") or []))
+    return cambia(lambda cfg: almacen.borra_movimientos(cfg, d.get("ids") or []), deshacible=True)
 
 
 @app.post("/api/flujos-masa")
@@ -552,7 +613,7 @@ def api_flujos_masa():
         if modo() != "demo":
             conserva = [x for x in cartera().get("flujos", [])
                         if (x.get("fecha") or "") <= (hasta or "") and x.get("adjuntos")]
-        resp = cambia(lambda cfg: almacen.borra_flujos_hasta(cfg, hasta))
+        resp = cambia(lambda cfg: almacen.borra_flujos_hasta(cfg, hasta), deshacible=True)
         return _responde_con_huerfanos(resp, conserva)
     return jsonify(ok=False, errores=["Acción no válida."]), 400
 

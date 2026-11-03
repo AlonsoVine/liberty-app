@@ -43,10 +43,10 @@
     if (v === null || v === undefined || isNaN(v)) return "—";
     return (v >= 0 ? "+" : "") + fmtPct(v, dec);
   }
-  function fmtEurSigno(v) {
+  function fmtEurSigno(v, dec) {
     if (oculto()) return "•••";
     if (v === null || v === undefined || isNaN(v)) return "—";
-    return (v >= 0 ? "+" : "") + fmtEur(v);
+    return (v >= 0 ? "+" : "") + fmtEur(v, dec);
   }
   function fmtFecha(iso) {
     if (!iso) return "—";

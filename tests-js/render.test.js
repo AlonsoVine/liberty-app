@@ -436,9 +436,9 @@ test("Inicio: la card «Tu patrimonio» suma cartera + inmuebles netos, arriba d
     const { window, errores } = montaPanel(datos && JSON.stringify(datos));
     window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
     assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
-    const card = window.document.querySelector("#inicioCuerpo > .inicioTotal");
+    const card = window.document.querySelector("#inicioCuerpo > .inicioBloque > .inicioTotal");
     assert.ok(card, "debería haber card de patrimonio total");
-    assert.strictEqual(window.document.querySelector("#inicioCuerpo").firstElementChild, card, "va la primera");
+    assert.strictEqual(window.document.querySelector("#inicioCuerpo > .inicioBloque"), card.parentElement, "va la primera");
     return { window, card };
   };
   // Con inmuebles: 50.000 de cartera + 95.000 de inmuebles netos = 145.000.
@@ -451,6 +451,19 @@ test("Inicio: la card «Tu patrimonio» suma cartera + inmuebles netos, arriba d
   assert.ok(card.querySelector(".ptBarra"), "barra del reparto");
   filas[1].click();
   assert.strictEqual(window.document.querySelector('#subtabs button[data-pv="inmuebles"]').getAttribute("aria-selected"), "true");
+  assert.ok(!card.querySelector(".ptEvol"), "sin serie del motor, sin gráfica");
+  // Con la serie del hogar (ADR 0034): la gráfica de tres líneas y el cambio en 12 meses.
+  const conSerie = datosConLibro();
+  const fechas = Array.from({ length: 14 }, (_, i) => `20${25 + Math.floor((8 + i) / 12)}-${String((8 + i) % 12 + 1).padStart(2, "0")}-28`);
+  conSerie.inmuebles.total.serieHogar = {
+    fechas, total: fechas.map((_, i) => 120000 + i * 1000), cartera: fechas.map((_, i) => 30000 + i * 1000),
+    inmuebles: fechas.map(() => 90000), hipotecaEstimada: true };
+  ({ card } = ver(conSerie));
+  const evol = card.querySelector(".ptEvol");
+  assert.ok(evol && evol.querySelector("#inicioHogarGraf svg"), "debería dibujarse la gráfica");
+  assert.strictEqual(evol.querySelectorAll("#inicioHogarGraf path[stroke]").length, 3, "tres líneas");
+  assert.ok(/12\.000.*en 12 meses/.test(evol.textContent), evol.textContent);
+  assert.ok(/se estiman hacia atrás/.test(evol.textContent));
   // Hipoteca enlazada a una deuda de la cartera: va con su inmueble y se le devuelve a la
   // cartera; el total es el del motor, sin restarla dos veces.
   const enl = datosConLibro();
@@ -465,6 +478,119 @@ test("Inicio: la card «Tu patrimonio» suma cartera + inmuebles netos, arriba d
   assert.ok(/Añade tus inmuebles/.test(card.textContent));
   // La pestaña ahora se llama «Cartera» (su id interno sigue siendo «patrimonio»).
   assert.strictEqual(window.document.querySelector('#subtabs button[data-pv="patrimonio"]').textContent, "Cartera");
+});
+
+test("Inicio: «Tu libertad financiera» con sus meses y su %; sin gastos, una invitación (ADR 0035)", () => {
+  const datos = JSON.parse(DATOS);
+  datos.libertad = { gastoMedio: 1500, mesesMedia: 3, tasaRetirada: 0.04, disponible: 9000, mesesDisponible: 6,
+    cartera: 300000, mesesCartera: 200, rentaCartera: 1000, rentaInmuebles: 0, rentaPasiva: 1000,
+    progreso: 0.6667, carteraObjetivo: 450000, falta: 150000 };
+  let { window, errores } = montaPanel(JSON.stringify(datos));
+  window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  let card = window.document.querySelector("#inicioCuerpo .inicioLibre");
+  assert.ok(card && !card.classList.contains("vacia"), "debería haber card de libertad");
+  assert.strictEqual(card.parentElement.previousElementSibling.dataset.bloque, "patrimonio", "va tras «Tu patrimonio»");
+  const nums = [...card.querySelectorAll(".lfNum")].map(n => n.textContent);
+  assert.deepStrictEqual(nums, ["6 meses", "17 años", "67 %"]);   // a partir de 10 años, sin decimales
+  assert.ok(/Te faltan 150\.000/.test(card.textContent) && /últimos 3 meses completos/.test(card.textContent), card.textContent);
+  delete datos.libertad;
+  ({ window } = montaPanel(JSON.stringify(datos)));
+  window.document.querySelector('#subtabs button[data-pv="inicio"]').click();
+  card = window.document.querySelector("#inicioCuerpo .inicioLibre.vacia");
+  assert.ok(card && /al menos un mes completo/.test(card.textContent));
+});
+
+test("Inicio a tu gusto: orden, ocultas, medias y compacto guardados; «Personalizar» los cambia (ADR 0036)", async () => {
+  const datos = JSON.parse(DATOS);
+  // Un orden guardado por una versión anterior, sin la card de libertad (que es nueva).
+  datos.inicio = { orden: ["constancia", "patrimonio", "banda", "cartera", "ingresos", "inmuebles", "archivo"],
+    ocultas: ["banda"], medias: ["cartera"], compacto: true };
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const enviados = [];
+  window.fetch = (url, o) => { enviados.push([url, o && o.body]); return Promise.resolve({ ok: true, json: () => Promise.resolve({ ok: true }) }); };
+  const doc = window.document;
+  doc.querySelector('#subtabs button[data-pv="inicio"]').click();
+  const orden = () => [...doc.querySelectorAll("#inicioCuerpo > .inicioBloque")].map(b => b.dataset.bloque);
+  // Lo guardado manda; la card nueva va tras la que la precede de fábrica; «banda» está oculta.
+  assert.deepStrictEqual(orden().slice(0, 4), ["constancia", "patrimonio", "libertad", "cartera"]);
+  assert.ok(!orden().includes("banda"));
+  assert.ok(doc.querySelector('[data-bloque="cartera"]').classList.contains("media"));
+  assert.ok(doc.getElementById("inicioCuerpo").classList.contains("compacto"));
+  // Modo edición: aparecen todas (también la oculta) con sus controles.
+  doc.getElementById("ipAbrir").click();
+  assert.ok(orden().includes("banda") && doc.querySelector('[data-bloque="banda"]').classList.contains("oculta"));
+  doc.querySelector('[data-ie-ojo="banda"]').click();                         // mostrarla
+  doc.querySelector('[data-ie-mueve="-1"][data-ie-id="patrimonio"]').click(); // subir «Tu patrimonio»
+  doc.querySelector('[data-ie-ancho="cartera"]').click();                     // cartera, ancha otra vez
+  doc.getElementById("ipCompacto").click();                                   // sin compacto
+  assert.deepStrictEqual(orden().slice(0, 2), ["patrimonio", "constancia"]);
+  doc.getElementById("ipListo").click();
+  assert.ok(!doc.getElementById("ipListo") && doc.getElementById("ipAbrir"));
+  assert.ok(orden().includes("banda") && !doc.querySelector('[data-bloque="cartera"]').classList.contains("media"));
+  assert.ok(!doc.getElementById("inicioCuerpo").classList.contains("compacto"));
+  await new Promise(r => setTimeout(r, 650));                                 // se guarda solo, una vez
+  assert.strictEqual(enviados.length, 1);
+  assert.strictEqual(enviados[0][0], "api/config");
+  const L = JSON.parse(enviados[0][1]).inicio;
+  assert.deepStrictEqual([L.orden.slice(0, 2), L.ocultas, L.medias, L.compacto], [["patrimonio", "constancia"], [], [], false]);
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("el 👁 de la barra oculta y vuelve a mostrar los importes, igual que Ajustes (ADR 0035)", () => {
+  const { window, errores } = montaPanel();
+  const ojo = window.document.getElementById("btnOcultar");
+  const hero = () => window.document.getElementById("heroCifra").textContent.trim();
+  assert.ok(ojo && !ojo.hidden && ojo.getAttribute("aria-pressed") === "false");
+  assert.notStrictEqual(hero(), "•••");
+  ojo.click();
+  assert.strictEqual(window.OCULTAR_IMPORTES, true);
+  assert.strictEqual(ojo.getAttribute("aria-pressed"), "true");
+  assert.strictEqual(window.localStorage.getItem("patrimonio.ocultar"), "1");
+  assert.strictEqual(hero(), "•••");
+  ojo.click();
+  assert.strictEqual(window.OCULTAR_IMPORTES, false);
+  assert.notStrictEqual(hero(), "•••");
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+});
+
+test("el aviso de abajo puede llevar «Deshacer», con clic o con Ctrl+Z (ADR 0035)", () => {
+  const { window } = montaPanel();
+  let n = 0;
+  window.toast("Borrado ✓", null, { texto: "↩ Deshacer", fn: () => { n++; } });
+  const t = window.document.getElementById("toast");
+  const b = t.querySelector(".toastAcc");
+  assert.ok(b && t.classList.contains("conAccion") && /Borrado/.test(t.textContent));
+  b.click();
+  assert.strictEqual(n, 1);
+  window.toast("Borrado ✓", null, { texto: "↩ Deshacer", fn: () => { n++; } });
+  window.document.body.dispatchEvent(new window.KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true }));
+  assert.strictEqual(n, 2);
+  // Ya usado: otro Ctrl+Z no repite la acción; y un aviso normal no lleva botón.
+  window.document.body.dispatchEvent(new window.KeyboardEvent("keydown", { key: "z", ctrlKey: true, bubbles: true }));
+  assert.strictEqual(n, 2);
+  window.toast("Guardado ✓");
+  assert.ok(!t.querySelector(".toastAcc") && !t.classList.contains("conAccion"));
+});
+
+test("alertas de precio: el aviso abre la ficha del activo, que lista sus alertas (ADR 0035)", () => {
+  const datos = JSON.parse(DATOS);
+  const p = datos.productos.find(x => x.nav) || datos.productos[0];
+  const ref = (p.nav || p.valor) / 0.8;   // ha caído un 20 %
+  datos.alertasPrecio = [{ id: "al1", producto: p.id, condicion: "cae", valor: 0.1, ref },
+                         { id: "al2", producto: p.id, condicion: "mayor", valor: 1e9, nota: "a ver" }];
+  datos.alertas = [{ texto: `«${p.corto || p.nombre}»: ha caído`, n: "Alerta", nivel: "aviso", pv: "producto",
+    clave: "alerta-precio", destino: { tab: "producto", producto: p.id } }];
+  const { window, errores } = montaPanel(JSON.stringify(datos));
+  const aviso = window.document.querySelector("#bannerAlertas [data-dest-prod]");
+  assert.ok(aviso, "el aviso debería poder pulsarse");
+  aviso.click();
+  assert.strictEqual(errores.length, 0, "errores: " + errores.join(" | "));
+  const filas = [...window.document.querySelectorAll("#alertasFicha .alFila")];
+  assert.strictEqual(filas.length, 2);
+  assert.ok(/cae un 10 %/.test(filas[0].textContent) && /se cumple/.test(filas[0].textContent), filas[0].textContent);
+  assert.ok(/vigilando/.test(filas[1].textContent) && /a ver/.test(filas[1].textContent), filas[1].textContent);
+  assert.ok(window.document.querySelector("#alertasFicha [data-al-nueva]"));
 });
 
 test("web exportada con «ocultar importes»: ninguna preferencia vuelve a mostrar cantidades", () => {
@@ -485,6 +611,7 @@ test("web exportada con «ocultar importes»: ninguna preferencia vuelve a mostr
   s(APP);
   assert.strictEqual(window.OCULTAR_IMPORTES, true);
   assert.strictEqual(window.document.getElementById("heroCifra").textContent.trim(), "•••");
+  assert.strictEqual(window.document.getElementById("btnOcultar").hidden, true, "sin 👁 para volver a mostrarlos");
 });
 
 test("los modos de los gráficos (segmentos) no rompen", () => {

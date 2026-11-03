@@ -34,6 +34,7 @@ NO_DINERO = {
     "documentos", "facturas", "habitaciones", "inflacion", "m2", "maxDD", "movimientos", "n",
     "nApuntes", "nHabitual", "nInversion", "numAportaciones", "ocupacion", "pct", "peso",
     "contratos", "inquilinos", "ocupados", "vigentes",
+    "mesesCartera", "mesesDisponible", "mesesMedia", "progreso", "tasaRetirada",
     "plusvaliaPct", "racha", "ratioDeudaActivos", "rentTotal", "rentabilidad",
     "rentabilidadBruta", "rentabilidadNeta", "riesgo", "sharpe", "slot", "sumaObjetivos", "tae", "tasaAhorro",
     "ter", "terPonderado", "tipo", "tipoInteres", "tir", "tuTir", "twr", "umbral", "vol", "ytd",
@@ -41,7 +42,7 @@ NO_DINERO = {
 # Bloques enteros de proporciones o índices (base 100): se copian sin tocar.
 BLOQUES_RATIO = {"rentabilidadAnual", "comparador", "indiceCartera", "control", "conteos"}
 # Cifras absolutas que ni escaladas tienen sentido: fuera.
-FUERA = {"hitos", "objetivo", "precioMedio"}
+FUERA = {"alertasPrecio", "hitos", "objetivo", "precioMedio"}
 # Un importe escrito dentro de un texto (p. ej. en un aviso): «1.234,56 €».
 _EUROS_EN_TEXTO = re.compile(r"[-+−]?\d[\d.,]*\s?€")
 
