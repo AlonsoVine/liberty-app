@@ -8,20 +8,20 @@ Capturas: `docs/estetica/capturas/<antes|vuelta1|…>/` (12 pantallas + paleta, 
 
 ## Checks objetivos
 
-| Check | Antes | Vuelta 1 | Vuelta 2 |
-|---|---|---|---|
-| pytest | verde | verde | verde |
-| npm test (jsdom) | 30/30 | 30/30 | 30/30 |
-| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) |
-| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no |
-| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 |
-| Foco visible (30 tabulaciones) | OK | OK | OK |
-| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 |
-| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 |
-| Lighthouse escritorio — Best Practices | 100 | 100 | 100 |
-| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 |
-| Lighthouse móvil — Rendimiento | 30 | 60 | 58 |
-| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 |
+| Check | Antes | Vuelta 1 | Vuelta 2 | Vuelta 3 |
+|---|---|---|---|---|
+| pytest | verde | verde | verde | verde |
+| npm test (jsdom) | 30/30 | 30/30 | 30/30 | 30/30 |
+| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) | 0 propios |
+| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no | no |
+| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 | 0 |
+| Foco visible (30 tabulaciones) | OK | OK | OK | OK (anillo opaco ≥ 3:1) |
+| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 | 90 |
+| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 | 100 |
+| Lighthouse escritorio — Best Practices | 100 | 100 | 100 | 100 |
+| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 | 0,001 |
+| Lighthouse móvil — Rendimiento | 30 | 60 | 58 | 58 |
+| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
 
 Lighthouse: mediana de 3 ejecuciones (Lighthouse 12 + Chromium de Playwright, `--preset=desktop` y móvil por defecto), contra la versión original (commit `a47c1ec`, puerto aparte) y la rama, en la misma máquina. Primera visita (muestra la bienvenida).
 
@@ -78,3 +78,43 @@ Detectado y corregido en mis propias capturas antes de pasar el árbitro:
 - Los chips de sub-pestañas tenían una sangría rara.
 - Los filtros se truncaban a 360 px.
 - La fila de botones de Ayuda quedaba fuera de la columna.
+
+## Vuelta 2 — veredicto del árbitro
+
+| Diseño | Usabilidad | Creatividad | Contenido | **Ponderada** |
+|---|---|---|---|---|
+| 7,0 | 6,5 | 5,5 | 6,5 | **6,50** (+0,45) |
+
+| # | Prioridad | Defecto | Evidencia |
+|---|---|---|---|
+| 1 | Bloqueante | El odómetro no se ve: Inicio se pinta dos veces (~100 ms) y la entrada «sube y baja» la opacidad; el de Cartera se gasta en segundo plano. | `app.js` odómetro y ensamblado de Inicio |
+| 2 | Mayor | Anillo de foco en claro < 3:1 (`--s1` al 65 %). | `index.html:66` |
+| 3 | Mayor | Móvil: ~3 pantallas antes del primer dato; la «i» suelta entre las filas de pestañas. | `01-inicio_390_claro.jpg` |
+| 4 | Mayor | Dos verdes para «ingresos» (series en `--s6 #008300`, cifras en `--bien`). | `07-ingresos_1440_oscuro.jpg` |
+| 5 | Mayor | Inicio repite tres rejillas de baldosas iguales. | `01-inicio_1440_oscuro.jpg` |
+| 6 | Menor | Distribución: el anillo flota en una columna ancha. | `03-distribucion_1440_claro.jpg` |
+| 7 | Menor | Inmuebles a 768: hueco en la rejilla 4+3. | `08-inmuebles_768_claro.jpg` |
+| 8 | Menor | Trazado de líneas con `stroke-dashoffset` anulado (código muerto). | `graficos.js:108` |
+| 9 | Menor | Durante el odómetro los dígitos están en `visibility:hidden` (el lector de pantalla no lee la cifra). | `index.html` `.odoD` |
+| — | Contenido | «2.1 años» con punto; «+59.933,19 €» con céntimos; «⬇» en el texto de Ayuda. | `app.js:3158`, `index.html:2553` |
+
+### Qué se corrigió tras la vuelta 2
+
+| # | Corrección |
+|---|---|
+| 1 | Causa del doble pintado: el precio en vivo de Bitcoin llega a los ~150 ms y repinta la vista. Ahora el odómetro guarda cuándo empezó y, si la vista se repinta a mitad, el nodo nuevo **continúa** el giro con un retardo negativo. Solo arranca con la cifra pintada y a la vista (`IntersectionObserver`), así que el de Cartera gira al abrir Cartera. La entrada escalonada hace lo mismo con un `MutationObserver` durante su ventana. Fuera el «ensamblado» propio de Inicio, que la duplicaba. Medido: la opacidad sube de forma monótona y los dígitos giran (`translateY` de 0 a −132 px). |
+| 2 | Anillo de foco opaco en `--s1` (≥ 3:1 en claro y oscuro). |
+| 3 | Móvil: chips más compactos, la «i» arriba a la derecha de las pestañas, aviso legal en 11 px, filas de avisos más bajas y «Ver →» reducido a la flecha (la fila entera es el botón). |
+| 4 | Token `--ingreso` (= `--bien`) en todas las series de ingresos; `--s6` queda para la paleta categórica, porque igualarlo chocaría con `--s3`. |
+| 5 | Inicio con tres ritmos: baldosas en «Tu cartera», estado de cuentas en filas en «Ingresos y gastos» y «Tus inmuebles», y tira de indicadores con filetes en «Tu constancia». |
+| 6 | Distribución: el anillo y su leyenda, centrados juntos. |
+| 7 | Inmuebles: 4 columnas con la última cifra ocupando el hueco (2 columnas en móvil). |
+| 8 | El trazado de líneas pasa a un fundido de opacidad real. |
+| 9 | Dígitos con `-webkit-text-fill-color:transparent` en vez de `visibility:hidden`: la cifra sigue en el árbol de accesibilidad. |
+| — | «2,1 años» con formato español; variación desde el inicio sin céntimos; Ayuda sin «⬇». |
+
+No se cambia:
+- «8052 €» sin separador de miles: es la norma española (RAE/Intl `es-ES`: sin separador en números de 4 cifras).
+- Los 0 € del mes actual: son datos del ejemplo y el mes acaba de empezar.
+
+Detectado y corregido en mis capturas: en móvil, la rejilla de filtros anulaba su ocultación en Inicio.

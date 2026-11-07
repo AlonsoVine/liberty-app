@@ -136,3 +136,21 @@ Se conserva la identidad (neutros cálidos `#0d0d0d / #f9f9f7`, azul de marca, p
   - `<noscript>` lo muestra sin JS.
   - Una red de seguridad lo muestra a los 2 s aunque falle el script.
   - Se quitó el preload de Fraunces para no competir con la fuente de texto.
+
+## Decisiones de la vuelta 3 (tras el árbitro 2)
+
+- **Movimiento resistente a repintados.**
+  - La app repinta la vista visible cuando llega el precio en vivo de Bitcoin (~150 ms tras cargar) y cada 60 s.
+  - Las animaciones de entrada no pueden depender de que el DOM no cambie. Por eso el odómetro y la entrada escalonada recuerdan cuándo empezaron y los nodos nuevos retoman la animación con un retardo negativo.
+  - Así no se reinicia nada ni hay parpadeos.
+- **El odómetro solo gira a la vista** (`IntersectionObserver`). Con «menos movimiento», texto plano.
+- **Inicio con jerarquía por ritmo, no por cajas.** Cada módulo tiene una forma que dice lo que es:
+  - las baldosas son atajos para navegar («Tu cartera»);
+  - las filas tipo estado de cuentas son cifras para leer («Ingresos y gastos», «Tus inmuebles»);
+  - la tira con filetes es un marcador («Tu constancia»).
+- **Token `--ingreso`** para todo lo que significa «ingreso», separado de la paleta categórica de las series.
+- **Foco:** anillo opaco en `--s1`; la transparencia lo dejaba por debajo de 3:1 en claro.
+- **Móvil:**
+  - Se mantienen todas las pestañas visibles: el árbitro 1 consideró bloqueante esconderlas en un carril.
+  - En su lugar se compactan, y la ayuda «i» pasa a la esquina.
+  - Los avisos siguen desplegados por defecto (comportamiento existente; el usuario los pliega y se recuerda), pero sus filas son más bajas.

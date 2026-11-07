@@ -22,21 +22,41 @@
   // mecánico, en cascada de derecha a izquierda (solo transform). El texto del nodo es siempre
   // la cifra final (lectores de pantalla, copiar y pegar y los tests leen lo mismo); el rodillo
   // es un pseudo-elemento. Con «menos movimiento» o importes ocultos, texto plano.
-  const _contado = new Set();
+  // El giro dura ~1,5 s y es continuo aunque la vista se repinte a mitad (p. ej. al llegar el
+  // precio en vivo): el nodo nuevo retoma el giro donde iba (retardo negativo) en vez de
+  // empezar de cero. Solo arranca cuando la cifra está pintada y a la vista.
+  const _odo = new Map();          // clave → instante en que empezó a girar
+  const ODO_DURA = 1600;
+  const _odoIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => {
+    if (e.isIntersecting && e.target._odoArranca) e.target._odoArranca();
+  })) : null;
   function odometro(node, clave, texto) {
     if (!node) return;
-    if (window.SIN_MOV || _contado.has(clave) || !/\d/.test(texto)) { node.textContent = texto; return; }
-    _contado.add(clave);
+    const t0 = _odo.get(clave);
+    if (window.SIN_MOV || !/\d/.test(texto) || (t0 && performance.now() - t0 > ODO_DURA)) {
+      node.textContent = texto; node.classList.remove("odo", "odoIni"); return;
+    }
     const cs = [...texto];
     let k = cs.filter(c => /\d/.test(c)).length;
     node.innerHTML = cs.map(c => /\d/.test(c)
       ? `<span class="odoD" style="--d:${c};--k:${--k}">${c}</span>`
       : `<span class="odoS">${c === " " ? "&nbsp;" : c}</span>`).join("");
     node.classList.add("odo", "odoIni");
-    void node.offsetWidth;
-    requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("odoIni")));
-    // Al terminar, vuelve a ser texto plano (sin capas extra).
-    setTimeout(() => { if (node.classList.contains("odo")) { node.textContent = texto; node.classList.remove("odo"); } }, 2200);
+    const fin = () => { if (node.classList.contains("odo")) { node.textContent = texto; node.classList.remove("odo", "odoIni"); } };
+    const arranca = () => {
+      const env = document.querySelector("body > .env");
+      if (env && !env.classList.contains("listo")) { setTimeout(arranca, 60); return; }
+      if (!node.isConnected || !node.classList.contains("odoIni") || node.offsetParent === null) return;
+      node._odoArranca = null; if (_odoIO) _odoIO.unobserve(node);
+      if (!_odo.has(clave)) _odo.set(clave, performance.now());
+      const ya = performance.now() - _odo.get(clave);
+      node.style.setProperty("--odoDesf", Math.round(ya) + "ms");
+      void node.offsetWidth;
+      requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("odoIni")));
+      setTimeout(fin, Math.max(0, ODO_DURA + 600 - ya));
+    };
+    node._odoArranca = arranca;
+    if (_odoIO) _odoIO.observe(node); else arranca();
   }
   function contarUnaVez(node, clave, objetivo, fmt) {
     if (!node) return;
@@ -75,10 +95,25 @@
     if (!hijos.length) return;
     hijos.forEach((h, i) => h.style.setProperty("--i", Math.min(i, 8)));
     tgt.classList.remove("entrando");
+    tgt.style.removeProperty("--entDesf");
     void tgt.offsetWidth;                 // reinicia la animación aunque se repita rápido
     tgt.classList.add("entrando");
+    const t0 = performance.now();
+    // Si la vista se repinta mientras entra (p. ej. al llegar el precio en vivo), los bloques
+    // nuevos retoman la entrada donde iba en lugar de volver a opacidad 0.
+    if (tgt._moEntra) tgt._moEntra.disconnect();
+    if ("MutationObserver" in window) {
+      tgt._moEntra = new MutationObserver(() => {
+        tgt.style.setProperty("--entDesf", Math.round(performance.now() - t0) + "ms");
+        [...tgt.children].forEach((h, i) => h.style.setProperty("--i", Math.min(i, 8)));
+      });
+      tgt._moEntra.observe(tgt, { childList: true });
+    }
     clearTimeout(tgt._tEntra);
-    tgt._tEntra = setTimeout(() => tgt.classList.remove("entrando"), 1100);
+    tgt._tEntra = setTimeout(() => {
+      tgt.classList.remove("entrando"); tgt.style.removeProperty("--entDesf");
+      if (tgt._moEntra) { tgt._moEntra.disconnect(); tgt._moEntra = null; }
+    }, 650);
   }
 
   // Primera pintura: el contenido principal se muestra cuando ya está pintado con los datos
@@ -1526,7 +1561,7 @@
         { e: "Apuntes", v: String(aps.length), n: `de ${lb.n} en total` },
       ])}</div>
       <div class="inmBarras" id="inmFichaBarras"></div>
-      <div class="irLeyenda"><span><i style="background:${G.css("--s6")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div>
+      <div class="irLeyenda"><span><i style="background:${G.css("--ingreso")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div>
       <h3 class="secc">Por categoría</h3>
       ${filasCat ? `<div class="tablaEnv"><table class="dt"><thead><tr><th>Categoría</th><th>Tipo</th><th style="text-align:right">Importe</th><th style="text-align:right">Apuntes</th></tr></thead><tbody>${filasCat}</tbody></table></div>` : vacio}
       <h3 class="secc">Apuntes del periodo</h3>
@@ -1538,7 +1573,7 @@
         G.barrasAgrupadas(bar, {
           categorias: grupos.map(g => porAnio ? g : G.fmtMes(g)), alto: 200,
           series: [
-            { nombre: "Ingresos", color: G.css("--s6"), valores: sIng.map(v => Math.round(v * 100) / 100) },
+            { nombre: "Ingresos", color: G.css("--ingreso"), valores: sIng.map(v => Math.round(v * 100) / 100) },
             { nombre: "Gastos", color: G.css("--s8"), valores: sGas.map(v => Math.round(v * 100) / 100) },
           ],
           formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v),
@@ -1695,7 +1730,7 @@
     G.multiLinea(cont, {
       fechas: f.meses.map(m => m + "-01"), alto: 240, desdeCero: true,
       series: [
-        { nombre: "Ingresos", color: G.css("--s6"), valores: f.ingresos },
+        { nombre: "Ingresos", color: G.css("--ingreso"), valores: f.ingresos },
         { nombre: "Gastos", color: G.css("--s8"), valores: f.gastos },
         { nombre: "Ahorro", color: G.css("--s1"), valores: f.ahorro, destacado: true },
       ],
@@ -2012,12 +2047,12 @@
     G.barrasAgrupadas(cont, {
       categorias: pt.map(x => x.titular), alto: 240,
       series: [
-        { nombre: "Ingresos", color: G.css("--s6"), valores: pt.map(x => x.total12.ingresos) },
+        { nombre: "Ingresos", color: G.css("--ingreso"), valores: pt.map(x => x.total12.ingresos) },
         { nombre: "Gastos", color: G.css("--s8"), valores: pt.map(x => x.total12.gastos) },
       ],
       formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v),
     });
-    $("#legTitular").innerHTML = `<span><i style="background:${G.css("--s6")}"></i>Ingresos</span>
+    $("#legTitular").innerHTML = `<span><i style="background:${G.css("--ingreso")}"></i>Ingresos</span>
       <span><i style="background:${G.css("--s8")}"></i>Gastos</span>`;
   }
 
@@ -2041,7 +2076,7 @@
     G.mapaCalor($("#grafHeatmap"), {
       filas: cats.slice(0, 12).map(c => ({ nombre: c.categoria, valores: c.serie })),
       columnas: f.meses.map(m => G.fmtMes(m)),
-      color: tipo === "gasto" ? G.css("--mal") : G.css("--s6"),
+      color: tipo === "gasto" ? G.css("--mal") : G.css("--ingreso"),
       formatoValor: v => G.fmtEur(v, 0),
     });
   }
@@ -2858,7 +2893,6 @@
   /* ================================================================
      PANEL · INICIO (resumen de un vistazo de TODA la app)
      ================================================================ */
-  let _inicioAnimado = false;
   /* ---- Inicio a tu gusto (ADR 0036) ----
      Las cards de Inicio se pueden reordenar, ocultar y poner a media anchura, y hay un modo
      compacto (solo las cifras, sin gráficos). Se guarda en la cartera (config.inicio): es el
@@ -3052,7 +3086,7 @@
     const limpios = serieNeto.filter(v => v != null);
     const deltaVida = limpios.length >= 2 ? limpios[limpios.length - 1] - limpios[0] : null;
     const deltaBadge = deltaVida != null
-      ? `<span class="spDelta ${deltaVida >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(deltaVida)} desde el inicio</span>` : "";
+      ? `<span class="spDelta ${deltaVida >= 0 ? "pos" : "neg"}">${G.fmtEurSigno(deltaVida, 0)} desde el inicio</span>` : "";
     const hitos = (t.hitos || []).slice().sort((a, b) => a.importe - b.importe);
     const sigHito = hitos.find(h => h.fecha == null);
     const metaImporte = sigHito ? sigHito.importe
@@ -3155,7 +3189,7 @@
     const pctAp = transcurridos > 0 ? Math.min(1, mesesApunte.size / transcurridos) : 0;
     // Trayectoria: dos lecturas del mismo dato (años como cifra grande + días en detalle).
     const anios = dias != null ? dias / 365 : null;
-    const trayVal = dias == null ? "—" : (anios >= 1 ? anios.toFixed(1) : anios.toFixed(2));
+    const trayVal = dias == null ? "—" : (anios.toLocaleString("es-ES", { minimumFractionDigits: anios >= 1 ? 1 : 2, maximumFractionDigits: anios >= 1 ? 1 : 2 }));
     const traySub = dias == null ? "sin histórico aún" : (anios === 1 ? "año siguiéndote" : "años siguiéndote");
     const trayExtra = dias == null ? "" : `${G.nfNum.format(dias)} días`;
     B.constancia = `<section class="tarjeta hud">
@@ -3245,7 +3279,7 @@
           <div class="megaGraf">
             <span class="irEtq">Ingresos y gastos (últimos meses)</span>
             <div class="inicioBarras" id="inicioBarras"></div>
-            <div class="irLeyenda"><span><i style="background:${G.css("--s6")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div>
+            <div class="irLeyenda"><span><i style="background:${G.css("--ingreso")}"></i>Ingresos</span><span><i style="background:${G.css("--s8")}"></i>Gastos</span></div>
           </div>
         </div>
       </section>`;
@@ -3308,22 +3342,6 @@
     cont.innerHTML = montaInicio(B, LI);
     cableaPersonalizar(cont, m);
 
-    // Ensamblado: las tarjetas de Inicio aparecen escalonadas, solo la primera vez por
-    // carga (al cambiar de pestaña ya hay crossfade, así que no se solapan). La opacidad
-    // no afecta al layout, por lo que los gráficos de dentro siguen midiéndose bien.
-    if (!window.SIN_MOV && !window.ESTATICO && !_inicioAnimado) {
-      _inicioAnimado = true;
-      const hijos = [...cont.children];
-      hijos.forEach((el, i) => {
-        const dl = Math.min(i * 0.07, 0.5);
-        el.style.opacity = "0";
-        el.style.transform = "translateY(10px)";
-        el.style.transition = `opacity .45s var(--ease) ${dl}s, transform .45s var(--ease) ${dl}s`;
-      });
-      requestAnimationFrame(() => hijos.forEach(el => { el.style.opacity = ""; el.style.transform = ""; }));
-      setTimeout(() => hijos.forEach(el => { el.style.transition = ""; }), 1200);
-    }
-
     // Barra de objetivo de Inicio: se rellena desde 0 la primera vez (luego directa) y
     // el faro aterriza en la punta al acabar.
     const pc = cont.querySelector(".ptCifra");
@@ -3373,7 +3391,7 @@
         G.barrasAgrupadas(bar, {
           categorias: fl.meses.slice(i0).map(mm => G.fmtMes(mm)), alto: 210,
           series: [
-            { nombre: "Ingresos", color: G.css("--s6"), valores: fl.ingresos.slice(i0) },
+            { nombre: "Ingresos", color: G.css("--ingreso"), valores: fl.ingresos.slice(i0) },
             { nombre: "Gastos", color: G.css("--s8"), valores: fl.gastos.slice(i0) },
           ],
           formatoY: v => G.fmtEurCorto(v), formatoValor: v => G.fmtEur(v),
