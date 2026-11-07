@@ -18,19 +18,29 @@
   // Cuenta ascendente para las cifras grandes, SOLO la primera vez que aparecen en esta
   // carga (no en cada re-render por filtro) y respetando «menos movimiento». `fmt` da el
   // texto final (p. ej. G.fmtEur), así que oculta-importes y nulos se comportan igual.
+  // «Odómetro»: la primera vez, cada cifra gira desde 0 hasta su valor como un contador
+  // mecánico, en cascada de derecha a izquierda (solo transform). El texto del nodo es siempre
+  // la cifra final (lectores de pantalla, copiar y pegar y los tests leen lo mismo); el rodillo
+  // es un pseudo-elemento. Con «menos movimiento» o importes ocultos, texto plano.
   const _contado = new Set();
-  function contarUnaVez(node, clave, objetivo, fmt, dur) {
+  function odometro(node, clave, texto) {
     if (!node) return;
-    if (window.SIN_MOV || _contado.has(clave) || objetivo == null || isNaN(objetivo)) {
-      node.textContent = fmt(objetivo); return;
-    }
+    if (window.SIN_MOV || _contado.has(clave) || !/\d/.test(texto)) { node.textContent = texto; return; }
     _contado.add(clave);
-    const t0 = performance.now(), D0 = dur || 650;
-    (function paso(t) {
-      const p = Math.min(1, (t - t0) / D0);
-      node.textContent = fmt(objetivo * (1 - Math.pow(1 - p, 3)));   // easeOutCubic desde 0
-      if (p < 1) requestAnimationFrame(paso); else node.textContent = fmt(objetivo);
-    })(t0);
+    const cs = [...texto];
+    let k = cs.filter(c => /\d/.test(c)).length;
+    node.innerHTML = cs.map(c => /\d/.test(c)
+      ? `<span class="odoD" style="--d:${c};--k:${--k}">${c}</span>`
+      : `<span class="odoS">${c === " " ? "&nbsp;" : c}</span>`).join("");
+    node.classList.add("odo", "odoIni");
+    void node.offsetWidth;
+    requestAnimationFrame(() => requestAnimationFrame(() => node.classList.remove("odoIni")));
+    // Al terminar, vuelve a ser texto plano (sin capas extra).
+    setTimeout(() => { if (node.classList.contains("odo")) { node.textContent = texto; node.classList.remove("odo"); } }, 2200);
+  }
+  function contarUnaVez(node, clave, objetivo, fmt) {
+    if (!node) return;
+    odometro(node, clave, fmt(objetivo));
   }
 
   // Faro de la barra de objetivo: cuando la barra termina de rellenarse, un resplandor
@@ -133,6 +143,33 @@
     importar: '<path d="M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5"/><path d="M4 20.5h16"/>',
     balanza: '<path d="M12 4v16M7 20h10M4.5 7.5h15"/><path d="M4.5 7.5 2 13.5a2.6 2.6 0 0 0 5 0zM19.5 7.5 17 13.5a2.6 2.6 0 0 0 5 0z"/>',
     flecha: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    flechaIzq: '<path d="M19 12H5M11 6l-6 6 6 6"/>',
+    externo: '<path d="M14 4h6v6M20 4l-9 9"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+    cerrar: '<path d="M6 6l12 12M18 6 6 18"/>',
+    check: '<path d="m5 12.5 4.5 4.5L19 7.5"/>',
+    deshacer: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+    descargar: '<path d="M12 4v11M7 10.5l5 5 5-5"/><path d="M5 20h14"/>',
+    subir: '<path d="M12 20V9M7 13.5l5-5 5 5"/><path d="M5 4h14"/>',
+    ordenar: '<path d="M8 4v16M4.5 7.5 8 4l3.5 3.5M16 20V4M12.5 16.5 16 20l3.5-3.5"/>',
+    papelera: '<path d="M4 7h16M9.5 7V4.5h5V7"/><path d="M6.5 7l.9 12.2a1 1 0 0 0 1 .8h7.2a1 1 0 0 0 1-.8L17.5 7"/>',
+    clip: '<path d="m20 11.5-8.2 8.2a5 5 0 0 1-7.1-7.1L13 4.3a3.3 3.3 0 0 1 4.7 4.7l-8.2 8.2a1.7 1.7 0 0 1-2.4-2.4l7.6-7.6"/>',
+    tablero: '<rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M9.5 4v16M15 4v16"/>',
+    globo: '<circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c2.5 2.6 3.6 5.4 3.6 8.5s-1.1 5.9-3.6 8.5c-2.5-2.6-3.6-5.4-3.6-8.5S9.5 6.1 12 3.5z"/>',
+    enlace: '<path d="M10 14a4.5 4.5 0 0 0 6.4 0l3-3a4.5 4.5 0 0 0-6.4-6.4l-1.2 1.2"/><path d="M14 10a4.5 4.5 0 0 0-6.4 0l-3 3a4.5 4.5 0 0 0 6.4 6.4l1.2-1.2"/>',
+    brujula: '<circle cx="12" cy="12" r="8.5"/><path d="m15.5 8.5-2 5-5 2 2-5z"/>',
+    matraz: '<path d="M9.5 3.5h5M10 3.5v6L4.8 18.2A1.5 1.5 0 0 0 6.1 20.5h11.8a1.5 1.5 0 0 0 1.3-2.3L14 9.5v-6"/><path d="M7.5 15h9"/>',
+    play: '<circle cx="12" cy="12" r="8.5"/><path d="M10 8.8v6.4l5.2-3.2z"/>',
+    documento: '<path d="M6 3.5h8l4 4v13H6z"/><path d="M14 3.5v4h4M9 12h6M9 16h6"/>',
+    bombilla: '<path d="M9 18h6M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.2 1.1 2V16h5v-.2c.1-.8.5-1.5 1.1-2A6 6 0 0 0 12 3z"/>',
+    chincheta: '<path d="M9 4h6l-1 6 3 3v1.5H7V13l3-3z"/><path d="M12 14.5V21"/>',
+    repetir: '<path d="M4 11V9.5A3.5 3.5 0 0 1 7.5 6H19l-3-3M20 13v1.5a3.5 3.5 0 0 1-3.5 3.5H5l3 3"/>',
+    ojo: '<path d="M2.5 12s3.5-6.5 9.5-6.5 9.5 6.5 9.5 6.5-3.5 6.5-9.5 6.5S2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>',
+    telefono: '<path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a1.5 1.5 0 0 1-1.6 1.5A16 16 0 0 1 3.5 5.6 1.5 1.5 0 0 1 5 4z"/>',
+    correo: '<rect x="3" y="5.5" width="18" height="13" rx="2"/><path d="m3.5 7 8.5 6.5L20.5 7"/>',
+    persona: '<circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c.8-3.8 3.8-6 7.5-6s6.7 2.2 7.5 6"/>',
+    anillo: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5V8M19.4 16.2l-3.9-2.2"/>',
+    candado: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>',
+    mano: '<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11V6.5a1.5 1.5 0 0 1 3 0V14a6.5 6.5 0 0 1-6.5 6.5h-.3a6 6 0 0 1-4.6-2.2L3.4 15a1.6 1.6 0 0 1 2.4-2l2.2 2"/>',
   };
   const ICO = {};
   Object.keys(_P).forEach(k => {
@@ -147,9 +184,54 @@
     "🛟": "salvavidas", "🐷": "ahorro", "📐": "escuadra", "💶": "billete", "💰": "billete", "🧾": "recibo",
     "⚠️": "alerta", "📅": "calendario", "🗓️": "calendario", "💳": "tarjeta", "🔔": "campana", "ℹ️": "info",
     "🕊️": "horizonte", "⚡": "rayo", "📥": "importar", "⚖️": "balanza",
+    "←": "flechaIzq", "→": "flecha", "↗": "externo", "✕": "cerrar", "✓": "check", "✅": "check", "☑": "check",
+    "↩": "deshacer", "↺": "refrescar", "⬇": "descargar", "⬆": "subir", "↕": "ordenar", "✎": "lapiz", "⚠": "alerta",
+    "🗑": "papelera", "📁": "carpeta", "📎": "clip", "📋": "tablero", "📓": "libreta", "🌐": "globo",
+    "🔗": "enlace", "🧭": "brujula", "🧪": "matraz", "▶": "play", "📄": "documento", "📑": "documento",
+    "💡": "bombilla", "🗄": "caja", "📌": "chincheta", "🔁": "repetir", "👁": "ojo",
+    "🪪": "tarjeta", "📞": "telefono", "✉": "correo", "👤": "persona", "ⓘ": "info", "👋": "mano",
+    "🏘": "casa", "🔒": "candado",
   };
-  const ico = x => ICO[x] || ICO[_EMO[x]] || x;
+  const ico = x => ICO[x] || ICO[_EMO[x]] || ICO[_EMO[String(x).replace(/️/g, "")]] || x;
   window.ICO = ICO; window.ico = ico;
+
+  /* Iconizador: en controles y títulos (botones, encabezados, etiquetas, chips…), el emoji del
+     PRINCIPIO del texto que hacía de icono se sustituye por su icono de línea. Se aplica a todo
+     lo que se pinte (también lo de editor.js) con un MutationObserver, sin tocar el texto del
+     usuario, las notas, los <option> ni los campos editables. El texto accesible no cambia
+     (el icono va con aria-hidden). */
+  const _SEL_ICONIZA = "button, a.btn, .btn, h2, h3, h4, summary, .secc, label, b, strong, .alEst, .avisoHasta, .pieNueva, " +
+    ".novVer, .ayudaNota, .ordenaHint, .inmDocTit, .filtroTitulo, .recChip, .notaChipA, .calChip, .webOficial, .rmHacerEt";
+  const _NO_ICONIZA = ".marcaMenu, .marcaBtn, .marcaOpt, .kTxt, .notaTxt, .obsTxt, .notaTit, textarea, select, option, [contenteditable], .palLbl, .toast";
+  const _RE_EMO = /^(\s*)((?:\p{Extended_Pictographic}|[←→↗↩↺↕⬇⬆✓✕✎☑ⓘ▶⚠])️?)\s*/u;
+  function iconizaUno(el) {
+    const t = el.firstChild;
+    if (!t || t.nodeType !== 3 || el.closest(_NO_ICONIZA)) return;
+    const m = _RE_EMO.exec(t.nodeValue);
+    if (!m) return;
+    const svg = ico(m[2]);
+    if (svg === m[2]) return;                       // sin icono equivalente: se deja tal cual
+    t.nodeValue = t.nodeValue.slice(m[0].length);
+    const sp = document.createElement("span");
+    sp.className = "icoAuto"; sp.setAttribute("aria-hidden", "true"); sp.innerHTML = svg;
+    el.insertBefore(sp, t);
+  }
+  function iconiza(raiz) {
+    if (!raiz || raiz.nodeType !== 1) return;
+    if (raiz.matches(_SEL_ICONIZA)) iconizaUno(raiz);
+    raiz.querySelectorAll(_SEL_ICONIZA).forEach(iconizaUno);
+  }
+  window.iconiza = iconiza;
+  if (window.MutationObserver) {
+    new MutationObserver(regs => {
+      for (const r of regs) {
+        if (r.type !== "childList") continue;
+        r.addedNodes.forEach(n => iconiza(n));
+        if (r.target.nodeType === 1 && r.target.matches(_SEL_ICONIZA)) iconizaUno(r.target);
+      }
+    }).observe(document.body, { childList: true, subtree: true });
+  }
+  iconiza(document.body);
 
   // Aviso breve (toast) que aparece y se va solo, para confirmar acciones. El 2.º
   // argumento (opcional) tiñe el acento lateral: "ok" | "aviso" | "error".
@@ -208,13 +290,8 @@
   function aplicaPrefs() {
     const t = pref("tema", "oscuro");
     const nuevoTema = t === "auto" ? (sistemaOscuro() ? "oscuro" : "claro") : t;
-    // Crossfade breve SOLO al cambiar de tema (no en la primera carga ni con menos
-    // movimiento): una clase temporal activa la transición de color y se quita sola.
-    if (_temaPrev !== null && nuevoTema !== _temaPrev && !window.SIN_MOV) {
-      raiz.classList.add("temaAnim");
-      clearTimeout(aplicaPrefs._t);
-      aplicaPrefs._t = setTimeout(() => raiz.classList.remove("temaAnim"), 450);
-    }
+    // El fundido al cambiar de tema lo hace la View Transitions API (ver el botón de Ajustes):
+    // funde dos instantáneas por opacidad, sin animar colores.
     _temaPrev = nuevoTema;
     raiz.dataset.tema = nuevoTema;
     const tx = pref("texto", "normal");
@@ -335,8 +412,10 @@
         b.onclick = () => {
           recuerda.guarda("patrimonio." + nombre, b.dataset.val);
           bar.querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
-          aplicaPrefs();
-          if (_repinta) _repinta();
+          const aplica = () => { aplicaPrefs(); if (_repinta) _repinta(); };
+          // Cambiar de tema: fundido entre la foto de antes y la de después (solo opacidad).
+          if (nombre === "tema" && document.startViewTransition && !window.SIN_MOV) document.startViewTransition(aplica);
+          else aplica();
         };
       });
     });
@@ -2299,6 +2378,7 @@
       const b = document.createElement("button");
       b.className = "chip" + (oculto ? " apagado" : "");
       b.style.setProperty("--c", color(p));
+      b.style.setProperty("--peso", Math.max(0, Math.min(1, p.peso || 0)).toFixed(4));   // barra de peso relativo
       const plTarjeta = plusvaliaDe(p);
       const rent = plTarjeta ? plTarjeta.pct : null;
       b.innerHTML = `<span class="barra"></span>
@@ -3246,6 +3326,8 @@
 
     // Barra de objetivo de Inicio: se rellena desde 0 la primera vez (luego directa) y
     // el faro aterriza en la punta al acabar.
+    const pc = cont.querySelector(".ptCifra");
+    if (pc) odometro(pc, "ptCifra", pc.textContent);
     const pf = cont.querySelector(".inicioProg .progRelleno");
     if (pf) {
       const pct = (parseFloat(pf.dataset.pct) || 0) / 100;
@@ -4716,7 +4798,8 @@
     const irPanel = pv => () => { if (estado.tab !== "panel") irA("panel"); irVista(pv); };
     const irDatos = v => () => { irA("datos"); if (window.Editor && window.Editor.ir) window.Editor.ir(v); };
     const pvN = { inicio: "Inicio", patrimonio: "Cartera", distribucion: "Distribución", rentabilidad: "Rentabilidad", evolucion: "Evolución", ingresos: "Ingresos y gastos", deudas: "Deudas y vencimientos", fiscal: "Informe fiscal", inmuebles: "Inmuebles" };
-    Object.entries(pvN).forEach(([pv, nm]) => { if (document.getElementById("pv-" + pv)) c.push({ ico: "📊", label: "Panel · " + nm, hint: "ver", run: irPanel(pv) }); });
+    const pvIco = { inicio: "casa", patrimonio: "maletin", distribucion: "anillo", rentabilidad: "tendencia", evolucion: "grafico", ingresos: "billete", deudas: "banco", fiscal: "recibo", inmuebles: "edificio" };
+    Object.entries(pvN).forEach(([pv, nm]) => { if (document.getElementById("pv-" + pv)) c.push({ ico: pvIco[pv] || "📊", label: "Panel · " + nm, hint: "ver", run: irPanel(pv) }); });
     c.push({ ico: "⚡", label: "Anotar un gasto o ingreso", hint: "acción", run: irDatos("flujos") });
     c.push({ ico: "➕", label: "Añadir un activo", hint: "acción", run: irDatos("activos") });
     c.push({ ico: "📥", label: "Importar datos", hint: "acción", run: irDatos("importar") });
@@ -4775,7 +4858,12 @@
 
   _repinta = () => { try { pintar(); } catch (e) { /* al cambiar un ajuste */ } };
   if ($("#btnImprimir")) $("#btnImprimir").onclick = () => menuImprimir();
-  if ($("#btnPaleta")) $("#btnPaleta").onclick = () => abrePaleta();
+  if ($("#btnPaleta")) {
+    $("#btnPaleta").onclick = () => abrePaleta();
+    // El atajo que se enseña es el de tu sistema: ⌘K en Mac, Ctrl K en el resto.
+    const kb = $("#btnPaleta kbd"), mac = /Mac|iPhone|iPad/.test(navigator.platform || navigator.userAgent || "");
+    if (kb) kb.textContent = mac ? "⌘K" : "Ctrl K";
+  }
   if ($("#btnPrecios")) $("#btnPrecios").onclick = async () => {
     const b = $("#btnPrecios");
     b.disabled = true;
