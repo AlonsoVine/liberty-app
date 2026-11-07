@@ -8,20 +8,20 @@ Capturas: `docs/estetica/capturas/<antes|vuelta1|…>/` (12 pantallas + paleta, 
 
 ## Checks objetivos
 
-| Check | Antes | Vuelta 1 | Vuelta 2 | Vuelta 3 | Vuelta 4 |
-|---|---|---|---|---|---|
-| pytest | verde | verde | verde | verde | verde |
-| npm test (jsdom) | 30/30 | 30/30 | 30/30 | 30/30 | 30/30 |
-| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) | 0 propios | 0 propios |
-| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no | no | no |
-| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 | 0 | 0 (también en los diálogos de ayuda abiertos) |
-| Foco visible (30 tabulaciones) | OK | OK | OK | OK (anillo opaco ≥ 3:1) | OK |
-| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 | 90 | 90 |
-| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 | 100 | 100 |
-| Lighthouse escritorio — Best Practices | 100 | 100 | 100 | 100 | 100 |
-| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 | 0,001 | 0,001 |
-| Lighthouse móvil — Rendimiento | 30 | 60 | 58 | 58 | 57 |
-| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
+| Check | Antes | Vuelta 1 | Vuelta 2 | Vuelta 3 | Vuelta 4 | Vuelta 5 |
+|---|---|---|---|---|---|---|
+| pytest | verde | verde | verde | verde | verde | verde |
+| npm test (jsdom) | 30/30 | 30/30 | 30/30 | 30/30 | 30/30 | 30/30 |
+| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) | 0 propios | 0 propios | 0 propios |
+| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no | no | no | no |
+| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 | 0 | 0 (también en los diálogos de ayuda abiertos) | 0 (también en los diálogos de ayuda) |
+| Foco visible (30 tabulaciones) | OK | OK | OK | OK (anillo opaco ≥ 3:1) | OK | OK |
+| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 | 90 | 90 | 90 |
+| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 | 100 | 100 | 100 |
+| Lighthouse escritorio — Best Practices | 100 | 100 | 100 | 100 | 100 | 100 |
+| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 | 0,001 | 0,001 | 0,001 |
+| Lighthouse móvil — Rendimiento | 30 | 60 | 58 | 58 | 57 | 57 |
+| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
 
 Lighthouse: mediana de 3 ejecuciones (Lighthouse 12 + Chromium de Playwright, `--preset=desktop` y móvil por defecto), contra la versión original (commit `a47c1ec`, puerto aparte) y la rama, en la misma máquina. Primera visita (muestra la bienvenida).
 
@@ -157,3 +157,36 @@ Detectado y corregido en mis capturas: en móvil, la rejilla de filtros anulaba 
 Detectado en mis capturas y corregido antes del árbitro:
 - La regla de subgrid de los KPI ponía la nota encima de la etiqueta en «Tu cartera hoy».
 - La opacidad de «No disponible» bajaba el contraste a 4,43:1 en claro (axe).
+
+## Vuelta 4 — veredicto del árbitro
+
+| Diseño | Usabilidad | Creatividad | Contenido | **Ponderada** |
+|---|---|---|---|---|
+| 7,5 | 7,5 | 6,5 | 7,5 | **7,30** (±0) |
+
+| # | Prioridad | Defecto | Evidencia |
+|---|---|---|---|
+| 1 | Mayor | Siguen rejillas de tarjetas idénticas: «Tu cartera» y «Tu libertad financiera» en Inicio; los 7 KPI de Inmuebles. | `01-inicio_1440_oscuro.jpg`, `08-inmuebles_1440_claro.jpg` |
+| 2 | Mayor | Emojis dentro del texto de ayuda («✎ Personalizar», «👁 para ocultarla», «→ 🏢 Inmuebles») y en las opciones «🏠 nombre» de un desplegable. | `app.js:4199, 4258, 4259, 4302, 4346, 1926` |
+| 3 | Mayor | Navegación móvil: 4 filas de chips antes del contenido. | `01-inicio_390_claro.jpg` |
+| 4 | Mayor | Sistema tipográfico a medias: Fraunces solo en títulos de 19 px; punto de miles pegado en «318.517 €». | `index.html:1766` |
+| 5 | Menor | Cifra de Cartera con céntimos frente a la misma cifra redondeada. | `02-cartera_1440_claro.jpg` |
+| 6 | Menor | La «i» sola en una fila a 768 px. | `09-misdatos_768_oscuro.jpg` |
+| 7 | Menor | Hueco sobre «Tus inmuebles» en Inicio (también en el original). | `01-inicio_1440_oscuro.jpg` |
+| 8 | Menor | CSS en capas con keyframes duplicados. | `index.html` |
+| — | Regresión | Velo cálido de «Tu constancia» en oscuro, que se lee como mancha; pestaña activa en claro con poco contraste de estado. | — |
+
+### Qué se corrigió tras la vuelta 4 (vuelta 5, la última permitida)
+
+| # | Corrección |
+|---|---|
+| 1 | «Tu cartera» de Inicio en filas de libro (las baldosas quedan solo para «Tu archivo»). «Tu libertad financiera» en tira con filetes, con la independencia como protagonista. Los 7 KPI de Inmuebles en franja con filetes (7 columnas en escritorio, 4 en tableta y 2 en móvil). |
+| 2 | Fuera los glifos del texto de ayuda («Personalizar», «el ojo», «→ Inmuebles», «con el lápiz»…) y de las opciones del desplegable. Los emojis que el usuario elige como marca (🚩⭐❗) se mantienen porque son contenido. |
+| 3 | Sub-pestañas en móvil más compactas: 3 filas en lugar de 4, con la «i» al final de la última fila. Se mantiene el flujo: el árbitro 1 consideró bloqueante el carril con pestañas ocultas. |
+| 4 | Las cifras protagonistas (patrimonio, cartera, libertad) pasan a Fraunces display (eje `opsz` 144, cifras tabulares) con tracking −0,015 em; la serifa es ya la voz de las cifras que importan y no solo de los títulos. |
+| 5 | Céntimos de la cifra protagonista un escalón por debajo y en tinta secundaria (también durante el odómetro); el texto no cambia. |
+| 6 | La «i» va anclada al final de la última fila de chips en todos los anchos ≤ 1180 px, con un hueco reservado para que no pise ninguna pestaña. |
+| 7 | `align-self:start` en la columna de «Tus inmuebles». |
+| — | Fuera el velo cálido de «Tu constancia». La pestaña activa va en tinta sólida en todos los anchos y temas. |
+
+No se cambia (8): consolidar el CSS heredado (keyframes y reglas duplicadas del original) es una refactorización sin efecto visible. Con una regla global de sistema garantizo que solo se animan `transform` y `opacity`; reescribir el CSS antiguo aumentaría el riesgo de regresión sin mejorar la apariencia.

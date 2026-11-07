@@ -170,3 +170,15 @@ Se conserva la identidad (neutros cálidos `#0d0d0d / #f9f9f7`, azul de marca, p
   - el juego de iconos crece con 17 trazos nuevos para cubrir todos los emojis que hacían de icono en la ayuda y en las novedades;
   - un emoji sin equivalente se oculta antes que mostrarse.
   - Los emojis expresivos del final de algunas frases (💪, 👌, 🎉) son contenido y se mantienen.
+
+## Decisiones de la vuelta 5 (tras el árbitro 4)
+
+- **Fraunces como voz de las cifras protagonistas.** El patrimonio de Inicio, la cartera neta y los indicadores de libertad usan Fraunces display (eje óptico al máximo, cifras de caja alta y tabulares). La serifa pasa de ser un adorno de los títulos a ser la firma de la app: las cifras que importan suenan a libro de cuentas. El resto de cifras siguen en Geist.
+- **Céntimos en segundo plano.** En la cifra protagonista los céntimos van a la mitad de tamaño y en tinta secundaria; los datos y el texto (lectores de pantalla, copiar y pegar) no cambian.
+- **Un solo lenguaje para las cifras:**
+  - las filas con filete («libro») para leer;
+  - las franjas con filetes para los indicadores;
+  - las baldosas solo para atajos («Tu archivo»).
+  No queda ninguna rejilla de tarjetas gemelas con cifras.
+- **Navegación móvil:** se mantiene el flujo de chips con todas las pestañas visibles, una decisión entre dos árbitros con criterios opuestos. Se compacta a 3 filas, y la ayuda va al final de la última fila.
+- **CSS heredado:** no se reescribe. La regla de sistema `transition-property: transform, opacity` garantiza el criterio de movimiento sin el riesgo de tocar cientos de reglas del original.

@@ -30,19 +30,32 @@
   const _odoIO = "IntersectionObserver" in window ? new IntersectionObserver(es => es.forEach(e => {
     if (e.isIntersecting && e.target._odoArranca) e.target._odoArranca();
   })) : null;
+  // En la cifra protagonista (.hCifra) los céntimos van un escalón por debajo: el texto es
+  // el mismo, solo cambia su presentación.
+  const _RE_DEC = /^(.*\d)(,\d+)(\D*)$/;
+  function pintaCifra(node, texto) {
+    const m = node.classList.contains("hCifra") && _RE_DEC.exec(texto);
+    if (!m) { node.textContent = texto; return; }
+    node.innerHTML = `${esc(m[1])}<span class="cifraDec">${esc(m[2])}</span>${esc(m[3])}`;
+  }
   function odometro(node, clave, texto) {
     if (!node) return;
     const t0 = _odo.get(clave);
     if (window.SIN_MOV || !/\d/.test(texto) || (t0 && performance.now() - t0 > ODO_DURA)) {
-      node.textContent = texto; node.classList.remove("odo", "odoIni"); return;
+      pintaCifra(node, texto); node.classList.remove("odo", "odoIni"); return;
     }
     const cs = [...texto];
     let k = cs.filter(c => /\d/.test(c)).length;
-    node.innerHTML = cs.map(c => /\d/.test(c)
-      ? `<span class="odoD" style="--d:${c};--k:${--k}">${c}</span>`
-      : `<span class="odoS">${c === " " ? "&nbsp;" : c}</span>`).join("");
+    const mDec = node.classList.contains("hCifra") && _RE_DEC.exec(texto);
+    const iDec = mDec ? mDec[1].length : Infinity, fDec = mDec ? mDec[1].length + mDec[2].length : -1;
+    node.innerHTML = cs.map((c, i) => {
+      const cl = i >= iDec && i < fDec ? " odoC" : "";
+      return /\d/.test(c)
+        ? `<span class="odoD${cl}" style="--d:${c};--k:${--k}">${c}</span>`
+        : `<span class="odoS${cl}">${c === " " ? "&nbsp;" : c}</span>`;
+    }).join("");
     node.classList.add("odo", "odoIni");
-    const fin = () => { if (node.classList.contains("odo")) { node.textContent = texto; node.classList.remove("odo", "odoIni"); } };
+    const fin = () => { if (node.classList.contains("odo")) { pintaCifra(node, texto); node.classList.remove("odo", "odoIni"); } };
     const arranca = () => {
       const env = document.querySelector("body > .env");
       if (env && !env.classList.contains("listo")) { setTimeout(arranca, 60); return; }
@@ -1382,7 +1395,7 @@
     const btnCats = ed ? `<button type="button" class="btn mini" data-f="cats">${chips ? "Cambiar categorías" : "Asociar categorías"}</button>` : "";
     let libro;
     if (!lb) {
-      libro = `<p class="ayuda inmLibroVacio">Todavía no tiene categorías asociadas. Asócialas en <b>Configuración → 🏢 Inmuebles</b> (o desde «Editar ficha»): todos los apuntes de Ingresos y gastos de esas categorías —los que ya tienes y los que importes del banco— formarán el libro de este inmueble. No se anotan dos veces ni tocan el saldo de tus cuentas.</p>
+      libro = `<p class="ayuda inmLibroVacio">Todavía no tiene categorías asociadas. Asócialas en <b>Configuración → Inmuebles</b> (o desde «Editar ficha»): todos los apuntes de Ingresos y gastos de esas categorías —los que ya tienes y los que importes del banco— formarán el libro de este inmueble. No se anotan dos veces ni tocan el saldo de tus cuentas.</p>
         ${btnCats ? `<div class="inmDocAcc">${btnCats}</div>` : ""}`;
     } else {
       // Periodo (selector propio) + cuerpo que se recalcula al cambiarlo (pintaLibroInmueble).
@@ -1923,7 +1936,7 @@
       // sin el alquiler ni los gastos del piso; o verlos solos, o los de uno.
       const sel = estado.igInm || "";
       const ops = [{ v: "__sin__", t: "Sin los de inmuebles" }, { v: "__con__", t: "Solo los de inmuebles" }]
-        .concat(D.inmuebles.lista.filter(x => (x.categorias || []).length).map(x => ({ v: x.id, t: "🏠 " + x.nombre })));
+        .concat(D.inmuebles.lista.filter(x => (x.categorias || []).length).map(x => ({ v: x.id, t: x.nombre })));
       campos.push(`<span class="filtroCampo${sel ? " activo" : ""}"><label>Inmuebles</label>
         <select data-igf="inm" aria-label="Inmuebles"><option value="">Todos los apuntes</option>${ops.map(o => `<option value="${esc(o.v)}"${o.v === sel ? " selected" : ""}>${esc(o.t)}</option>`).join("")}</select></span>`);
     }
@@ -4196,7 +4209,7 @@
       ["🏅", "Tu constancia", "Tu disciplina medida: racha de meses aportando sin fallar, ritmo medio mensual, meses con apuntes y cuánto tiempo llevas siguiéndote. Pensado para motivar el hábito, no para juzgarte."],
       ["🏠", "Tus inmuebles", "Si tienes inmuebles, un bloque propio con lo que valen, sus hipotecas, su neto y lo que te dejan en 12 meses (o cuánto se han revalorizado). Pulsa un inmueble para abrir su ficha."],
       ["🗂️", "Tu archivo y tus avisos", "Contadores de documentos, facturas, apuntes, avisos y vencimientos próximos. Cada tarjeta es un atajo: púlsala para ir directo a esa sección."],
-      ["✎", "Personaliza tu Inicio", "Con «✎ Personalizar» (arriba a la derecha) cada tarjeta lleva una barra: arrástrala por ⋮⋮ (o usa ↑ ↓) para cambiar el orden, 👁 para ocultarla (se ve en gris mientras editas) y ↔ para ponerla a media anchura y tener dos lado a lado. «Compacto» deja solo las cifras, sin gráficos, para verlo todo de un vistazo. Se guarda solo, en tu cartera: es el mismo Inicio en todos tus dispositivos y para toda la familia. «Restablecer» vuelve al de fábrica y «Listo» termina."],
+      ["✎", "Personaliza tu Inicio", "Con «Personalizar» (arriba a la derecha) cada tarjeta lleva una barra: arrástrala por ⋮⋮ (o usa ↑ ↓) para cambiar el orden, el ojo para ocultarla (se ve en gris mientras editas) y ↔ para ponerla a media anchura y tener dos lado a lado. «Compacto» deja solo las cifras, sin gráficos, para verlo todo de un vistazo. Se guarda solo, en tu cartera: es el mismo Inicio en todos tus dispositivos y para toda la familia. «Restablecer» vuelve al de fábrica y «Listo» termina."],
       ["🔔", "Caja de avisos", "Los avisos del panel van en una caja que puedes plegar pulsando su cabecera. Una vez has visto los que estás posponiendo a conciencia, contráela y se mantiene así en todas las pestañas, sin obligarte a hacer scroll. Si aparece un aviso nuevo que no habías visto, la cabecera lo marca con «nuevo» aunque esté plegada."],
     ] },
     "panel.patrimonio": { t: "Cartera", sub: "La foto de tu cartera: lo que tienes en inversiones y cuentas, lo que debes y lo que te queda libre. Tus inmuebles van aparte; el total del hogar lo ves en Inicio.", p: [
@@ -4215,7 +4228,7 @@
       ["🔍", "Filtros", "Arriba puedes acotar por titular o por un valor de cualquier dimensión, para ver el reparto de solo una parte de tu cartera."],
     ] },
     "panel.rentabilidad": { t: "Rentabilidad", sub: "Cuánto ha crecido tu dinero, bien medido.", p: [
-      ["🧮", "Tabla central (Total · Año · Mes)", "Arriba, un resumen de la cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio o acotada a un año o un mes. Pulsa una fila para abrir la ficha de ese componente (y «← Volver a Rentabilidad»)."],
+      ["🧮", "Tabla central (Total · Año · Mes)", "Arriba, un resumen de la cartera (aportado, valor, plusvalía, TIR y TWR) y una tabla por activo. Con el selector la ves desde el inicio o acotada a un año o un mes. Pulsa una fila para abrir la ficha de ese componente (y «Volver a Rentabilidad»)."],
       ["📈", "Rentabilidad, TIR y TWR", "La rentabilidad simple es lo ganado sobre lo aportado. La TIR tiene en cuenta CUÁNDO metiste cada euro (premia tu acierto al elegir el momento). La TWR mide la inversión en sí, sin ese efecto, y sirve para comparar productos entre sí."],
       ["📊", "Por año", "Una barra por cada año natural, para ver los buenos y los malos. El primer año cuenta desde tu primera compra; el año en curso va marcado como incompleto."],
       ["🧾", "Por producto", "La rentabilidad de cada componente y año, desde el precio real al que compraste y con las comisiones. Para ver qué tira y qué no."],
@@ -4255,17 +4268,17 @@
       ["📈", "Revalorización", "La diferencia entre lo que vale hoy y lo que te costó. Solo cuenta los inmuebles a los que has puesto un valor estimado: sin estimación, se toma el precio de compra y no se inventa ninguna subida."],
       ["🏦", "Hipoteca y neto", "Cada inmueble puede llevar su hipoteca (capital pendiente y cuota). El neto es lo que es realmente tuyo: el valor menos lo que aún debes. Si la enlazas con una deuda de tu cartera, verás un enlace para saltar a ella."],
       ["🏡", "Tu vivienda habitual", "Puedes marcar uno de tus inmuebles como vivienda habitual: aparece señalado y no se le piden datos de alquiler. En su ficha ves lo que te cuesta en vez de lo que te deja."],
-      ["👆", "Su ficha completa", "Pulsa una tarjeta y se abre la ficha del inmueble: sus datos, la compra y el valor, la hipoteca, su libro de ingresos y gastos y sus documentos. «✎ Editar ficha» la cambia; «← Todos los inmuebles» (o volver a pulsar «Inmuebles» arriba) te devuelve a la lista."],
-      ["📒", "Su libro de ingresos y gastos", "Son tus apuntes de Ingresos y gastos de las categorías que asocies al inmueble (en Configuración → 🏢 Inmuebles o en su ficha). Nada se anota dos veces y no cambia el saldo de tus cuentas. Verás los ingresos, gastos y neto del periodo, una gráfica mes a mes, el reparto por categoría y sus apuntes; pulsa una categoría para ver todos sus apuntes."],
+      ["👆", "Su ficha completa", "Pulsa una tarjeta y se abre la ficha del inmueble: sus datos, la compra y el valor, la hipoteca, su libro de ingresos y gastos y sus documentos. «Editar ficha» la cambia; «Todos los inmuebles» (o volver a pulsar «Inmuebles» arriba) te devuelve a la lista."],
+      ["📒", "Su libro de ingresos y gastos", "Son tus apuntes de Ingresos y gastos de las categorías que asocies al inmueble (en Configuración → Inmuebles o en su ficha). Nada se anota dos veces y no cambia el saldo de tus cuentas. Verás los ingresos, gastos y neto del periodo, una gráfica mes a mes, el reparto por categoría y sus apuntes; pulsa una categoría para ver todos sus apuntes."],
       ["📅", "Elige el periodo", "Encima del libro eliges qué fechas ver: los últimos 12 meses (por defecto), este año, el año pasado, todo o «Rango…» para ir de una fecha a otra. Todo el libro (cifras, gráfica, categorías y apuntes) se recalcula; si el periodo pasa de dos años, la gráfica va por años. La rentabilidad neta de arriba sigue siendo siempre la de 12 meses."],
       ["📈", "Evolución del valor", "En la ficha, una gráfica con lo que costó y cada valor estimado que has anotado, mes a mes. Cada vez que actualizas el valor estimado (con otra fecha), el anterior queda en el historial."],
       ["🔀", "¿Tenías el piso en la cartera?", "Si antes lo apuntaste como un activo de tipo «Inmueble», aquí te avisa y te ofrece «Pasar a Inmuebles»: sale de la cartera también hacia atrás (sus gráficas quedan solo con lo financiero), sus valores pasan a la evolución del valor y sus notas lo siguen. Así no cuenta dos veces en tu patrimonio."],
-      ["🏷️", "Filtra por categoría", "Los chips de sus categorías, encima del libro, son filtros: pulsa uno y el libro (cifras, gráfica, categorías y apuntes) se queda solo con esa categoría; pulsa varios para sumarlas y «✕ Todas» para volver a verlo entero. Se combina con el periodo y se quita al cambiar de inmueble."],
+      ["🏷️", "Filtra por categoría", "Los chips de sus categorías, encima del libro, son filtros: pulsa uno y el libro (cifras, gráfica, categorías y apuntes) se queda solo con esa categoría; pulsa varios para sumarlas y «Todas» para volver a verlo entero. Se combina con el periodo y se quita al cambiar de inmueble."],
       ["💶", "Cash-flow y rentabilidad neta", "El cash-flow es lo que te dejó el inmueble en 12 meses (ingresos − gastos de sus categorías). La rentabilidad neta lo compara con lo que te costó, gastos de compra incluidos."],
       ["👤", "Inquilinos y contratos", "En la ficha añades a cada inquilino (nombre, DNI, teléfono, correo) y, para cada uno, sus contratos: inicio y fin, renta mensual, día de cobro, fianza, cómo se actualiza la renta (IPC, IRAV o lo pactado) y en qué categoría se apunta el cobro. A ambos les puedes añadir datos propios con su nombre y uno o varios valores (avalistas, gastos incluidos, plaza de garaje…)."],
       ["📎", "El contrato firmado, adjunto", "En el formulario del contrato adjuntas el propio contrato (PDF, foto…) y sus anexos; en el del inquilino, su DNI, nóminas o aval. Hay dos maneras: «Subir desde tu ordenador» (pulsa o arrastra los archivos; se guardan en tu Biblioteca, en «Inmuebles / tu inmueble / Contratos» o «Inquilinos») o «Elegir de tu Biblioteca» uno que ya tengas allí. Arriba ves la lista de lo adjunto y lo quitas con «Quitar». En la ficha se abren con un clic."],
       ["📈", "Renta, rentabilidad bruta y ocupación", "La renta mensual suma los contratos vigentes. La rentabilidad bruta es la renta de un año sobre lo que costó el inmueble (sin descontar gastos; la neta sí los descuenta). La ocupación es la parte de tus inmuebles de inversión con un contrato vigente."],
-      ["🔔", "Avisos de tus inmuebles", "Fin de contrato, revisión anual de la renta, cobro que se acerca, alquiler sin cobrar (si pasado el día de cobro no hay ningún ingreso en su categoría) y valor estimado antiguo. Salen en la franja de avisos y abren la ficha del inmueble. Los activas y eliges su antelación en Configuración → 🏢 Inmuebles."],
+      ["🔔", "Avisos de tus inmuebles", "Fin de contrato, revisión anual de la renta, cobro que se acerca, alquiler sin cobrar (si pasado el día de cobro no hay ningún ingreso en su categoría) y valor estimado antiguo. Salen en la franja de avisos y abren la ficha del inmueble. Los activas y eliges su antelación en Configuración → Inmuebles."],
       ["🔒", "Los datos de tus inquilinos no salen de tu equipo", "Nombres, contactos y datos propios se leen de tu cartera solo cuando abres la ficha: no van en la web que exportas ni en los textos de los avisos, que solo nombran el inmueble."],
       ["📄", "Sus documentos", "Las notas de Documentos enlazadas al inmueble, con sus archivos (escrituras, contrato, recibos del IBI, el seguro…). Créalas desde la ficha o enlaza una que ya tengas; también puedes enlazarlas desde la propia nota («Relacionada con → Un inmueble»)."],
     ] },
@@ -4275,7 +4288,7 @@
       ["🧾", "Aportaciones o saldos", "Si cotiza, la lista de compras (pulsa una fila para ir a ese movimiento). Si se valora a mano, tus saldos anotados y un botón para anotar uno nuevo."],
       ["🔔", "Alertas de precio", "«Avísame si este fondo cae un 10 %»: con «＋ Nueva alerta» eliges si quieres saber cuándo su precio cae o sube un % desde una referencia (de partida, el de hoy), o cuándo baja de un importe o lo supera. En los que llevas a mano se vigila su valor. Cuando se cumple, sale un aviso en el Panel que te trae aquí; mientras, ves cuánto se ha movido. Se comprueba al actualizar los precios. Puedes apagar todas desde Configuración → Avisos."],
       ["🔀", "Cambia de componente", "Con el selector de arriba saltas a la ficha de cualquier otro componente, sin volver atrás."],
-      ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. El botón «← Volver» te lleva de vuelta a donde viniste (Distribución o Rentabilidad)."],
+      ["🧩", "Exposición y detalle", "Cuánto pesa dentro de tu cartera y el desglose de su coste. El botón «Volver» te lleva de vuelta a donde viniste (Distribución o Rentabilidad)."],
     ] },
 
     "datos.activos": { t: "Mis datos · Activos", sub: "Todo lo que forma tu cartera. La base de casi todo lo demás.", p: [
@@ -4298,8 +4311,8 @@
       ["🏦", "Hipoteca", "Capital pendiente, cuota mensual, tipo de interés y fecha de fin. Si ya tienes esa hipoteca como deuda en tu cartera, puedes enlazarla: solo la señala para saltar de una a otra, no cambia ninguna cifra."],
       ["📌", "Datos del inmueble", "Dirección, referencia catastral, superficie, habitaciones y valor catastral (útil para el IBI y la declaración)."],
       ["🔀", "Pasar a Inmuebles", "Los inmuebles que tengas en la cartera como un activo salen en un aviso arriba. «Pasar a Inmuebles» abre su ficha ya rellena (nombre, titular, tipo, último valor y la compra si la tenías anotada) para que la revises; al guardar, sale de la cartera también hacia atrás, sus valores pasan al historial del inmueble y sus notas y recordatorios lo siguen. Si no valida, no se toca nada."],
-      ["📒", "Sus categorías de ingresos y gastos", "Marca en la ficha las categorías que son de ese inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes forman su libro. Una categoría solo puede ir con un inmueble. Para repartirlas todas de golpe, Configuración → 🏢 Inmuebles."],
-      ["👆", "Ver su ficha completa", "Pulsa el nombre de un inmueble para abrir su ficha en el Panel, con sus inquilinos y contratos, su libro de ingresos y gastos y sus documentos. Con ✎ lo editas aquí."],
+      ["📒", "Sus categorías de ingresos y gastos", "Marca en la ficha las categorías que son de ese inmueble (p. ej. «Alquiler piso Mayor», «Comunidad piso Mayor»): todos sus apuntes forman su libro. Una categoría solo puede ir con un inmueble. Para repartirlas todas de golpe, Configuración → Inmuebles."],
+      ["👆", "Ver su ficha completa", "Pulsa el nombre de un inmueble para abrir su ficha en el Panel, con sus inquilinos y contratos, su libro de ingresos y gastos y sus documentos. Con el lápiz lo editas aquí."],
       ["👤", "Inquilinos y contratos", "Se añaden desde la ficha completa del inmueble (en el Panel). Aquí ves bajo el estado quién vive ahora y la renta de sus contratos vigentes."],
     ] },
     "datos.apartados": { t: "Mis datos · Reservados", sub: "Dinero que ya tiene dueño: lo apartas para un fin.", p: [
@@ -4314,9 +4327,9 @@
       ["🔖", "Marcas, notas y facturas", "Marca un apunte (🚩⭐❗…) para revisarlo luego, añádele una observación o adjúntale la factura/ticket (imagen o PDF)."],
       ["🏦", "Importar en vez de teclear", "Si tienes muchos movimientos, no los teclees: tráelos del banco desde «Importar». Con las reglas y categorías bien puestas, llegan ya clasificados."],
       ["🔎", "Filtra y busca", "Arriba tienes filtros por tipo, categoría, titular, entidad, importe y fechas, más un buscador de texto. Pulsa una categoría del panel y llegas aquí ya filtrado."],
-      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un apunte la lista ya no salta al principio: te quedas donde estabas. Y con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez."],
+      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un apunte la lista ya no salta al principio: te quedas donde estabas. Y con «Seleccionar» (junto a «CSV») marcas varios y los borras de una vez."],
       ["↩️", "¿Te has equivocado? Deshacer", "Justo después de borrar, el aviso de abajo trae «↩ Deshacer» durante unos segundos (también con Ctrl+Z): lo borrado vuelve tal cual, con sus facturas. Si entretanto has cambiado otra cosa, ya no se puede así; entonces vuelve atrás desde «Copias»."],
-      ["🗄️", "Archivar o borrar lo antiguo", "«🗄 Archivar / borrar…» actúa sobre todo lo anterior a una fecha: archívalo (lo oculta de la lista, reversible, para «dejar solo este año») o bórralo (con «Deshacer» justo después). Las facturas de lo borrado se conservan. En Configuración → Ingresos y gastos eliges si lo archivado sigue contando en el panel o no."],
+      ["🗄️", "Archivar o borrar lo antiguo", "«Archivar / borrar…» actúa sobre todo lo anterior a una fecha: archívalo (lo oculta de la lista, reversible, para «dejar solo este año») o bórralo (con «Deshacer» justo después). Las facturas de lo borrado se conservan. En Configuración → Ingresos y gastos eliges si lo archivado sigue contando en el panel o no."],
     ] },
     "datos.saldos": { t: "Mis datos · Saldos y movimientos", sub: "El corazón de tus inversiones: aquí se registra lo que compras y lo que vale.", p: [
       ["🧾", "Movimientos (productos que cotizan)", "Compra, venta, dividendo o comisión, con unidades e importe. Con eso el panel calcula tu coste medio por orden de compra (FIFO), la plusvalía y la TIR de cada producto."],
@@ -4324,7 +4337,7 @@
       ["📅", "Cierre del mes", "El botón «Cierre del mes» te deja anotar de golpe el saldo de todas tus cuentas, depósitos, planes y deudas. El gesto de cada mes para tenerlo todo al día."],
       ["🔎", "Filtros potentes", "Filtra los movimientos por producto, operación (compra/venta/dividendo/comisión), entidad, tus dimensiones, importe y fechas. Al llegar desde la Distribución, el grupo viene ya filtrado."],
       ["🎯", "Resaltado", "Si llegas aquí pulsando una aportación o un saldo del panel, esa fila concreta queda resaltada hasta que elijas otra."],
-      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un movimiento la lista ya no vuelve al principio. Con «☑ Seleccionar» (junto a «CSV») marcas varios y los borras de una vez. Aquí la historia se mantiene: no hay borrado por fecha. Si te equivocas, pulsa «↩ Deshacer» en el aviso que sale justo después (o Ctrl+Z)."],
+      ["☑️", "Borrar varios y seguir en tu sitio", "Al borrar un movimiento la lista ya no vuelve al principio. Con «Seleccionar» (junto a «CSV») marcas varios y los borras de una vez. Aquí la historia se mantiene: no hay borrado por fecha. Si te equivocas, pulsa «↩ Deshacer» en el aviso que sale justo después (o Ctrl+Z)."],
     ] },
     "datos.facturas": { t: "Mis datos · Facturas", sub: "Tus tickets y facturas, unidos a tus apuntes.", p: [
       ["🧾", "Vinculadas a tus apuntes", "Cada factura va unida a un apunte de ingreso o gasto, para tener el justificante a mano cuando lo necesites."],
@@ -4336,14 +4349,14 @@
       ["🎯", "Objetivo y colchón", "El objetivo de tu cartera es la meta que ves en Inicio y Cartera (se mide con la cartera neta, sin los inmuebles). El colchón es la liquidez mínima que quieres tener siempre: se resta del «dinero libre para invertir» para que no lo toques."],
       ["⚖️", "Objetivos de asignación y concentración", "Define qué % quieres en cada tipo de activo (p. ej. 60/30/10) y la app te dirá en Distribución qué mover para rebalancear. El umbral de concentración te avisa si un tipo o una entidad pesa demasiado."],
       ["🏷️", "Categorías (y presupuesto)", "Son las etiquetas de tus ingresos y gastos (Alimentación, Nómina, Ocio…). Alimentan el desplegable al anotar y el análisis «en qué se va». Si a una categoría de gasto le pones presupuesto, el panel te dice cuánto te desvías cada mes. Hace falta tenerlas creadas para que las reglas del banco funcionen."],
-      ["✏️", "Renombrar o fusionar una categoría", "En «💶 Ingresos y gastos», elige una categoría y escribe su nombre nuevo: se cambia en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas, y antes de hacerlo te dice cuántos toca. Si el nombre nuevo ya existe, las dos se fusionan en una sola (deben ser del mismo tipo). Se aplica al momento, con copia de seguridad automática."],
+      ["✏️", "Renombrar o fusionar una categoría", "En «Ingresos y gastos», elige una categoría y escribe su nombre nuevo: se cambia en todos tus apuntes, plantillas, reglas del banco, inmuebles, contratos y notas, y antes de hacerlo te dice cuántos toca. Si el nombre nuevo ya existe, las dos se fusionan en una sola (deben ser del mismo tipo). Se aplica al momento, con copia de seguridad automática."],
       ["🤖", "Reglas para el banco", "Al importar del banco, estas reglas clasifican solas tus movimientos: «si el concepto contiene MERCADONA → Alimentación». Se crean a mano aquí, o se aprenden solas marcando «recordar mis correcciones» en la vista previa de Importar. Bien puestas, te ahorran clasificar a mano cada mes."],
       ["📐", "Dimensiones de clasificación", "Ejes propios para mirar tu cartera como tú quieras, más allá de Tipo y Entidad. Creas una dimensión (p. ej. «Geografía» con valores Europa, EE. UU., Global; o «Riesgo»; o «Gestora») y luego la asignas a cada activo. Después agrupas y filtras por ella en Distribución y Evolución. También hay dimensiones para los ingresos y gastos."],
       ["🕊️", "Tasa de retirada", "Lo que podrías sacar al año de tu cartera sin agotarla, para la «libertad financiera» de Inicio. Vacío = el 4 % de siempre; si quieres ir más seguro, pon un 3 o un 3,5 %."],
       ["📈", "Inflación y monedas", "La inflación de referencia dibuja la línea «a batir» en Evolución. Las monedas te dejan fijar un cambio manual (p. ej. USD→EUR) para valorar en euros un activo o una cuenta en otra divisa."],
       ["🔔", "Avisos y recordatorios", "Activa o silencia cada aviso automático (concentración, vencimientos, deudas…) y elige con cuántos días de antelación avisar de un vencimiento, o tras cuántos días sin anotar/sin actualizar precios recordártelo."],
       ["🧩", "Tipos propios, marcas y entidades", "Crea tus propios tipos de activo (u oculta los de serie), define las marcas (🚩⭐❗) para tus apuntes y la lista de entidades/bancos que usas para clasificar."],
-      ["🏢", "Inmuebles: sus categorías", "En la pestaña «🏢 Inmuebles» eliges a qué inmueble pertenece cada categoría de ingresos y gastos. Sus apuntes (también los que importes del banco, que tus reglas clasifican solas) forman el libro de ese inmueble. Una categoría va como mucho con un inmueble."],
+      ["🏢", "Inmuebles: sus categorías", "En la pestaña «Inmuebles» eliges a qué inmueble pertenece cada categoría de ingresos y gastos. Sus apuntes (también los que importes del banco, que tus reglas clasifican solas) forman el libro de ese inmueble. Una categoría va como mucho con un inmueble."],
       ["🔔", "Inmuebles: sus avisos", "En la misma pestaña activas o apagas cada aviso de tus inmuebles (fin de contrato, revisión de la renta, cobro que se acerca, alquiler sin cobrar y valor estimado antiguo) y eliges su antelación o su margen. Vacío = el valor por defecto, que ves en gris."],
     ] },
     "datos.importar": { t: "Mis datos · Importar", sub: "Trae tus datos de golpe en vez de teclearlos uno a uno.", p: [
@@ -4363,14 +4376,14 @@
     "doc.lista": { t: "Documentos · Lista de notas", sub: "Un bloc de notas para tu patrimonio.", p: [
       ["📝", "Notas con etiquetas y color", "Apunta lo que quieras recordar (una idea, el teléfono de tu asesor, por qué compraste algo), clasifícalo con etiquetas y dale color para localizarlo de un vistazo."],
       ["✅", "Tareas", "Una nota puede llevar una lista de tareas con casillas, para no olvidar gestiones. Funciona también a pantalla completa."],
-      ["🔗", "Vincula a activos, inmuebles y documentos", "Enlaza una nota a varios productos, deudas, reservados o inmuebles (verás un 📝 junto a ellos; las de un inmueble salen además en su ficha, como sus documentos) y adjúntale archivos o una carpeta entera. Los chips de activos, documentos y etiquetas van en líneas separadas, y al pulsarlos saltas al activo o a la carpeta."],
+      ["🔗", "Vincula a activos, inmuebles y documentos", "Enlaza una nota a varios productos, deudas, reservados o inmuebles (verás el icono de nota junto a ellos; las de un inmueble salen además en su ficha, como sus documentos) y adjúntale archivos o una carpeta entera. Los chips de activos, documentos y etiquetas van en líneas separadas, y al pulsarlos saltas al activo o a la carpeta."],
       ["🔎", "Ficha a pantalla completa", "Las tarjetas recortan el texto; pulsa una para abrirla en grande, con todo el contenido, la lista de tareas y los enlaces. Pulsa fuera para volver."],
       ["📓", "Cuadernos", "Agrupa notas en cuadernos (p. ej. «Histórico Hacienda») y «envía» una nota a uno para archivarla. En Configuración → Documentos eliges si la lista muestra solo las notas sueltas o todas."],
       ["📌", "Ordena y fija", "Por fecha o etiqueta, y fija arriba las más importantes con el pin (dentro del propio formulario, junto al título)."],
     ] },
     "doc.cuadernos": { t: "Documentos · Cuadernos", sub: "Agrupa y archiva tus notas por temas.", p: [
       ["📓", "Qué es un cuaderno", "Una carpeta para tus notas: agrupa las que van juntas (p. ej. «Histórico Hacienda», «Compra del coche»). Cada nota pertenece a lo sumo a un cuaderno."],
-      ["➕", "Crear y organizar", "Crea cuadernos, renómbralos y dales color. Pulsa uno para entrar y ver solo sus notas; «← Cuadernos» vuelve a la rejilla."],
+      ["➕", "Crear y organizar", "Crea cuadernos, renómbralos y dales color. Pulsa uno para entrar y ver solo sus notas; «Cuadernos» vuelve a la rejilla."],
       ["📥", "Enviar una nota a un cuaderno", "Desde la propia tarjeta de la nota, al editarla o al abrirla a pantalla completa, con «Enviar a un cuaderno». Útil a fin de año para archivar lo del ejercicio."],
       ["👁️", "Qué se ve en «Lista de notas»", "En Configuración → Documentos eliges si «Lista de notas» enseña solo las notas sueltas (las de un cuaderno se ven aquí) o todas con el chip de su cuaderno."],
       ["🗑️", "Borrar un cuaderno", "Si borras un cuaderno, sus notas NO se borran: quedan sueltas."],
