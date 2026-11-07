@@ -29,7 +29,7 @@ import zipfile
 from flask import Flask, Response, jsonify, request, send_from_directory
 from werkzeug.serving import make_server
 
-from . import almacen, buscar, entorno, exportar, importar, motor, plantilla
+from . import almacen, buscar, ejemplo, entorno, exportar, importar, motor, plantilla
 
 # Dónde y cómo se ejecuta la app (recursos, datos, host, puerto, hosts permitidos, Docker) se
 # decide en un único punto: app/entorno.py. Aquí se exponen con los mismos nombres de siempre
@@ -39,7 +39,6 @@ _base_datos = entorno._base_datos         # llaman a servidor._base_datos().
 
 RAIZ = entorno.RAIZ
 WEB = os.path.join(RAIZ, "app", "web")
-DEMO = os.path.join(RAIZ, "demo", "cartera.json")
 DATOS = entorno.DATOS            # LIBERTY_DATOS / PATRIMONIO_DATOS, o «mis_datos» por defecto
 HOST = entorno.HOST              # 127.0.0.1 en escritorio; 0.0.0.0 dentro del contenedor
 PUERTO = entorno.PUERTO          # LIBERTY_PUERTO / PATRIMONIO_PUERTO, o 8765
@@ -302,7 +301,54 @@ def modo():
 
 def cartera():
     d = dir_activa()
-    return lee_json(os.path.join(d, "cartera.json"), {}) if d else lee_json(DEMO, {})
+    return lee_json(os.path.join(d, "cartera.json"), {}) if d else cartera_ejemplo()
+
+
+# El patrimonio de ejemplo va con fechas vivas (ADR 0037): se genera respecto a hoy, una vez
+# al día, y se guarda en memoria. «reales» dice si las compras de lo que cotiza salieron de
+# los precios de verdad (de la caché de la demo) o de una aproximación (sin caché aún).
+_EJEMPLO = {}
+
+
+def cartera_ejemplo(refresca=False):
+    """El patrimonio de ejemplo de hoy. Con refresca=True se vuelve a generar (p. ej. en
+    cuanto la caché ya tiene los precios). Escribe sus documentos de muestra en la carpeta
+    de la demo, para que las facturas y la biblioteca se puedan abrir."""
+    clave = (dt.date.today(), _demo_dir())
+    with cerrojo:
+        if refresca or _EJEMPLO.get("clave") != clave:
+            precios = motor.precios_en_cache(ejemplo.cotizados(), _demo_dir())
+            cfg, reales = ejemplo.genera(clave[0], precios)
+            _EJEMPLO.update(clave=clave, cfg=cfg, reales=reales)
+            try:
+                ejemplo.escribe_archivos(cfg, _demo_dir())
+            except OSError:
+                logging.exception("No he podido escribir los documentos del ejemplo")
+        return copy.deepcopy(_EJEMPLO["cfg"])
+
+
+def ejemplo_con_precios():
+    """El ejemplo con las compras calculadas a precios reales. Si la caché aún no los
+    tiene, los baja una vez (los que falten) y lo vuelve a generar. Sin internet, se queda
+    con la aproximación."""
+    with cerrojo:
+        cfg = cartera_ejemplo()
+        if not _EJEMPLO.get("reales"):
+            try:
+                motor.construir(cfg, _demo_dir(), descargar="faltan")   # solo para llenar la caché
+            except Exception:
+                logging.exception("No he podido bajar los precios del ejemplo")
+            cfg = cartera_ejemplo(refresca=True)
+        return cfg
+
+
+def copia_documentos_ejemplo(cfg, destino):
+    """Una cartera nueva copiada del ejemplo se lleva sus documentos de muestra y la caché
+    de precios de la demo (así no vuelve a bajarlos)."""
+    ejemplo.escribe_archivos(cfg, destino)
+    cache = os.path.join(_demo_dir(), "cache")
+    if os.path.isdir(cache):
+        shutil.copytree(cache, os.path.join(destino, "cache"), dirs_exist_ok=True)
 
 
 def ruta_calculado():
@@ -320,6 +366,12 @@ def recalcula(descargar):
     con "faltan", solo los de productos que aún no tienen precios guardados."""
     with cerrojo:
         datos = motor.construir(cartera(), carpeta(), descargar=descargar)
+        if modo() == "demo" and not _EJEMPLO.get("reales"):
+            # El ejemplo se generó sin precios en la caché (primera vez): ahora que el motor
+            # los ha bajado, se rehace con los de verdad para que la rentabilidad cuadre.
+            cfg = cartera_ejemplo(refresca=True)
+            if _EJEMPLO.get("reales"):
+                datos = motor.construir(cfg, carpeta(), descargar=False)
         est = estado()
         if descargar is True:
             est["preciosActualizados"] = dt.datetime.now().replace(microsecond=0).isoformat()
@@ -363,6 +415,8 @@ def datos_js():
         datos = lee_json(ruta_calculado())
         if datos is None and not os.path.exists(ruta_calculado()):
             datos = recalcula(descargar=False)
+        elif modo() == "demo" and str((datos or {}).get("generado") or "")[:10] != dt.date.today().isoformat():
+            datos = recalcula(descargar=False)   # el ejemplo va con fechas vivas: cada día, al día
     cuerpo = "window.DATOS = " + json.dumps(datos, ensure_ascii=False, separators=(",", ":")) + ";\n"
     return Response(cuerpo, mimetype="application/javascript",
                     headers={"Cache-Control": "no-store"})
@@ -1090,8 +1144,9 @@ def api_empezar():
     if modo() != "demo":
         return jsonify(ok=False, errores=["Ya tienes tu propia cartera."]), 400
     with cerrojo:
-        if (request.get_json(silent=True) or {}).get("desde") == "ejemplo":
-            cfg = dict(lee_json(DEMO, {}), titular="Mi patrimonio (copia del ejemplo)")
+        desde_ejemplo = (request.get_json(silent=True) or {}).get("desde") == "ejemplo"
+        if desde_ejemplo:
+            cfg = dict(ejemplo_con_precios(), titular="Mi patrimonio (copia del ejemplo)")
         else:
             cfg = json.loads(json.dumps(almacen.CARTERA_VACIA))
         # Tu primera cartera ya va a su carpeta carteras/<id>/ (layout ordenado),
@@ -1099,6 +1154,8 @@ def api_empezar():
         cid = almacen.slug(cfg.get("titular") or "cartera", {c["id"] for c in carteras()})
         os.makedirs(os.path.join(_carteras_dir(), cid), exist_ok=True)
         almacen.guarda(os.path.join(_carteras_dir(), cid, "cartera.json"), cfg)
+        if desde_ejemplo:
+            copia_documentos_ejemplo(cfg, os.path.join(_carteras_dir(), cid))
         guarda_registro({"activa": cid})
         recalcula(descargar="faltan")
     return jsonify(ok=True)
@@ -1128,13 +1185,15 @@ def api_cartera_nueva():
         asegura_multi()   # si venías del modo antiguo, lo pasa a multi
         cid = almacen.slug(nombre, {c["id"] for c in carteras()})
         if desde == "ejemplo":
-            # Copia del patrimonio de ejemplo (demo): para comparar y aprender sin tocar el tuyo.
-            cfg = dict(lee_json(DEMO, {}), titular=nombre)
+            # Copia del patrimonio de ejemplo de hoy: para comparar y aprender sin tocar el tuyo.
+            cfg = dict(ejemplo_con_precios(), titular=nombre)
         else:
             cfg = json.loads(json.dumps(almacen.CARTERA_VACIA))
             cfg["titular"] = nombre
         os.makedirs(os.path.join(_carteras_dir(), cid), exist_ok=True)
         almacen.guarda(os.path.join(_carteras_dir(), cid, "cartera.json"), cfg)
+        if desde == "ejemplo":
+            copia_documentos_ejemplo(cfg, os.path.join(_carteras_dir(), cid))
         guarda_registro({"activa": cid})
         recalcula(descargar="faltan")
     return jsonify(ok=True, id=cid)

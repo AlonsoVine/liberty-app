@@ -23,10 +23,9 @@ WORKDIR /app
 COPY requirements-docker.txt ./
 RUN pip install --no-cache-dir -r requirements-docker.txt
 
-# Código y recursos de solo lectura (web, demo, VERSION, prompts). Los DATOS no van en la
+# Código y recursos de solo lectura (web, VERSION, prompts). Los DATOS no van en la
 # imagen: viven en el volumen /data. (.dockerignore excluye mis_datos, .git, tests, dist…)
 COPY app/ ./app/
-COPY demo/ ./demo/
 
 # Usuario sin privilegios (uid 1000). El dueño de /data se ajusta en el anfitrión
 # (chown -R 1000:1000 <carpeta>); si usas otro uid, cámbialo también en el compose.

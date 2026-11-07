@@ -9,6 +9,17 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
+## [No publicado]
+
+- **Un patrimonio de ejemplo completo y siempre al día** (ADR 0037). Es el que se ve al abrir la app por primera vez y el que se crea desde Ayuda.
+  - Ahora es un hogar equilibrado de unos 300.000 €, con:
+    - cartera variada, con algún activo en pérdidas;
+    - una casa, un piso alquilado, un garaje y un trastero;
+    - tres años de ingresos y gastos con facturas;
+    - notas, cuadernos, agenda, tablero y documentos enlazados.
+  - Sus fechas llegan siempre hasta hoy, así que ya no recibe con avisos de «hace días que no anotas».
+  - Las copias se llevan también los documentos.
+
 ## [1.19.0] — 2026-11-03
 
 - **Cómo ha crecido tu patrimonio (ADR 0034).** La card «Tu patrimonio» de Inicio lleva al lado

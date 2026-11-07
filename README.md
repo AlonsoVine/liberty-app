@@ -348,8 +348,8 @@ app/
   importar.py    importadores (MyInvestor, plantilla, texto de la IA)
   almacen.py     validación y guardado, con copias automáticas
   exportar.py    el panel como web estática
+  ejemplo.py     el patrimonio de ejemplo (se genera al día, con documentos de muestra)
   web/           el panel (index.html, app.js, graficos.js, editor.js)
-  demo/          la cartera de ejemplo
 mis_datos/       TUS DATOS (se crea al usarla; no se sube a ningún sitio)
 tests/           pytest (backend) · tests-js/ jsdom (frontend)
 ```

@@ -9,7 +9,6 @@ a = Analysis(
     # Recursos de solo lectura que la app necesita en tiempo de ejecución.
     datas=[
         ("app/web", "app/web"),
-        ("demo/cartera.json", "demo"),
         ("app/VERSION", "app"),
         ("app/prompt_ia.txt", "app"),
         ("app/prompt_ia_banco.txt", "app"),

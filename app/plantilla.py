@@ -121,7 +121,7 @@ EJEMPLO_BANCO = [
     (dt.date(2025, 3, 3), "Compra MERCADONA", -84.30, "gasto", "Alimentación", "Común"),
     (dt.date(2025, 3, 5), "Recibo IBERDROLA", -61.20, "gasto", "Suministros", "Común"),
     (dt.date(2025, 3, 10), "Transferencia alquiler trastero", 150, "ingreso", "Alquileres cobrados", "Yo"),
-    (dt.date(2025, 3, 18), "Pago restaurante", -43.5, "gasto", "Ocio y restaurantes", "Novia"),
+    (dt.date(2025, 3, 18), "Pago restaurante", -43.5, "gasto", "Ocio y restaurantes", "Mi pareja"),
 ]
 
 

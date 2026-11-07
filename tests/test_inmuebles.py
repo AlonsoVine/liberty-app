@@ -12,7 +12,7 @@ import os
 
 import pytest
 
-from app import almacen, motor
+from app import almacen, ejemplo, motor
 
 
 def cfg_vacia():
@@ -231,9 +231,7 @@ def test_vista_de_un_mes_pasado_lleva_su_foto_de_inmuebles(cartera_manual, tmp_p
 
 
 def test_la_demo_trae_inmuebles_de_inversion_y_vivienda_habitual(tmp_path):
-    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(raiz, "demo", "cartera.json"), encoding="utf-8") as f:
-        demo = json.load(f)
+    demo = ejemplo.genera()[0]
     (tmp_path / "con").mkdir()
     (tmp_path / "sin").mkdir()
     d = motor.construir(copy.deepcopy(demo), str(tmp_path / "con"), descargar=False)
@@ -367,9 +365,7 @@ def test_patrimonio_del_hogar_no_resta_dos_veces_la_hipoteca_enlazada():
 
 
 def test_la_demo_trae_libro_y_patrimonio_del_hogar(tmp_path):
-    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(raiz, "demo", "cartera.json"), encoding="utf-8") as f:
-        demo = json.load(f)
+    demo = ejemplo.genera()[0]
     d = motor.construir(demo, str(tmp_path), descargar=False)
     piso = next(x for x in d["inmuebles"]["lista"] if x["uso"] == "inversion")
     assert piso["libro"] and piso["libro"]["ingresos12"] > 0

@@ -75,12 +75,9 @@ def test_ocultar_importes_no_deja_ninguna_cifra_real_de_la_demo(tmp_path, monkey
     llegar intacta a la web con «ocultar importes». Antes se escalaba solo una lista de
     campos y se colaban el patrimonio neto, las deudas o el bloque fiscal."""
     import copy
-    import json
 
-    from app import motor
-    raiz = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    with open(os.path.join(raiz, "demo", "cartera.json"), encoding="utf-8") as f:
-        cfg = json.load(f)
+    from app import ejemplo, motor
+    cfg = ejemplo.genera()[0]
     datos = motor.construir(cfg, str(tmp_path), descargar=False)
     monkeypatch.setattr(exportar.random, "uniform", lambda a, b: 1.7)
     out = exportar.sin_importes(copy.deepcopy(datos))

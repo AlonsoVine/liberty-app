@@ -770,6 +770,19 @@ def serie_producto(p, carpeta, fresca=False):
     return s
 
 
+def precios_en_cache(productos_cfg, carpeta):
+    """{id: precio diario en euros} de esos productos, SOLO con lo que haya en la caché (sin
+    salir a la red). Lo usa el patrimonio de ejemplo para calcular las unidades de cada
+    compra con el precio real de ese día (ADR 0037)."""
+    global CACHE, SIN_RED, SOLO_FALTAN
+    CACHE, SIN_RED, SOLO_FALTAN = os.path.join(carpeta, "cache"), True, False
+    _COTIZACIONES.clear()
+    series = descarga_series(productos_cfg)
+    out = {p["id"]: precio_eur(dict(p), series) for p in productos_cfg}
+    _COTIZACIONES.clear()
+    return out
+
+
 def serie_cambio(moneda, carpeta):
     """Cambio diario de 'moneda' a euros ({} si es EUR), con cache."""
     global CACHE, SIN_RED, SOLO_FALTAN

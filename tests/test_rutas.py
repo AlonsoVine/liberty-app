@@ -8,10 +8,9 @@ import os
 from app import servidor
 
 
-def test_web_y_demo_existen():
+def test_web_existe():
     assert os.path.isdir(servidor.WEB)
     assert os.path.exists(os.path.join(servidor.WEB, "index.html"))
-    assert os.path.exists(servidor.DEMO)
 
 
 def test_datos_por_defecto_es_mis_datos():
