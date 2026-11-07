@@ -190,3 +190,35 @@ Detectado en mis capturas y corregido antes del árbitro:
 | — | Fuera el velo cálido de «Tu constancia». La pestaña activa va en tinta sólida en todos los anchos y temas. |
 
 No se cambia (8): consolidar el CSS heredado (keyframes y reglas duplicadas del original) es una refactorización sin efecto visible. Con una regla global de sistema garantizo que solo se animan `transform` y `opacity`; reescribir el CSS antiguo aumentaría el riesgo de regresión sin mejorar la apariencia.
+
+## Vuelta 5 — veredicto del árbitro (final)
+
+| Diseño | Usabilidad | Creatividad | Contenido | **Ponderada** |
+|---|---|---|---|---|
+| 7,5 | 7,0 | 6,5 | 7,5 | **7,15** (−0,15) |
+
+| # | Prioridad | Defecto | Evidencia |
+|---|---|---|---|
+| 1 | Mayor | Siguen rejillas de tarjetas idénticas en Ingresos (4 KPI), Rentabilidad (KPI y «¿Y si…?») y Deudas en móvil. | `07-ingresos_1440_claro.jpg`, `04-rentabilidad_1440_oscuro.jpg`, `06-deudas_390_oscuro.jpg` |
+| 2 | Mayor | En móvil, la cabecera de cada vista (pestañas, filtros, periodo y avisos) ocupa más de 1,5 pantallas. | `03-distribucion_390_claro.jpg` |
+| 3 | Mayor | Cuatro estilos distintos de pestaña activa; la de Mis datos tiene muy poco contraste en claro. | `09-misdatos_1440_claro.jpg` |
+| 4 | Menor | Foco débil en `.info` y `.toastAcc`: solo un fondo al 14 %, sin contorno. | `index.html:2015`, `:940` |
+| 5 | Menor | Ceros con color semántico en la tabla y los KPI de Ingresos. | `07-ingresos_1440_claro.jpg` |
+| 6 | Menor | Precisión mezclada (céntimos y euros enteros) en «Tu mes de un vistazo». | `02-cartera_1440_claro.jpg` |
+| 7 | Menor | Keyframes duplicados y transiciones heredadas anuladas por la regla global. | `index.html` |
+| 8 | Menor | Franja de Inmuebles dentada a 768 px; «Informe fiscal» e «Inmuebles» comparten icono en la paleta. | `08-inmuebles_768_oscuro.jpg`, `13-paleta` |
+
+## Cierre
+
+- **Vueltas hechas:** 5, el máximo del encargo.
+- **Evolución de la ponderada:** 6,05 → 6,50 → 7,30 → 7,30 → 7,15.
+- **Listón:** no se alcanza el 8,5 (ni ningún criterio ≥ 8).
+- **Mejor ponderada:** 7,30 (vueltas 3 y 4). En la vuelta 5 el árbitro endureció Usabilidad por la altura de la cabecera en móvil y por la mezcla de estilos de pestaña.
+- **Checks objetivos:** todos en verde en la vuelta final (tabla de arriba).
+- **Pendiente para una siguiente tanda,** según el último veredicto:
+  - unificar el estilo de pestaña activa;
+  - llevar la franja con filetes a Ingresos, Rentabilidad y Deudas;
+  - plegar filtros, periodo y avisos en móvil (cambia el comportamiento por defecto, por eso no se hizo sin consultar);
+  - contorno de foco en `.info` y `.toastAcc`;
+  - ceros neutros en Ingresos;
+  - limpiar el CSS heredado.
