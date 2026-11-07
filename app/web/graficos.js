@@ -24,20 +24,22 @@
   function fmtEur(v, dec) {
     if (oculto()) return "•••";
     if (v === null || v === undefined || isNaN(v)) return "—";
-    return dec === 0 ? nfEur0.format(v) : nfEur.format(v);
+    return menos(dec === 0 ? nfEur0.format(v) : nfEur.format(v));
   }
+  // Signo menos tipográfico (U+2212) en lugar del guion: mismo ancho que «+» y bien alineado.
+  function menos(t) { return typeof t === "string" ? t.replace(/^-/, "−") : t; }
   function fmtEurCorto(v) {
     if (oculto()) return "•••";
     if (v === null || v === undefined || isNaN(v)) return "—";
     const a = Math.abs(v);
-    if (a >= 1e6) return (v / 1e6).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " M€";
-    if (a >= 1000) return (v / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "k €";
-    return Math.round(v) + " €";
+    if (a >= 1e6) return menos((v / 1e6).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " M€");
+    if (a >= 1000) return menos((v / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "k €");
+    return menos(Math.round(v) + " €");
   }
   function fmtPct(v, dec) {
     if (v === null || v === undefined || isNaN(v)) return "—";
     const d = dec === undefined ? 2 : dec;
-    return (v * 100).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
+    return menos((v * 100).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %");
   }
   function fmtPctSigno(v, dec) {
     if (v === null || v === undefined || isNaN(v)) return "—";

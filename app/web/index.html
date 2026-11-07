@@ -609,12 +609,6 @@ body.vistaAmplia .segm button{padding:10px 16px}
   opacity:0;transition:opacity .4s ease}
 .progBarra.faro .progRelleno.conFaro::after{opacity:.95}
 .progBarra.faro .progRelleno.aterriza::after{animation:faroAterriza .75s var(--ease)}
-@keyframes faroAterriza{
-  0%{opacity:0;transform:translate(50%,-50%) scale(.3)}
-  42%{opacity:1;transform:translate(50%,-50%) scale(1.85);
-      box-shadow:0 0 12px 3px var(--s3),0 0 28px 9px color-mix(in srgb,var(--s3) 68%,transparent)}
-  100%{opacity:.95;transform:translate(50%,-50%) scale(1)}
-}
 .progPie{display:flex;justify-content:space-between;margin-top:7px;font-size:12.5px;color:var(--tinta3)}
 
 /* ============================ tarjetas ============================ */
@@ -1250,7 +1244,7 @@ body.ayudaOff .btnAyudaNav{display:none}
 @media print{.btnAyudaNav{display:none !important}}
 .notasNavRow{display:flex;align-items:center;gap:10px;margin:4px 0 14px}
 .notasNavRow .notasNav{margin:0}
-.ayudaModal .ayudaVer{background:var(--s3)}
+.ayudaModal .ayudaVer{background:color-mix(in srgb,var(--s3) 62%,#000)}
 .ayudaModal .novCab h2{font-size:20px}
 .ayudaNota{margin:20px 0 0;padding-top:14px;border-top:1px solid var(--borde);
   font-size:12.5px;color:var(--tinta3);text-align:center;line-height:1.5}
@@ -1995,8 +1989,6 @@ body > .env:not(.listo){visibility:hidden;animation:revelaSeguro 0s 2s forwards}
   transform:translateY(calc(var(--d) * -1em));
   transition:transform 1.05s cubic-bezier(.16,1,.3,1) calc(var(--k) * 45ms - var(--odoDesf,0ms))}
 .odo.odoIni .odoD::after{transform:translateY(0);transition:none}
-.odo .odoS{opacity:1;transition:opacity .5s var(--ease) calc(250ms - var(--odoDesf,0ms))}
-.odo.odoIni .odoS{opacity:0;transition:none}
 .hCifra.odo,.ptCifra.odo{line-height:1}
 
 /* ---- Iconos insertados por el iconizador ---- */
@@ -2027,6 +2019,8 @@ button.btnAyudaNav{width:32px;height:32px}
 /* ---- Verde de «bien» menos saturado en oscuro (encaja con la paleta cálida) ---- */
 :root:not([data-tema="claro"]){--bien:#3bb273}
 :root{--ingreso:var(--bien)}
+/* En claro, el verde de texto (--bien) es muy oscuro para rellenar barras junto al coral de gastos */
+:root[data-tema="claro"]{--ingreso:#2b9a5b}
 
 /* ---- Cifras alineadas: la etiqueta, la cifra y la nota comparten filas entre tarjetas ---- */
 @supports (grid-template-rows:subgrid){
@@ -2163,6 +2157,78 @@ button.btnAyudaNav{width:32px;height:32px}
   #inmKpis{grid-template-columns:repeat(2,minmax(0,1fr))}
   #inmKpis > .kpi:nth-child(odd):last-child{grid-column:1 / -1}
 }
+/* ============================ acabado · vuelta 4 ============================ */
+
+/* ---- Iconos de las listas de ayuda y novedades: ficha tonal con icono de línea ---- */
+.novIco{display:grid;place-items:center;width:34px;height:34px;border-radius:12px;font-size:0;
+  color:var(--s1);background:var(--acento-suave)}
+.novIco:empty{display:none}
+.novIco .ico{width:18px;height:18px}
+.novVer{background:var(--acento-fondo)}
+.rmFlecha{display:inline-flex;vertical-align:-3px;color:var(--s1)}
+.rmFlecha .ico{width:15px;height:15px}
+/* Diálogos de ayuda y novedades: sin el marco heredado de .modal (la tarjeta es .novCuerpo) */
+dialog.novedades{box-shadow:none;width:fit-content;max-width:none;max-height:none;overflow:visible;border-radius:0}
+
+/* ---- Cartera · los 6 indicadores: una franja con filetes, no 6 cajas ---- */
+#kpis{gap:0;grid-template-columns:repeat(6,minmax(0,1fr));margin:26px 0 30px}
+#kpis > .kpi{background:transparent !important;border:0;border-radius:0;box-shadow:none;padding:2px 20px 4px}
+#kpis > .kpi:not(:first-child){border-left:1px solid var(--borde)}
+#kpis > .kpi:first-child{padding-left:0}
+#kpis > .kpi::after{display:none}
+@media(max-width:1099px){
+  #kpis{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:22px}
+  #kpis > .kpi:nth-child(3n+1){border-left:0;padding-left:0}
+}
+@media(max-width:560px){
+  #kpis{grid-template-columns:repeat(2,minmax(0,1fr))}
+  #kpis > .kpi:nth-child(3n+1){border-left:1px solid var(--borde);padding-left:20px}
+  #kpis > .kpi:nth-child(odd){border-left:0;padding-left:0}
+}
+
+/* ---- Cartera · «Tu cartera hoy»: dos cuentas, como en un libro
+   bruta − deudas = neta      ·      disponible − reservados − colchón = libre ---- */
+#hogarGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 56px;
+  grid-template-areas:"br di" "de re" "ne co" "nd li";align-items:stretch}
+#hogarGrid > .kpi{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"e v" "n v";
+  grid-row:auto;grid-template-rows:auto auto;align-items:center;column-gap:16px;row-gap:1px;background:transparent !important;border:0;
+  border-bottom:1px solid var(--borde);border-radius:0;box-shadow:none;padding:13px 2px}
+#hogarGrid > .kpi::after{display:none}
+#hogarGrid > .kpi > .e{grid-area:e;align-self:end}
+#hogarGrid > .kpi > .v{grid-area:v;margin:0;font-size:20px;text-align:right}
+#hogarGrid > .kpi > .n{grid-area:n;margin:0;align-self:start}
+#hogarGrid > .kpi:nth-child(1){grid-area:br}
+#hogarGrid > .kpi:nth-child(2){grid-area:de}
+#hogarGrid > .kpi:nth-child(3){grid-area:ne}
+#hogarGrid > .kpi:nth-child(4){grid-area:di}
+#hogarGrid > .kpi:nth-child(5){grid-area:nd}
+#hogarGrid > .kpi:nth-child(6){grid-area:re}
+#hogarGrid > .kpi:nth-child(7){grid-area:co}
+#hogarGrid > .kpi:nth-child(8){grid-area:li}
+/* operadores de la cuenta */
+#hogarGrid > .kpi:is(:nth-child(2),:nth-child(3),:nth-child(6),:nth-child(7),:nth-child(8)) > .e::before{
+  display:inline-block;width:1.1em;font:600 14px/1 var(--f-ui);letter-spacing:0;color:var(--tinta3)}
+#hogarGrid > .kpi:is(:nth-child(2),:nth-child(6),:nth-child(7)) > .e::before{content:"−"}
+#hogarGrid > .kpi:is(:nth-child(3),:nth-child(8)) > .e::before{content:"="}
+/* totales: filete fuerte encima y cifra mayor */
+#hogarGrid > .kpi:is(:nth-child(3),:nth-child(8)){border-top:1.5px solid var(--tinta3);border-bottom:0;margin-top:-1px}
+#hogarGrid > .kpi:is(:nth-child(3),:nth-child(8)) > .v{font-size:26px}
+#hogarGrid > .kpi:is(:nth-child(3),:nth-child(8)) > .e{color:var(--tinta)}
+/* «no disponible» es una nota, no un sumando */
+#hogarGrid > .kpi:nth-child(5){border-bottom:0}
+#hogarGrid > .kpi:nth-child(5) > .v{font-size:17px;color:var(--tinta2)}
+@media(max-width:760px){
+  #hogarGrid{grid-template-columns:1fr;grid-template-areas:"br" "de" "ne" "nd" "di" "re" "co" "li"}
+  #hogarGrid > .kpi:nth-child(5){margin-bottom:18px}
+}
+@media(min-width:1000px){#hogarGrid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* ---- Cifra protagonista: el punto de miles no se pega a los dígitos ---- */
+.hCifra{letter-spacing:-.03em}
+
+/* ---- Rango de fechas: «desde → hasta» y «Ver» no se separan ---- */
+.periodoJunto{display:inline-flex;align-items:center;gap:8px;flex-wrap:nowrap}
+@media(max-width:640px){.periodoJunto{display:contents}}
 /* ---- Impresión / PDF: solo el panel, sin botones ni navegación ---- */
 @media print{
   :root{--fondo:#fff;--sup:#fff;--tinta:#000;--tinta2:#222;--tinta3:#555;--borde:#ccc}
@@ -2566,7 +2632,7 @@ button.btnAyudaNav{width:32px;height:32px}
 
   <div class="pv" id="pv-fiscal" hidden>
     <p class="ayudaVista">Resumen para la declaración de la renta (IRPF): ganancias y pérdidas de tus ventas
-      (con coste FIFO, como las calcula Hacienda) y los dividendos y cupones cobrados. Elige el año y pulsa «🖨 Imprimir» arriba.</p>
+      (con coste FIFO, como las calcula Hacienda) y los dividendos y cupones cobrados. Elige el año y pulsa «Imprimir» arriba.</p>
     <div class="selAnioFiscal" id="selFiscalCont" style="margin:4px 0 12px"></div>
     <section class="tarjeta" id="tarjetaFiscal">
       <header>

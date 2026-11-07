@@ -154,3 +154,19 @@ Se conserva la identidad (neutros cálidos `#0d0d0d / #f9f9f7`, azul de marca, p
   - Se mantienen todas las pestañas visibles: el árbitro 1 consideró bloqueante esconderlas en un carril.
   - En su lugar se compactan, y la ayuda «i» pasa a la esquina.
   - Los avisos siguen desplegados por defecto (comportamiento existente; el usuario los pliega y se recuerda), pero sus filas son más bajas.
+
+## Decisiones de la vuelta 4 (tras el árbitro 3)
+
+- **Cifras como libro de cuentas.** «Tu cartera hoy» deja de ser una rejilla de 8 tarjetas y pasa a dos cuentas con operadores, que es lo que las cifras significan:
+  - `bruta − deudas = neta`;
+  - `disponible − reservados − colchón = libre`.
+  Los operadores son CSS (`::before`), así que el contenido y su orden en el DOM no cambian. Junto con las filas de Distribución, Ingresos e Inmuebles, el «libro de cuentas» es el lenguaje propio de la app.
+- **Indicadores en franja.** Las cifras de cabecera van en una sola línea separada por filetes, sin cajas; las cajas quedan para lo que se pulsa.
+- **Tipografía numérica:**
+  - signo menos U+2212, del mismo ancho que «+», en importes y porcentajes;
+  - variaciones nulas en color neutro y sin signo;
+  - norma española de 4 cifras sin separador.
+- **Iconos en todas partes:**
+  - el juego de iconos crece con 17 trazos nuevos para cubrir todos los emojis que hacían de icono en la ayuda y en las novedades;
+  - un emoji sin equivalente se oculta antes que mostrarse.
+  - Los emojis expresivos del final de algunas frases (💪, 👌, 🎉) son contenido y se mantienen.

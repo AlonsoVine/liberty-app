@@ -8,20 +8,20 @@ Capturas: `docs/estetica/capturas/<antes|vuelta1|…>/` (12 pantallas + paleta, 
 
 ## Checks objetivos
 
-| Check | Antes | Vuelta 1 | Vuelta 2 | Vuelta 3 |
-|---|---|---|---|---|
-| pytest | verde | verde | verde | verde |
-| npm test (jsdom) | 30/30 | 30/30 | 30/30 | 30/30 |
-| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) | 0 propios |
-| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no | no |
-| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 | 0 |
-| Foco visible (30 tabulaciones) | OK | OK | OK | OK (anillo opaco ≥ 3:1) |
-| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 | 90 |
-| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 | 100 |
-| Lighthouse escritorio — Best Practices | 100 | 100 | 100 | 100 |
-| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 | 0,001 |
-| Lighthouse móvil — Rendimiento | 30 | 60 | 58 | 58 |
-| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
+| Check | Antes | Vuelta 1 | Vuelta 2 | Vuelta 3 | Vuelta 4 |
+|---|---|---|---|---|---|
+| pytest | verde | verde | verde | verde | verde |
+| npm test (jsdom) | 30/30 | 30/30 | 30/30 | 30/30 | 30/30 |
+| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) | 0 propios | 0 propios |
+| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no | no | no |
+| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 | 0 | 0 (también en los diálogos de ayuda abiertos) |
+| Foco visible (30 tabulaciones) | OK | OK | OK | OK (anillo opaco ≥ 3:1) | OK |
+| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 | 90 | 90 |
+| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 | 100 | 100 |
+| Lighthouse escritorio — Best Practices | 100 | 100 | 100 | 100 | 100 |
+| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 | 0,001 | 0,001 |
+| Lighthouse móvil — Rendimiento | 30 | 60 | 58 | 58 | 57 |
+| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 | 100 / 100 | 100 / 100 |
 
 Lighthouse: mediana de 3 ejecuciones (Lighthouse 12 + Chromium de Playwright, `--preset=desktop` y móvil por defecto), contra la versión original (commit `a47c1ec`, puerto aparte) y la rama, en la misma máquina. Primera visita (muestra la bienvenida).
 
@@ -118,3 +118,42 @@ No se cambia:
 - Los 0 € del mes actual: son datos del ejemplo y el mes acaba de empezar.
 
 Detectado y corregido en mis capturas: en móvil, la rejilla de filtros anulaba su ocultación en Inicio.
+
+## Vuelta 3 — veredicto del árbitro
+
+| Diseño | Usabilidad | Creatividad | Contenido | **Ponderada** |
+|---|---|---|---|---|
+| 7,5 | 7,5 | 6,5 | 7,5 | **7,30** (+0,80) |
+
+| # | Prioridad | Defecto | Evidencia |
+|---|---|---|---|
+| 1 | Bloqueante | Los diálogos de ayuda («i») muestran emojis como icono (33 sin equivalente: 🍩 🏷️ 👆 💎 🏅…). | `app.js` `.novIco`; `arbitro3/ayuda_Dist.png` |
+| 2 | Mayor | Emoji en el texto de Cartera (👆) y «🖨 Imprimir» en un párrafo. | `app.js:969`, `index.html:2569` |
+| 3 | Mayor | Cartera: 6 KPI + 8 cifras en tarjetas idénticas. | `02-cartera_1440_oscuro.jpg` |
+| 4 | Mayor | El odómetro arranca con un fotograma «000 000» sin separador ni €. | `index.html` `.odoS` |
+| 5 | Mayor | Marco fantasma en los diálogos de ayuda y novedades (también en el original). | `index.html:919` |
+| 6 | Menor | Guion en lugar de signo menos; punto de miles pegado en la cifra grande. | formateador, `.hCifra` |
+| 7 | Menor | «+0,00 €» en verde. | `02-cartera` |
+| 8 | Menor | Rango de fechas partido a 768 px. | `03-distribucion_768_claro.jpg` |
+| 9 | Menor | Verdes del tema claro demasiado oscuros para rellenar barras. | `01-inicio_1440_claro.jpg` |
+| 10 | Menor | `@keyframes faroAterriza` duplicado con `box-shadow` (muerto). | `index.html:612` |
+
+### Qué se corrigió tras la vuelta 3
+
+| # | Corrección |
+|---|---|
+| 1 | 17 iconos de línea nuevos (dona, etiqueta, medalla, diamante, personas, disquete, calculadora…) y los 27 emojis que faltaban, mapeados. Los iconos de las listas de ayuda y novedades pasan por `ico()` en una ficha tonal; si un emoji no tuviera equivalente, no se muestra. Comprobado en vivo: 5/5 SVG en el diálogo de Distribución. |
+| 2 | 👆 → icono de flecha; «🖨 Imprimir» en el texto → «Imprimir». |
+| 3 | Los 6 indicadores pasan a una franja con filetes (sin cajas). «Tu cartera hoy» pasa a ser **dos cuentas de libro**: `bruta − deudas = neta` y `disponible − reservados − colchón = libre`, con operadores, filete de total y cifra mayor en los resultados. «No disponible» queda como nota. |
+| 4 | Separadores y € visibles desde el primer fotograma del odómetro. |
+| 5 | `dialog.novedades` sin el marco heredado (`box-shadow:none; width:fit-content`). |
+| 6 | Signo menos tipográfico (U+2212) en todos los formateadores de importes y porcentajes; tracking de la cifra protagonista de −0,045 a −0,03 em. |
+| 7 | Las variaciones nulas se muestran neutras y sin signo («0,00 €», «0 €»). |
+| 8 | «desde → hasta · Ver» agrupados sin partirse (en móvil siguen en su rejilla). |
+| 9 | `--ingreso` en claro: `#2b9a5b` (≥ 3:1 sobre las superficies, al nivel del coral de gastos). |
+| 10 | Eliminado el keyframe muerto. |
+| — | Pastilla «Cómo funciona esta pantalla»: blanco sobre el verde `--s3` daba < 4,5:1; ahora `--s3` oscurecido (≥ 6,4:1). Pastilla de versión de novedades sobre `--acento-fondo`. |
+
+Detectado en mis capturas y corregido antes del árbitro:
+- La regla de subgrid de los KPI ponía la nota encima de la etiqueta en «Tu cartera hoy».
+- La opacidad de «No disponible» bajaba el contraste a 4,43:1 en claro (axe).

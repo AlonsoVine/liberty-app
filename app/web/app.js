@@ -205,6 +205,23 @@
     anillo: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5V8M19.4 16.2l-3.9-2.2"/>',
     candado: '<rect x="5" y="10.5" width="14" height="10" rx="2"/><path d="M8.5 10.5V7.5a3.5 3.5 0 0 1 7 0v3"/>',
     mano: '<path d="M8 13V6.5a1.5 1.5 0 0 1 3 0V12M11 11V5a1.5 1.5 0 0 1 3 0v6M14 11V6.5a1.5 1.5 0 0 1 3 0V14a6.5 6.5 0 0 1-6.5 6.5h-.3a6 6 0 0 1-4.6-2.2L3.4 15a1.6 1.6 0 0 1 2.4-2l2.2 2"/>',
+    dona: '<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="3.5"/><path d="M12 3.5v5"/>',
+    paleta: '<path d="M12 3.5a8.5 8.5 0 0 0 0 17c1.2 0 1.8-.8 1.8-1.7 0-1.3-1-1.6-1-2.6 0-.9.7-1.5 1.6-1.5h2.1a3.5 3.5 0 0 0 3.5-3.5c0-4.3-3.6-7.7-8-7.7z"/><circle cx="7.8" cy="11" r=".9"/><circle cx="10.5" cy="7.6" r=".9"/><circle cx="14.6" cy="7.8" r=".9"/>',
+    bandera: '<path d="M5.5 21V4M5.5 4.5h11l-2 4 2 4h-11"/>',
+    medalla: '<circle cx="12" cy="15" r="5"/><path d="M8.5 3.5l2.2 6.8M15.5 3.5l-2.2 6.8M8.5 3.5h7"/>',
+    etiqueta: '<path d="M3.5 12.2V4.5a1 1 0 0 1 1-1h7.7l8.3 8.3a1.4 1.4 0 0 1 0 2l-6.7 6.7a1.4 1.4 0 0 1-2 0z"/><circle cx="8" cy="8" r="1.3"/>',
+    personas: '<circle cx="9" cy="8.5" r="3.3"/><path d="M3 19.5c.6-3.3 3-5.2 6-5.2s5.4 1.9 6 5.2"/><path d="M15.5 5.6a3.2 3.2 0 0 1 0 6M17.5 14.6c1.8.7 3 2.4 3.5 4.9"/>',
+    diamante: '<path d="M6.5 4.5h11l3.5 5-9 10-9-10z"/><path d="M3 9.5h18M9.5 4.5 12 19.5 14.5 4.5"/>',
+    portatil: '<rect x="5" y="5" width="14" height="10" rx="1.5"/><path d="M2.5 19h19"/>',
+    disquete: '<path d="M5 4h11l3 3v12a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1z"/><path d="M8 4v5h7V4M8 20v-6h8v6"/>',
+    bajada: '<path d="M3.5 7.5l6 6 4-4 7 7"/><path d="M15 16.5h5.5V11"/>',
+    cruce: '<path d="M4 7h3.5c2 0 3 1 4.5 3.5S14.5 17 16.5 17H20M4 17h3.5c1.3 0 2.2-.6 3-1.6M13.5 8.6c.8-1 1.7-1.6 3-1.6H20M17.5 4.5 20 7l-2.5 2.5M17.5 14.5 20 17l-2.5 2.5"/>',
+    marcador: '<path d="M7 3.5h10a1 1 0 0 1 1 1v16l-6-4-6 4v-16a1 1 0 0 1 1-1z"/>',
+    robot: '<rect x="5" y="8" width="14" height="11" rx="2.5"/><path d="M12 4.5V8M9.5 13h.01M14.5 13h.01M10 16.5h4"/>',
+    pieza: '<path d="M10 4.5a2 2 0 0 1 4 0V6h4v4h-1.5a2 2 0 0 0 0 4H18v4.5H6V14h1.5a2 2 0 0 0 0-4H6V6h4z"/>',
+    calculadora: '<rect x="5.5" y="3" width="13" height="18" rx="2"/><path d="M8.5 7h7M9 11.5h.01M12 11.5h.01M15 11.5h.01M9 15h.01M12 15h.01M15 15h.01M9 18h.01M12 18h.01M15 18h.01"/>',
+    ladrillos: '<rect x="3.5" y="5" width="17" height="14" rx="1"/><path d="M3.5 9.7h17M3.5 14.3h17M9 5v4.7M15 9.7v4.6M9 14.3V19"/>',
+    escoba: '<path d="M19.5 4.5l-7 7"/><path d="M12.5 11.5c-1-1-3-1-4.5.5L4.5 19.5c3 .5 6.5-.5 8.5-3 1.5-1.5 1.5-3.5-.5-5z"/><path d="M7.5 16.5l2-2"/>',
   };
   const ICO = {};
   Object.keys(_P).forEach(k => {
@@ -226,7 +243,13 @@
     "💡": "bombilla", "🗄": "caja", "📌": "chincheta", "🔁": "repetir", "👁": "ojo",
     "🪪": "tarjeta", "📞": "telefono", "✉": "correo", "👤": "persona", "ⓘ": "info", "👋": "mano",
     "🏘": "casa", "🔒": "candado",
+    "♻️": "repetir", "✍️": "lapiz", "➡️": "flecha", "🍩": "dona", "🎚️": "ajustes", "🎨": "paleta", "🏁": "bandera",
+    "🏅": "medalla", "🏷️": "etiqueta", "👀": "ojo", "👆": "subir", "👥": "personas", "💎": "diamante", "💻": "portatil",
+    "💾": "disquete", "📂": "carpeta", "📉": "bajada", "🔀": "cruce", "🔄": "refrescar", "🔖": "marcador",
+    "🖥️": "portatil", "🤖": "robot", "🧠": "bombilla", "🧩": "pieza", "🧮": "calculadora", "🧱": "ladrillos", "🧹": "escoba",
   };
+  // Icono para una lista (ayuda, novedades): si un emoji no tuviera equivalente, no se muestra.
+  const icoLista = x => { const v = ico(x); return v.startsWith("<svg") ? v : ""; };
   const ico = x => ICO[x] || ICO[_EMO[x]] || ICO[_EMO[String(x).replace(/️/g, "")]] || x;
   window.ICO = ICO; window.ico = ico;
 
@@ -966,7 +989,7 @@
       <b class="${cl || ""}">${val}</b>${sub ? `<small>${sub}</small>` : ""}</div>`;
     const nAl = (D.alertas || []).length;
     let hacer;
-    if (nAl) hacer = `Tienes <b>${nAl}</b> ${nAl === 1 ? "aviso que conviene revisar" : "avisos que conviene revisar"} <span class="rmFlecha">👆</span> (arriba).`;
+    if (nAl) hacer = `Tienes <b>${nAl}</b> ${nAl === 1 ? "aviso que conviene revisar" : "avisos que conviene revisar"} <span class="rmFlecha" aria-hidden="true">${ICO.subir}</span> (arriba).`;
     else if (em && !em.gastos && !em.ingresos) hacer = 'Aún no has anotado nada este mes. Hazlo en <b>Mis datos → Ingresos y gastos</b> (o impórtalo del banco).';
     else if (em && em.tasaAhorro != null && em.tasaAhorro >= 0.2) hacer = `Vas bien: has ahorrado el <b>${G.fmtPct(em.tasaAhorro, 0)}</b> de tus ingresos este mes. 💪`;
     else hacer = "Todo en orden. 👌";
@@ -974,7 +997,7 @@
       <header><h2>Tu mes de un vistazo</h2><span class="subt">${mesNombre ? esc(mesNombre) + " · " : ""}qué ha cambiado y qué conviene hacer</span></header>
       <div class="rmCifras">
         ${cif("Cartera este mes", varMes != null ? G.fmtEurSigno(varMes) : "—", varMes == null ? "" : (varMes >= 0 ? "pos" : "neg"), varPct != null ? G.fmtPctSigno(varPct, 1) : "")}
-        ${em ? cif("Ahorro del mes", G.fmtEurSigno(em.ahorro), em.ahorro >= 0 ? "pos" : "neg", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
+        ${em ? cif("Ahorro del mes", em.ahorro ? G.fmtEurSigno(em.ahorro) : G.fmtEur(0), em.ahorro > 0 ? "pos" : em.ahorro < 0 ? "neg" : "", em.tasaAhorro != null ? "tasa " + G.fmtPct(em.tasaAhorro, 0) : "") : ""}
         ${cif("Dinero libre" + info("Lo que te queda de verdad para invertir: disponible − reservados − colchón."), G.fmtEur(libre, 0), "", "para invertir")}
       </div>
       <div class="rmHacer"><span class="rmHacerEt">→ Qué conviene hacer</span> ${hacer}</div>
@@ -1081,6 +1104,7 @@
       const val = x => x == null ? "—" : G.fmtEur(x, 0);
       const delta = (x, invert) => {
         if (x == null) return "—";
+        if (Math.round(x) === 0) return G.fmtEur(0, 0);   // sin cambio: neutro, sin signo
         const bueno = invert ? x <= 0 : x >= 0;
         return `<span style="color:${bueno ? "var(--bien)" : "var(--mal)"}">${x >= 0 ? "+" : ""}${G.fmtEur(x, 0)}</span>`;
       };
@@ -2735,10 +2759,11 @@
         <span class="periodoLbl">Periodo:</span>
         <span class="periodoPresets">${presets.map(p => `<button class="btn mini${activoPreset(p.desde) ? " act" : ""}" data-desde="${p.desde || ""}">${p.et}</button>`).join("")}</span>
         <span class="periodoSep">· o rango exacto:</span>
+        <span class="periodoJunto">
         <input type="date" id="inpDesde" value="${estado.desde || ""}" min="${minF}" max="${hoy}" title="Desde (para ver un rango)">
         <span class="periodoFlecha">→</span>
         <input type="date" id="inpHasta" value="${hd}" min="${minF}" max="${hoy}" title="Hasta (un día pasado recalcula el panel a esa fecha)">
-        <button class="btn" id="btnVerPeriodo">Ver</button>
+        <button class="btn" id="btnVerPeriodo">Ver</button></span>
         ${activo ? '<button class="btn" id="btnHoy">↺ Hoy</button>' : ""}
       </div>
       ${(D.hasta && !estado.desde) ? `<div class="avisoHasta">📅 Estás viendo tus datos <b>a fecha ${esc(G.fmtFecha(hd))}</b>, no los de hoy.${info("Las cantidades son las de aquella fecha. El colchón y los datos fijos de las deudas se muestran con su valor actual.")}</div>` : ""}`;
@@ -4142,7 +4167,7 @@
           <h2>${esc(NOVEDADES.titulo)}</h2>
           <p class="subt">Esto es lo nuevo desde la última vez. Tus datos siguen intactos.</p></div>
         <ul class="novLista">${NOVEDADES.puntos.map(p => `<li>
-          <span class="novIco">${p[0]}</span>
+          <span class="novIco" aria-hidden="true">${icoLista(p[0])}</span>
           <div><b>${esc(p[1])}</b><span>${esc(p[2])}</span></div></li>`).join("")}</ul>
         <div class="novPie"><button class="btn prim" id="novOk">¡Genial, a verlo!</button></div></div>`;
     const cierra = () => {
@@ -4402,7 +4427,7 @@
           <h2>${esc(info.t)}</h2>
           ${info.sub ? `<p class="subt">${esc(info.sub)}</p>` : ""}</div>
         <ul class="novLista">${info.p.map(p => `<li>
-          <span class="novIco">${p[0]}</span>
+          <span class="novIco" aria-hidden="true">${icoLista(p[0])}</span>
           <div><b>${esc(p[1])}</b><span>${esc(p[2])}</span></div></li>`).join("")}</ul>
         <p class="ayudaNota">💡 Puedes ocultar estos botones de ayuda en <b>Ajustes → Botones de ayuda</b>.</p>
         <div class="novPie"><button class="btn prim" id="ayOk">Entendido</button></div></div>`;
