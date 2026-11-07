@@ -4148,15 +4148,14 @@
   // Novedades de la versión: una tarjeta que se muestra UNA vez por versión, solo si ya
   // tienes tus datos (no en el primer arranque, que tiene su propia bienvenida/tour).
   const NOVEDADES = {
-    version: "1.19.0",
+    version: "1.20.0",
     titulo: "Novedades de esta versión",
     puntos: [
-      ["📈", "Cómo ha crecido tu patrimonio", "Junto a «Tu patrimonio», en Inicio, su evolución mes a mes: el total, tu cartera y tus inmuebles, con lo que ha cambiado en 12 meses."],
-      ["🕊️", "Tu libertad financiera", "Una card nueva en Inicio: cuántos meses vivirías con tu dinero a mano y con toda tu cartera, y cuánto de lo que gastas cubre ya tu renta pasiva (cartera + alquileres)."],
-      ["🔔", "Alertas de precio", "En la ficha de cada activo: «avísame si cae un 10 %», «si baja de…» o «si supera…». Cuando se cumple, te avisa en el Panel."],
-      ["↩️", "Deshacer al borrar", "¿Te has equivocado? Justo después de borrar, pulsa «Deshacer» en el aviso de abajo (o Ctrl+Z) y vuelve tal cual, con sus facturas."],
-      ["✎", "Inicio a tu gusto", "Con «Personalizar» ordenas las tarjetas, ocultas las que no uses, pones dos lado a lado o eliges un Inicio compacto. Se guarda en tu cartera, para todos tus dispositivos."],
-      ["👁", "Ocultar importes, a un clic", "El ojo de la barra de arriba oculta las cifras al momento, también en Mis datos. Y el botón de imprimir es ahora solo la impresora."],
+      ["🎨", "Un diseño renovado", "Tipografía propia, iconos de línea en lugar de emojis, colores con mejor contraste en claro y oscuro, y foco visible al moverte con el teclado."],
+      ["📒", "Tus cifras, como un libro de cuentas", "En Cartera, «Tu cartera hoy» se lee como dos cuentas: bruta − deudas = neta y disponible − reservados − colchón = libre. Distribución, Inicio e Inmuebles muestran sus cifras en filas y franjas, sin tarjetas repetidas."],
+      ["📈", "Cifras que cobran vida", "Las cifras grandes giran como un contador al abrir, las vistas entran con un fundido corto y el cambio de tema se funde. Si tienes activado «reducir movimiento», todo aparece al instante."],
+      ["💻", "Mejor en el móvil y en ventanas estrechas", "Todas las pestañas a la vista, filtros y periodo ordenados, y nada que obligue a desplazarse de lado: las tablas de Saldos y valores caben enteras, con editar y borrar siempre visibles."],
+      ["🧪", "Un ejemplo completo y siempre al día", "El patrimonio de ejemplo es ahora un hogar de unos 300.000 € con cartera, casa, piso alquilado, garaje, trastero, tres años de ingresos y gastos, notas, agenda y documentos. Sus fechas llegan siempre hasta hoy."],
     ],
   };
   function quizaNovedades() {

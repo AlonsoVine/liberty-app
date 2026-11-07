@@ -1,6 +1,6 @@
 # ADR 0037 — Patrimonio de ejemplo integral, con fechas vivas
 
-- **Estado:** aceptado (pendiente de publicar)
+- **Estado:** aceptado (publicado en v1.20.0)
 - **Fecha:** 2026-11-03
 
 ## Contexto

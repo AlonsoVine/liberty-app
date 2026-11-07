@@ -9,8 +9,29 @@ versiones se publican en [AlonsoVine/liberty](https://github.com/AlonsoVine/libe
 
 Todos los cambios son **aditivos**: una cartera anterior sigue funcionando igual.
 
-## [No publicado]
+## [1.20.0] — 2026-11-07
 
+- **Mejora estética integral (ADR 0038).** Hecha en cinco vueltas, cada una revisada por un árbitro independiente. El registro completo está en `docs/estetica/`.
+  - **Tipografía propia, servida en local:** Geist para la interfaz y Fraunces para los títulos y las cifras protagonistas.
+  - **Iconos de línea** en lugar de emojis como icono.
+  - **Contraste WCAG AA** en claro y oscuro (axe: 1093 nodos con fallo → 0) y anillo de foco opaco.
+  - **Cifras como libro de cuentas:**
+    - Cartera: bruta − deudas = neta y disponible − reservados − colchón = libre.
+    - Distribución, Inicio e Inmuebles, en filas y franjas.
+  - **Movimiento solo con transform y opacity:**
+    - odómetro en las cifras grandes;
+    - entrada escalonada corta;
+    - fundido del tema con View Transitions;
+    - respeta «reducir movimiento».
+  - **Móvil y ventanas estrechas:**
+    - sin desplazamiento lateral entre 360 y 1920 px;
+    - todas las sub-pestañas a la vista;
+    - filtros y periodo en rejilla;
+    - las tablas de Saldos y valores caben enteras.
+  - **Estabilidad y rendimiento:**
+    - sin saltos al cargar (CLS 0,975 → 0,001);
+    - Lighthouse escritorio de 61 a 90 y móvil de 30 a 57.
+  - **Signo menos tipográfico** y variaciones nulas en color neutro.
 - **Un patrimonio de ejemplo completo y siempre al día** (ADR 0037). Es el que se ve al abrir la app por primera vez y el que se crea desde Ayuda.
   - Ahora es un hogar equilibrado de unos 300.000 €, con:
     - cartera variada, con algún activo en pérdidas;
