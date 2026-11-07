@@ -222,3 +222,20 @@ No se cambia (8): consolidar el CSS heredado (keyframes y reglas duplicadas del 
   - contorno de foco en `.info` y `.toastAcc`;
   - ceros neutros en Ingresos;
   - limpiar el CSS heredado.
+
+## Ajustes pedidos tras el cierre
+
+1. **Saldos y valores sin desplazamiento lateral.**
+   - **Causa:** a 1440 px las tarjetas iban en 3 columnas de ~348 px y cada tabla necesitaba ~375–385 px. Las acciones de editar y borrar quedaban fuera y había que desplazar la tabla de lado. En el original también pasaba, por ~13 px.
+   - **Arreglo:**
+     - Tarjetas con un mínimo de 430 px (2 columnas en escritorio, 1 en móvil).
+     - Celdas compactas y cabeceras largas en dos líneas («Lo que queda por pagar»).
+     - En móvil, menos relleno en las tarjetas anidadas.
+     - La tabla deja de ser desplazable.
+   - **Medido:** 0 tablas desbordan a 360, 375, 390, 430, 560, 768, 1024, 1280, 1440 y 1920 px.
+2. **Barra superior en móvil (Mis datos):** el selector de patrimonio se montaba sobre los iconos. Ahora se encoge con puntos suspensivos y el nombre de la app le cede su sitio.
+3. **Contraste de los rellenos azules:** botón principal, icono activo, opción de importar elegida y tarjeta de canal pasan a `--acento-fondo` (blanco ≥ 5:1 en oscuro). La tarjeta de canal daba 2,81:1.
+
+**Checks:**
+- Tests verdes y sin scroll horizontal.
+- axe: 0 con la página asentada. Las 4 incidencias de la captura automática eran fotogramas del fundido de entrada de la tarjeta de canal; lo verifiqué con axe tras asentarse, en ambos temas.

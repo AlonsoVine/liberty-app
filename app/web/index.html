@@ -874,11 +874,11 @@ input[type=range]{width:100%;accent-color:var(--s1);height:22px}
 .aviso-legal{margin-top:10px;color:var(--tinta3);font-size:11.5px}
 .btn:disabled{opacity:.55;cursor:progress}
 [hidden]{display:none !important}
-.btn.prim{background:var(--s1);border-color:transparent;color:#fff;font-weight:600}
-.btn.prim:hover{filter:brightness(1.1);color:#fff;background:var(--s1)}
+.btn.prim{background:var(--acento-fondo);border-color:transparent;color:#fff;font-weight:600}
+.btn.prim:hover{filter:brightness(1.1);color:#fff;background:var(--acento-fondo)}
 body.sinDatos #tabs button:not([data-tab="datos"]),body.sinDatos #btnPrecios,body.sinDatos #metaFecha{display:none}
 .icoBtn{padding:7px 11px;font-size:15px;line-height:1}
-.icoBtn[aria-selected="true"]{background:var(--s1);border-color:transparent;color:#fff}
+.icoBtn[aria-selected="true"]{background:var(--acento-fondo);border-color:transparent;color:#fff}
 .volverBar{margin:6px 0 2px}
 
 /* ---- Mis datos ---- */
@@ -1143,7 +1143,7 @@ table.dt td.nota{max-width:220px;overflow:hidden;text-overflow:ellipsis;text-ali
 .imOp:hover{border-color:color-mix(in srgb,var(--tinta3) 60%,transparent)}
 .imOp.sel{border-color:var(--s1);box-shadow:0 0 0 3px color-mix(in srgb,var(--s1) 18%,transparent);
   background:color-mix(in srgb,var(--s1) 7%,var(--sup2))}
-.imOp.sel .ic{background:var(--s1);color:#fff;box-shadow:none}
+.imOp.sel .ic{background:var(--acento-fondo);color:#fff;box-shadow:none}
 .imOpsDest{grid-template-columns:repeat(2,minmax(0,1fr))}
 .imPregunta{font-weight:650;font-size:12.5px;letter-spacing:.02em;text-transform:uppercase;color:var(--tinta2);margin:0 0 10px}
 .imIntro{margin:14px 0 18px;padding:12px 14px;border-radius:12px;font-size:13px;line-height:1.55;color:var(--tinta2);
@@ -1704,7 +1704,7 @@ kbd{display:inline-block;min-width:16px;text-align:center;padding:2px 7px;border
 .tarjetaCanal b{display:block;font-size:14.5px;padding-right:18px}
 .tarjetaCanal p{margin:6px 0 12px;font-size:13px;line-height:1.5;color:var(--tinta2)}
 .tarjetaCanal .botones{display:flex;gap:8px;align-items:center}
-.tarjetaCanal .btn.prim{background:var(--s1);text-decoration:none}
+.tarjetaCanal .btn.prim{background:var(--acento-fondo);text-decoration:none}
 .tarjetaCanal .btn{text-decoration:none}
 .tarjetaCanal .ahoraNo{border:0;background:none;color:var(--tinta3);font:inherit;font-size:13px;cursor:pointer}
 .tarjetaCanal .canalNota{margin:10px 0 0;font-size:11.5px;line-height:1.45;color:var(--tinta3)}
@@ -2298,6 +2298,38 @@ dialog.novedades{box-shadow:none;width:fit-content;max-width:none;max-height:non
 @media(max-width:640px){
   .subtabs{gap:6px 5px}
   .subtabs .segm button{padding:5px 10px;font-size:12.5px}
+}
+/* ---- Saldos y valores: cada tabla cabe entera en su tarjeta, sin desplazamiento lateral
+   (las acciones editar/borrar siempre a la vista). Tarjetas más anchas y celdas compactas. ---- */
+.saldos{grid-template-columns:repeat(auto-fill,minmax(min(430px,100%),1fr))}
+.saldos .tablaEnv{overflow-x:visible;background:none}
+.saldos table.dt th,.saldos table.dt td{padding-left:9px;padding-right:9px}
+.saldos table.dt th:first-child,.saldos table.dt td:first-child{padding-left:12px}
+.saldos table.dt td.acc{width:1%;padding-right:6px}
+.saldos table.dt td.acc button.accIco{padding:5px 4px}
+.saldos table.dt th{white-space:normal;line-height:1.25;vertical-align:bottom}
+@media(max-width:560px){
+  #editor .tarjeta:has(> .saldos){padding-left:12px;padding-right:12px}
+  .saldos .tarjeta{padding-left:10px;padding-right:10px}
+  .saldos table.dt{font-size:12.5px}
+  .saldos table.dt th,.saldos table.dt td{padding-left:5px;padding-right:5px}
+  .saldos table.dt th:first-child,.saldos table.dt td:first-child{padding-left:6px}
+  .saldos table.dt td.acc{padding-right:2px}
+  .saldos table.dt td.acc button.accIco{padding:5px 3px;margin:0}
+}
+@media(max-width:400px){
+  #editor .tarjeta:has(> .saldos){padding-left:8px;padding-right:8px}
+  .saldos .tarjeta{padding-left:8px;padding-right:8px}
+  .saldos table.dt{font-size:12px}
+  .saldos table.dt th{letter-spacing:.02em}
+}
+/* ---- Barra superior en móvil con el selector de patrimonio: el selector se encoge (con
+   puntos suspensivos) y el nombre de la app cede su sitio; nada se monta sobre los iconos. ---- */
+@media(max-width:640px){
+  .topFila .marca{flex:1 1 auto;min-width:0}
+  .marca .selCartera{min-width:0;max-width:100%;flex:1 1 auto;text-overflow:ellipsis;font-size:13px;padding:5px 6px}
+  .marca:has(.selCartera:not([hidden])) .nombreApp{display:none}
+  .topFila > :not(.marca){flex:none}
 }
 /* ---- Impresión / PDF: solo el panel, sin botones ni navegación ---- */
 @media print{
