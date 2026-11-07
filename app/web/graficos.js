@@ -242,7 +242,7 @@
     const fY = cfg.formatoY || fmtEurCorto;
     const fV = cfg.formatoValor || fmtEur;
 
-    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico", role: "img" });
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico", role: "img", "aria-label": cfg.ariaLabel || "Gráfico de evolución en el tiempo" });
 
     // rejilla
     for (let v = esc.min; v <= esc.max + 1e-9; v += esc.paso) {

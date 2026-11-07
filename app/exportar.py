@@ -114,6 +114,17 @@ def pagina(web, datos, ocultar=False, titulo="Mi patrimonio"):
     with open(os.path.join(web, "icono-64.png"), "rb") as f:
         icono = "data:image/png;base64," + base64.b64encode(f.read()).decode()
     html = html.replace('src="icono-64.png"', f'src="{icono}"')
+    # Las tipografías también van dentro (la web exportada es un solo archivo, sin carpeta
+    # «fuentes/» al lado): se incrustan como data: y se quitan los <link rel="preload">.
+    html = re.sub(r'\s*<link rel="preload" href="fuentes/[^"]+"[^>]*>', "", html)
+
+    def _fuente(m):
+        ruta = os.path.join(web, "fuentes", m.group(1))
+        if not os.path.exists(ruta):
+            return m.group(0)
+        with open(ruta, "rb") as f:
+            return 'url("data:font/woff2;base64,' + base64.b64encode(f.read()).decode() + '")'
+    html = re.sub(r'url\("fuentes/([\w.-]+\.woff2)"\)', _fuente, html)
     html = re.sub(r'\s*<link rel="(icon|apple-touch-icon)"[^>]*>', "", html)
     desc = "Panel de patrimonio neto e inversiones hecho con Liberty." + (" Importes ocultos." if ocultar else "")
     # Escapar antes de interpolar: «titulo» es el nombre que pone el usuario y

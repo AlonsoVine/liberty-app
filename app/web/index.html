@@ -7,21 +7,32 @@
 <link rel="icon" href="favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="icono-32.png">
 <link rel="apple-touch-icon" href="icono-180.png">
+<link rel="preload" href="fuentes/geist.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fuentes/fraunces.woff2" as="font" type="font/woff2" crossorigin>
 <style>
+/* Tipografías propias, servidas por la app (funciona sin conexión). Licencia OFL en fuentes/.
+   Geist: interfaz y cifras (con cifras tabulares). Fraunces: titulares de sección. */
+@font-face{font-family:"Geist";src:url("fuentes/geist.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
+@font-face{font-family:"Fraunces";src:url("fuentes/fraunces.woff2") format("woff2");font-weight:100 900;font-style:normal;font-display:swap}
 /* ============================ tokens ============================ */
 :root{
   color-scheme:dark;
   --plano:#0d0d0d; --sup:#1a1a19; --sup2:#232320; --sup3:#2b2b28;
-  --tinta:#ffffff; --tinta2:#c3c2b7; --tinta3:#898781;
+  --tinta:#ffffff; --tinta2:#c3c2b7; --tinta3:#a09e95;
   --rejilla:#2c2c2a; --eje:#383835; --borde:rgba(255,255,255,.10);
   --bien:#0ca30c; --mal:#e66767; --aviso:#fab219;
-  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500;
+  --s1:#5a9cf0; --s2:#d95926; --s3:#199e70; --s4:#c98500;
   --s5:#d55181; --s6:#008300; --s7:#9085e9; --s8:#e66767;
   --s9:#2bb0d1; --s10:#c08a55; --s11:#93a1c2; --s12:#9cc21a;
   --s13:#14b8a6; --s14:#c026d3; --s15:#f59e0b; --s16:#6366f1;
   --s17:#a3e635; --s18:#fb7185; --s19:#38bdf8; --s20:#c084fc;
   --s21:#94a3b8; --s22:#34d399; --s23:#f472b6; --s24:#eab308;
-  --radio:14px;
+  --radio:16px;
+  /* Relleno de los botones principales (texto blanco con contraste AA) y acento suave. */
+  --acento-fondo:#2a68cf; --acento-suave:color-mix(in srgb,var(--s1) 14%,transparent);
+  --f-ui:"Geist",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-disp:"Fraunces",Georgia,"Times New Roman",serif;
+  --brillo:inset 0 1px 0 rgba(255,255,255,.045);
   /* movimiento: duraciones y curvas únicas para toda la app (ver prefers-reduced-motion) */
   --dur-1:.12s; --dur-2:.22s; --dur-3:.42s;
   --ease:cubic-bezier(.2,.7,.3,1); --ease-salida:cubic-bezier(.4,0,1,1);
@@ -30,16 +41,17 @@
 :root[data-tema="claro"]{
   color-scheme:light;
   --plano:#f9f9f7; --sup:#fcfcfb; --sup2:#f2f1ec; --sup3:#e8e7e0;
-  --tinta:#0b0b0b; --tinta2:#52514e; --tinta3:#898781;
+  --tinta:#0b0b0b; --tinta2:#45443f; --tinta3:#5f5e58;
   --rejilla:#e1e0d9; --eje:#c3c2b7; --borde:rgba(11,11,11,.10);
-  --bien:#006300; --mal:#d03b3b; --aviso:#b07d00;
-  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
+  --bien:#006300; --mal:#c42f2f; --aviso:#8f6400;
+  --s1:#1d63bd; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100;
   --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7; --s8:#e34948;
   --s9:#0e8fb0; --s10:#9a6a3a; --s11:#5d6b8a; --s12:#7c9a00;
   --s13:#0d9488; --s14:#a21caf; --s15:#d97706; --s16:#4f46e5;
   --s17:#65a30d; --s18:#e11d48; --s19:#0284c7; --s20:#7e22ce;
   --s21:#475569; --s22:#047857; --s23:#be185d; --s24:#a16207;
-  --sombra:0 8px 24px rgba(11,11,11,.12); --sombra-sutil:0 2px 8px rgba(11,11,11,.07);
+  --sombra:0 12px 32px -12px rgba(11,11,11,.16),0 2px 6px rgba(11,11,11,.05); --sombra-sutil:0 1px 2px rgba(11,11,11,.05),0 6px 18px -10px rgba(11,11,11,.10);
+  --acento-fondo:#1d63bd; --brillo:inset 0 1px 0 rgba(255,255,255,.7);
 }
 *{box-sizing:border-box}
 html,body{margin:0;padding:0}
@@ -78,8 +90,9 @@ html.temaAnim *,html.temaAnim *::before,html.temaAnim *::after{
 ::-webkit-scrollbar-thumb:hover{background:var(--eje);background-clip:content-box}
 body{
   background:var(--plano); color:var(--tinta);
-  font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;
-  -webkit-font-smoothing:antialiased;
+  font:15px/1.5 var(--f-ui);
+  -webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;
+  font-feature-settings:"ss01" 0;text-rendering:optimizeLegibility;
 }
 h1,h2,h3{margin:0;font-weight:650;letter-spacing:-.015em}
 a{color:inherit}
@@ -1737,6 +1750,222 @@ body.video .tarjetaCanal{display:none}
 .periodoCard .pVal.pos{color:var(--bien)}.periodoCard .pVal.neg{color:var(--mal)}
 #resultadoPeriodo[hidden]{display:none}
 @media print{.mesRefCtrl,.periodoCtrl{display:none !important}}
+/* ============================ acabado (rama mejora-estetica) ============================
+   Capa final de pulido visual. Va al final para refinar sin reescribir cada componente:
+   tipografía (Geist + Fraunces), superficies con menos «caja dentro de caja», iconos de
+   línea, navegación móvil en una sola fila, movimiento solo con transform/opacity y
+   contraste AA. Ver DECISIONES.md. */
+
+/* ---- Tipografía: escala y titulares editoriales ---- */
+h1,h2,h3{font-weight:600;letter-spacing:-.02em}
+.tarjeta > header h2,.inicioArchivo .inicioTit,#pv-distribucion section > header h2{
+  font-family:var(--f-disp);font-weight:560;font-size:19px;letter-spacing:-.012em;line-height:1.2;
+  font-optical-sizing:auto;color:var(--tinta)}
+.tarjeta > header{gap:6px 12px;margin-bottom:16px;align-items:baseline}
+.tarjeta > header .subt{font-size:13px}
+.ayudaVista{font-size:14px;max-width:72ch}
+.hEtq,.kpi .e,.mesT .e,.ficha dt,.ventana .e,.lfEtq,.hudEtq,.grupoEtq,.expo h3,.secc,table.dt th{
+  letter-spacing:.08em;font-weight:600}
+/* Cifras: Geist con cifras tabulares, peso contenido y tracking ajustado (en vez de negritas 800). */
+.hCifra{font-weight:620;letter-spacing:-.045em;line-height:.95;margin:10px 0 14px}
+.ptCifra{font-size:44px;font-weight:620;letter-spacing:-.04em;line-height:1;margin:6px 0 16px}
+@media(max-width:620px){.ptCifra{font-size:36px}}
+.lfNum{font-weight:620;letter-spacing:-.035em}
+.hudNum{font-weight:620;letter-spacing:-.035em;font-size:36px;text-shadow:none}
+.hudCell.c1 .hudNum,.hudCell.c2 .hudNum{text-shadow:none}
+.aroCentro b{font-weight:640}
+.kpi .v{font-weight:620;letter-spacing:-.03em}
+.inicioTile .itVal{font-weight:640;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+.inmValor,.mesT .v,.chip .vl{font-weight:620;letter-spacing:-.03em}
+.ptVal,.iiVal{font-weight:620}
+
+/* ---- Marca ---- */
+.marca .nombreApp{font-weight:640;letter-spacing:.16em;font-size:13px}
+.marca .logoIcono{border-radius:7px;box-shadow:0 0 0 1px var(--borde)}
+
+/* ---- Iconos de línea ---- */
+.ico{display:inline-block;flex:none;vertical-align:-.2em;width:1.15em;height:1.15em}
+.btn .ico{width:17px;height:17px;vertical-align:middle}
+.icoBtn{width:36px;height:34px;padding:0;justify-content:center}
+.icoBtn .ico,.icoBtn .icoOjo{width:18px;height:18px}
+.tabs button .ico{width:17px;height:17px;margin-right:7px;vertical-align:-3px;opacity:.85}
+.tabs button[aria-selected="true"] .ico{opacity:1;color:var(--s1)}
+/* Iconos dentro de una «ficha» tonal: el mismo tratamiento en Inicio, inmuebles y avisos. */
+.ptIco,.iiIco,.inmIco,.itIco{display:grid;place-items:center;color:var(--s1);background:var(--acento-suave)}
+.ptIco .ico,.iiIco .ico{width:18px;height:18px}
+.inmIco .ico{width:22px;height:22px}
+.inmFichaCab .inmIco .ico{width:28px;height:28px}
+.inicioTile .itIco{width:34px;height:34px;border-radius:10px;margin-bottom:8px}
+.inicioTile .itIco .ico{width:18px;height:18px}
+.inicioTile.ok .itIco{color:var(--bien);background:color-mix(in srgb,var(--bien) 13%,transparent)}
+.inicioTile.warn .itIco{color:var(--mal);background:color-mix(in srgb,var(--mal) 13%,transparent)}
+.inicioTile.ok .itVal{color:var(--tinta)}
+.inicioTile.warn .itVal{color:var(--mal)}
+.lfEtq .ico,.hudEtq .ico{width:15px;height:15px;margin-right:5px;vertical-align:-3px;color:var(--s1)}
+.hudCell.c1 .hudEtq .ico,.hudCell.c2 .hudEtq .ico{color:var(--s4)}
+.hudCell.c3 .hudEtq .ico{color:var(--s3)}
+.irEtq .ico{width:15px;height:15px;color:var(--s1);margin-right:4px}
+.avisoLinea .avisoIco{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;
+  color:var(--tinta2);background:color-mix(in srgb,var(--tinta) 6%,transparent)}
+.avisoLinea .avisoIco .ico{width:16px;height:16px}
+.avisoLinea.aviso .avisoIco{color:var(--mal);background:color-mix(in srgb,var(--mal) 12%,transparent)}
+.avisosCabIco{display:grid;place-items:center;color:var(--tinta2)}
+.avisosCabIco .ico{width:17px;height:17px}
+
+/* ---- Superficies: borde fino + brillo superior en oscuro; sombra difusa solo en claro ---- */
+.tarjeta{border-radius:var(--radio);padding:22px 24px;box-shadow:var(--brillo),var(--sombra-sutil)}
+:root:not([data-tema="claro"]) .tarjeta{box-shadow:var(--brillo)}
+@media(max-width:620px){.tarjeta{padding:18px 16px}}
+/* Celdas internas: tonales y sin borde duro, para que no sean «tarjetas dentro de tarjetas». */
+.lfCelda,.hudCell,.inicioTile,.irCaja,.ptFila,.iiFila,.kpi,.mesT{
+  border-color:color-mix(in srgb,var(--tinta) 5%,transparent);box-shadow:none}
+.tarjeta .lfCelda,.tarjeta .hudCell,.tarjeta .inicioTile,.tarjeta .ptFila,.tarjeta .iiFila{background:var(--sup2)}
+:root[data-tema="claro"] .tarjeta .lfCelda,:root[data-tema="claro"] .tarjeta .hudCell,
+:root[data-tema="claro"] .tarjeta .inicioTile,:root[data-tema="claro"] .tarjeta .ptFila,
+:root[data-tema="claro"] .tarjeta .iiFila{background:var(--plano)}
+.irCaja,.kpi,.mesT{box-shadow:var(--brillo)}
+.hud{background:radial-gradient(90% 120% at 0% 0%,color-mix(in srgb,var(--s4) 7%,transparent),transparent 55%),var(--sup);
+  border-color:var(--borde)}
+.inicioTile,.lfCelda,.hudCell{border-radius:14px}
+.inicioTile{padding:16px 16px 15px;gap:2px}
+.inicioTile .itEtq{font-size:13.5px;font-weight:600;margin-top:2px}
+
+/* ---- Barra superior y navegación ---- */
+.top{background:color-mix(in srgb,var(--plano) 82%,transparent);backdrop-filter:saturate(1.4) blur(14px)}
+.btn{border-radius:10px;min-height:34px}
+.btn.prim{background:var(--acento-fondo);color:#fff}
+.btn.prim:hover{background:var(--acento-fondo);filter:brightness(1.12)}
+.icoBtn[aria-selected="true"]{background:var(--acento-fondo)}
+#btnPaleta kbd{font:600 11px/1 var(--f-ui);color:var(--tinta3);border:1px solid var(--borde);border-radius:6px;
+  padding:3px 6px;background:var(--sup2);margin-left:2px}
+/* Pestaña activa: el subrayado crece desde el centro (solo transform). */
+.tabs button{position:relative;border-bottom:0;transition:color var(--dur-2) var(--ease)}
+.tabs button::after{content:"";position:absolute;left:14px;right:14px;bottom:0;height:2px;border-radius:2px;
+  background:var(--s1);transform:scaleX(0);transition:transform var(--dur-3) var(--ease)}
+.tabs button[aria-selected="true"]::after{transform:scaleX(1)}
+.tabs button:hover::after{transform:scaleX(.35)}
+.tabs button[aria-selected="true"]:hover::after{transform:scaleX(1)}
+.segm{border-radius:11px;padding:3px}
+.segm button{border-radius:8px;transition:color var(--dur-1) var(--ease),background-color var(--dur-2) var(--ease)}
+.subtabs .segm button[aria-selected="true"]{box-shadow:0 1px 2px rgba(0,0,0,.2),0 0 0 1px var(--borde)}
+.subtabs .segm button{color:var(--tinta2)}
+.igNav button,.cfgTab{transition:color var(--dur-1) var(--ease)}
+
+/* ---- Avisos: despliegue con fundido (sin animar la altura) ---- */
+.avisosLista{display:block;transition:none}
+.avisosCaja[data-abierto="0"] .avisosLista{display:none}
+.avisosCaja[data-abierto="1"] .avisosListaIn{animation:aparece var(--dur-3) var(--ease) both}
+.avisosChevron{transition:transform var(--dur-2) var(--ease)}
+.avisoLinea{gap:12px}
+.avisosLista .avisoLinea.aviso{box-shadow:inset 2px 0 0 var(--mal)}
+.avisoIr{transition:transform var(--dur-1) var(--ease)}
+.avisoLinea.clicable:hover .avisoIr{transform:translateX(3px)}
+
+/* ---- Micro-interacciones: flechas que avanzan, elevaciones discretas ---- */
+.ptIr{transition:transform var(--dur-2) var(--ease),color var(--dur-1) var(--ease)}
+.ptFila:hover .ptIr{transform:translateX(3px);color:var(--s1)}
+.ptFila:hover,.iiFila:hover{transform:none;border-color:color-mix(in srgb,var(--s1) 40%,transparent)}
+.inicioTile:hover,.lfCelda:hover,.hudCell:hover{box-shadow:0 14px 30px -18px rgba(0,0,0,.55)}
+:root[data-tema="claro"] .inicioTile:hover,:root[data-tema="claro"] .lfCelda:hover,
+:root[data-tema="claro"] .hudCell:hover{box-shadow:0 14px 30px -18px rgba(11,11,11,.3)}
+.chip{transition:transform var(--dur-2) var(--ease),border-color var(--dur-1) var(--ease)}
+.filtro,.selFondo button,.recChip,.kCards,.marcaBtn,.obsBtn,.factBtn,.pildoras span,.mForm .x{
+  transition:color var(--dur-1) var(--ease),background-color var(--dur-1) var(--ease),border-color var(--dur-1) var(--ease),opacity var(--dur-1) var(--ease)}
+.interruptor .pista::after{transition:transform var(--dur-2) var(--ease)}
+.interruptor input:checked + .pista::after{left:3px;transform:translateX(16px)}
+.tourFoco{transition:opacity var(--dur-2) var(--ease)}
+
+/* ---- Barras de progreso: se rellenan con transform (no con width) ---- */
+.progBarra{position:relative;overflow:hidden}
+.progBarra.faro{overflow:hidden}
+.progRelleno{width:100% !important;transform:translateX(calc((var(--p,0) - 1) * 100%));
+  transition:transform .9s var(--ease);will-change:transform}
+.progBarra.faro .progRelleno::after{right:5px;width:7px;height:7px;transform:translate(0,-50%)}
+@keyframes faroAterriza{
+  0%{opacity:0;transform:translate(0,-50%) scale(.3)}
+  45%{opacity:1;transform:translate(0,-50%) scale(1.6)}
+  100%{opacity:.95;transform:translate(0,-50%) scale(1)}
+}
+
+/* ---- Entrada escalonada de los bloques al cambiar de vista (solo transform/opacity) ---- */
+@keyframes aparece{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.entrando > *{animation:aparece .55s var(--ease) both;animation-delay:calc(var(--i,0) * 55ms)}
+@keyframes entra{from{opacity:0;transform:translateY(8px) scale(.99)}to{opacity:1;transform:none}}
+
+/* ---- Tablas ---- */
+table.dt th{font-size:11px;color:var(--tinta3)}
+table.dt tbody tr{transition:background-color var(--dur-1) var(--ease)}
+.tablaEnv{border-radius:12px}
+
+/* ---- Modales y paleta ---- */
+.modal{border-radius:20px}
+.mForm > header h2,.bvCuerpo h2,.novCab h2{font-family:var(--f-disp);font-weight:560;letter-spacing:-.015em}
+
+/* ---- Móvil: barra superior en una sola fila y sub-pestañas deslizables ---- */
+@media(max-width:640px){
+  .env{padding-left:16px;padding-right:16px}
+  .topFila{flex-wrap:nowrap;gap:5px}
+  .topFila .meta{display:none}
+  .marca{gap:7px;min-width:0}
+  .btnTxt,#btnPaleta kbd{display:none}
+  #btnPaleta,#btnPrecios{width:34px;height:34px;padding:0;justify-content:center}
+  .icoBtn{width:34px}
+  .tabsPrin{margin:0 -16px;padding:0 6px}
+  .tabsPrin button{font-size:14px;padding:10px 12px 12px}
+  .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:14px -16px 8px;padding:2px 16px;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 28px),transparent);
+            mask-image:linear-gradient(90deg,transparent 0,#000 12px,#000 calc(100% - 28px),transparent)}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtabs .segm,.subtabs .pvGrupo{flex-wrap:nowrap;flex:none}
+  .subtabs .btnAyudaNav{margin-left:4px}
+  .hero{padding-top:22px}
+}
+@media(max-width:380px){.marca .nombreApp{display:none}}
+.tabsAux{display:contents}
+.filtro.preset[aria-pressed="false"]{opacity:1}
+.webOficial{background:var(--acento-fondo)}
+/* Tableta y portátil estrecho: barra superior sin cortes de línea y sub-pestañas deslizables. */
+.marca #marcaTexto{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:22ch}
+.topFila .meta{white-space:nowrap}
+@media(max-width:1100px){.topFila .meta{display:none}}
+@media(max-width:980px){#btnPrecios .btnTxt{display:none}#btnPrecios{width:36px;padding:0;justify-content:center}}
+@media(max-width:1180px){
+  .subtabs{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:2px 2px;
+    -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent);
+            mask-image:linear-gradient(90deg,#000 calc(100% - 32px),transparent)}
+  .subtabs::-webkit-scrollbar{display:none}
+  .subtabs .segm,.subtabs .pvGrupo{flex-wrap:nowrap;flex:none}
+}
+.bannerAlertas{margin:14px 0 18px}
+/* «Cómo ha cambiado» (Cartera): tabla de 6 columnas que heredaba anchos de la leyenda de 3. */
+.leyenda.varTabla{table-layout:fixed}
+.varTabla th{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--tinta3);
+  padding:0 0 8px 12px;white-space:nowrap}
+.varTabla th:first-child{width:24%;padding-left:0}
+.varTabla td:nth-child(n+2){padding-left:12px;text-align:right}
+.varTabla td:nth-child(3){width:auto;color:var(--tinta2)}
+@media(max-width:640px){.tablaVar,.varTabla{font-size:12px}.varTabla th{letter-spacing:.03em;white-space:normal}}
+/* Cifras de «Tu cartera hoy»: 4 por fila en escritorio (antes quedaba una sola en la 2.ª fila). */
+@media(min-width:1000px){#hogarGrid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.filtroTitulo .ico{margin-right:5px;color:var(--tinta3)}
+/* Estabilidad del layout: el contenedor principal crea su propio contexto de bloque para que el
+   margen del primer aviso no colapse hacia fuera. Antes, al aparecer el banner del ejemplo,
+   TODA la página bajaba 8 px tras pintar (CLS ≈ 0,97 en Lighthouse). */
+body > .env{display:flow-root}
+/* Hasta que el JS ha pintado con los datos, el contenido no se ve (evita saltos). Red de
+   seguridad: si algo fallara, se muestra igualmente a los 2,5 s. */
+body > .env:not(.listo){visibility:hidden;animation:revelaSeguro 0s 2.5s forwards}
+@keyframes revelaSeguro{to{visibility:visible}}
+/* Controles segmentados largos: en pantallas estrechas se deslizan dentro de su ancho en vez
+   de desbordar la página (antes provocaban scroll horizontal a 360–390 px). */
+.segm{max-width:100%;overflow-x:auto;scrollbar-width:none}
+.segm::-webkit-scrollbar{display:none}
+.segm button{flex:none}
+.subtabs .segm{max-width:none;overflow:visible}
+.subtabsFila{display:flex;align-items:center;gap:12px;margin:18px 0 10px}
+.subtabsFila .subtabs{margin:0;flex:1 1 auto;min-width:0;position:relative}
+@media(max-width:640px){.subtabsFila{margin:14px 0 8px}.subtabsFila .subtabs{margin:0 0 0 -16px}}
+@media print{.subtabsFila{display:none !important}}
 /* ---- Impresión / PDF: solo el panel, sin botones ni navegación ---- */
 @media print{
   :root{--fondo:#fff;--sup:#fff;--tinta:#000;--tinta2:#222;--tinta3:#555;--borde:#ccc}
@@ -1792,17 +2021,19 @@ body.video .tarjetaCanal{display:none}
       <div class="marca"><img class="logoIcono" src="icono-64.png" alt="" width="24" height="24"><span class="nombreApp">Liberty</span><span class="marcaSep"></span><span id="marcaTexto">Mi patrimonio</span><select id="selCartera" class="selCartera" aria-label="Elegir o crear patrimonio" hidden></select><button id="avisoVersion" class="avisoVersion" hidden type="button" title="Hay una versión nueva disponible — pulsa para descargarla"></button></div>
       <div class="sep"></div>
       <span class="meta" id="metaFecha"></span>
-      <button class="btn" id="btnPaleta" title="Buscar e ir a cualquier sitio (Ctrl+K)" aria-label="Buscar acciones">🔍 Buscar <kbd>⌘K</kbd></button>
-      <button class="btn" id="btnPrecios" title="Descarga los precios de hoy de cada producto">↻ Actualizar precios</button>
-      <button class="btn icoBtn" id="btnImprimir" title="Imprimir o guardar como PDF" aria-label="Imprimir o guardar como PDF">🖨</button>
+      <button class="btn" id="btnPaleta" title="Buscar e ir a cualquier sitio (Ctrl+K)" aria-label="Buscar acciones"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.2-4.2"/></svg><span class="btnTxt">Buscar</span><kbd>⌘K</kbd></button>
+      <button class="btn" id="btnPrecios" title="Descarga los precios de hoy de cada producto" aria-label="Actualizar precios"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 12a8 8 0 1 1-2.4-5.7L20 8.5"/><path d="M20 3.5v5h-5"/></svg><span class="btnTxt">Actualizar precios</span></button>
+      <button class="btn icoBtn" id="btnImprimir" title="Imprimir o guardar como PDF" aria-label="Imprimir o guardar como PDF"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v6.5H7z"/></svg></button>
       <button class="btn icoBtn" id="btnOcultar" type="button" aria-pressed="false" title="Ocultar los importes (modo privado)" aria-label="Ocultar los importes (modo privado)"></button>
-      <button class="btn icoBtn" id="btnAyuda" data-tab="ayuda" role="tab" aria-selected="false" title="Ayuda" aria-label="Ayuda">❓</button>
-      <button class="btn icoBtn" id="btnAjustes" data-tab="ajustes" role="tab" aria-selected="false" title="Ajustes" aria-label="Ajustes">⚙️</button>
+      <div class="tabsAux" role="tablist" aria-label="Ayuda y ajustes">
+      <button class="btn icoBtn" id="btnAyuda" data-tab="ayuda" role="tab" aria-selected="false" title="Ayuda" aria-label="Ayuda"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.4a2.5 2.5 0 1 1 3.4 2.4c-.7.3-1 .9-1 1.6"/><path d="M12 17h.01"/></svg></button>
+      <button class="btn icoBtn" id="btnAjustes" data-tab="ajustes" role="tab" aria-selected="false" title="Ajustes" aria-label="Ajustes"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 6.5h9M17 6.5h3M4 12h3M11 12h9M4 17.5h11M19 17.5h1"/><circle cx="15" cy="6.5" r="2"/><circle cx="9" cy="12" r="2"/><circle cx="17" cy="17.5" r="2"/></svg></button>
+      </div>
     </div>
-    <nav class="tabs tabsPrin" id="tabs" role="tablist">
-      <button data-tab="panel" role="tab" aria-selected="true">📊 Panel</button>
-      <button data-tab="datos" role="tab" aria-selected="false">✏️ Mis datos</button>
-      <button data-tab="notas" role="tab" aria-selected="false">🗂️ Documentos</button>
+    <nav class="tabs tabsPrin" id="tabs" role="tablist" aria-label="Secciones">
+      <button data-tab="panel" role="tab" aria-selected="true"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20V4"/><path d="M4 20h16"/><path d="M8.5 16v-5M13 16V8M17.5 16v-3"/></svg>Panel</button>
+      <button data-tab="datos" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>Mis datos</button>
+      <button data-tab="notas" role="tab" aria-selected="false"><svg class="ico" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7.5A2.5 2.5 0 0 1 5.5 5H9l2 2h7.5A2.5 2.5 0 0 1 21 9.5v7a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 16.5z"/></svg>Documentos</button>
     </nav>
   </div>
 </div>
@@ -1820,26 +2051,28 @@ body.video .tarjetaCanal{display:none}
 <div class="panel" id="tab-panel" role="tabpanel">
 
   <!-- Agrupadas por temática (como «Mis datos»): resumen · patrimonio · día a día · inmuebles. -->
-  <nav class="subtabs" id="subtabs" role="tablist">
-    <div class="segm pvGrupo">
-      <button data-pv="inicio" aria-selected="true">Inicio</button>
+  <div class="subtabsFila">
+  <nav class="subtabs" id="subtabs" role="tablist" aria-label="Vistas del panel">
+    <div class="segm pvGrupo" role="presentation">
+      <button data-pv="inicio" role="tab" aria-selected="true">Inicio</button>
     </div>
-    <div class="segm pvGrupo">
-      <button data-pv="patrimonio" aria-selected="false">Cartera</button>
-      <button data-pv="distribucion" aria-selected="false">Distribución</button>
-      <button data-pv="rentabilidad" aria-selected="false">Rentabilidad</button>
-      <button data-pv="evolucion" aria-selected="false">Evolución</button>
-      <button data-pv="deudas" aria-selected="false">Deudas y vencimientos</button>
-      <button data-pv="fiscal" aria-selected="false">Informe fiscal</button>
+    <div class="segm pvGrupo" role="presentation">
+      <button data-pv="patrimonio" role="tab" aria-selected="false">Cartera</button>
+      <button data-pv="distribucion" role="tab" aria-selected="false">Distribución</button>
+      <button data-pv="rentabilidad" role="tab" aria-selected="false">Rentabilidad</button>
+      <button data-pv="evolucion" role="tab" aria-selected="false">Evolución</button>
+      <button data-pv="deudas" role="tab" aria-selected="false">Deudas y vencimientos</button>
+      <button data-pv="fiscal" role="tab" aria-selected="false">Informe fiscal</button>
     </div>
-    <div class="segm pvGrupo">
-      <button data-pv="ingresos" aria-selected="false">Ingresos y gastos</button>
+    <div class="segm pvGrupo" role="presentation">
+      <button data-pv="ingresos" role="tab" aria-selected="false">Ingresos y gastos</button>
     </div>
-    <div class="segm pvGrupo">
-      <button data-pv="inmuebles" aria-selected="false">Inmuebles</button>
+    <div class="segm pvGrupo" role="presentation">
+      <button data-pv="inmuebles" role="tab" aria-selected="false">Inmuebles</button>
     </div>
-    <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button>
   </nav>
+    <button class="btnAyudaNav" type="button" aria-label="Cómo funciona esta pantalla" title="Cómo funciona esta pantalla">i</button>
+  </div>
 
   <div id="filtroTitular" class="filtroTitular"></div>
   <div id="mesReferencia" class="mesRef"></div>
@@ -1961,9 +2194,9 @@ body.video .tarjetaCanal{display:none}
         <span class="subt">Proyección orientativa: rentabilidad constante, sin impuestos ni inflación</span>
       </header>
       <div class="mandos">
-        <div class="mando"><label>Años <b id="vAnos">15</b></label><input type="range" id="rAnos" min="1" max="40" value="15"></div>
-        <div class="mando"><label>Rentabilidad anual <b id="vRent">7 %</b></label><input type="range" id="rRent" min="0" max="15" step="0.5" value="7"></div>
-        <div class="mando"><label>Aportación mensual <b id="vApor">—</b></label><input type="range" id="rApor" min="0" max="3000" step="50" value="500"></div>
+        <div class="mando"><label for="rAnos">Años <b id="vAnos">15</b></label><input type="range" id="rAnos" min="1" max="40" value="15"></div>
+        <div class="mando"><label for="rRent">Rentabilidad anual <b id="vRent">7 %</b></label><input type="range" id="rRent" min="0" max="15" step="0.5" value="7"></div>
+        <div class="mando"><label for="rApor">Aportación mensual <b id="vApor">—</b></label><input type="range" id="rApor" min="0" max="3000" step="50" value="500"></div>
       </div>
       <div class="envGraf" id="grafProy"></div>
       <div class="hSub" id="proyResumen" style="margin-top:14px"></div>
@@ -1975,7 +2208,7 @@ body.video .tarjetaCanal{display:none}
         <div class="sep"></div>
         <div class="segm" id="segTabla"></div>
       </header>
-      <div class="tablaEnv alto"><table class="dt" id="tablaMov"></table></div>
+      <div class="tablaEnv alto" tabindex="0" role="region" aria-label="Movimientos"><table class="dt" id="tablaMov"></table></div>
     </section>
   </div>
 
@@ -2039,11 +2272,11 @@ body.video .tarjetaCanal{display:none}
   <!-- ===== INGRESOS Y GASTOS ===== -->
   <div class="pv" id="pv-ingresos" hidden>
     <p class="ayudaVista">El día a día del hogar: lo que entra, lo que sale y cuánto ahorras. Elige una vista. Para anotar o importar apuntes, ve a «Mis datos → Ingresos y gastos».</p>
-    <nav class="igNav" id="igNav" role="tablist">
-      <button data-ig="resumen" aria-selected="true">Resumen</button>
-      <button data-ig="categorias" aria-selected="false">Categorías</button>
-      <button data-ig="tendencias" aria-selected="false">Tendencias</button>
-      <button data-ig="presupuesto" aria-selected="false">Presupuesto</button>
+    <nav class="igNav" id="igNav" role="tablist" aria-label="Vistas de ingresos y gastos">
+      <button data-ig="resumen" role="tab" aria-selected="true">Resumen</button>
+      <button data-ig="categorias" role="tab" aria-selected="false">Categorías</button>
+      <button data-ig="tendencias" role="tab" aria-selected="false">Tendencias</button>
+      <button data-ig="presupuesto" role="tab" aria-selected="false">Presupuesto</button>
     </nav>
     <div class="igControles">
       <div class="igPeriodo" id="igPeriodo" hidden></div>
