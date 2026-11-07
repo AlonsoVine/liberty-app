@@ -8,20 +8,20 @@ Capturas: `docs/estetica/capturas/<antes|vuelta1|…>/` (12 pantallas + paleta, 
 
 ## Checks objetivos
 
-| Check | Antes | Vuelta 1 |
-|---|---|---|
-| pytest | verde | verde |
-| npm test (jsdom) | 30/30 | 30/30 |
-| Errores/avisos de consola | 0 | 0 |
-| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no |
-| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 |
-| Foco visible (30 tabulaciones) | OK | OK |
-| Lighthouse escritorio — Rendimiento | 61 | 90 |
-| Lighthouse escritorio — Accesibilidad | 92 | 100 |
-| Lighthouse escritorio — Best Practices | 100 | 100 |
-| Lighthouse escritorio — CLS | 0,975 | 0 |
-| Lighthouse móvil — Rendimiento | 30 | 60 |
-| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 |
+| Check | Antes | Vuelta 1 | Vuelta 2 |
+|---|---|---|---|
+| pytest | verde | verde | verde |
+| npm test (jsdom) | 30/30 | 30/30 | 30/30 |
+| Errores/avisos de consola | 0 | 0 | 0 propios (solo el CORS de CoinGecko, ver nota) |
+| Scroll horizontal 360–1920 | **sí** (Distribución, Rentabilidad, Evolución a 360/390) | no | no |
+| axe WCAG 2 A/AA (nodos con fallo) | **1093** (843 de contraste) | 0 | 0 |
+| Foco visible (30 tabulaciones) | OK | OK | OK |
+| Lighthouse escritorio — Rendimiento | 61 | 90 | 90 |
+| Lighthouse escritorio — Accesibilidad | 92 | 100 | 100 |
+| Lighthouse escritorio — Best Practices | 100 | 100 | 100 |
+| Lighthouse escritorio — CLS | 0,975 | 0 | 0,001 |
+| Lighthouse móvil — Rendimiento | 30 | 60 | 58 |
+| Lighthouse móvil — Accesibilidad / BP | 92 / 100 | 100 / 100 | 100 / 100 |
 
 Lighthouse: mediana de 3 ejecuciones (Lighthouse 12 + Chromium de Playwright, `--preset=desktop` y móvil por defecto), contra la versión original (commit `a47c1ec`, puerto aparte) y la rama, en la misma máquina. Primera visita (muestra la bienvenida).
 
@@ -52,3 +52,29 @@ Defectos que señaló (resumen):
 | 13 | Menor | Entrada escalonada demasiado larga (~1 s por cambio de vista). | `app.js` `fundeEntrada` |
 
 También señaló: 19 radios distintos, ausencia de un «momento firma» (Creatividad 5).
+
+### Qué se corrigió tras la vuelta 1
+
+| # | Corrección |
+|---|---|
+| 1 | Sub-pestañas en móvil y tableta: chips en flujo, con las 9 visibles; la activa va en tinta sólida. |
+| 2 | Se mantiene la ocultación hasta pintar; el razonamiento está en `DECISIONES.md` (el LCP es el diálogo de bienvenida, fuera de `.env`, y sin la ocultación vuelve el CLS de 0,97). Añadido `<noscript>`, red de seguridad a 2 s y fuera el preload de Fraunces. |
+| 3 | Iconizador central con `MutationObserver`: ningún emoji hace de icono en botones, encabezados ni apartados, y no se toca el contenido del usuario. |
+| 4 | Regla de sistema: solo se animan `transform` y `opacity`. El tema cambia con View Transitions, las sombras van en `::after`, y se corrigieron la barra de carga, el calendario y `metaFill`. |
+| 5 | El atajo se muestra como «Ctrl K» o «⌘K» según la plataforma. |
+| 6 | Distribución como libro de cuentas: filas con línea de peso, dos columnas y el anillo junto a su leyenda. |
+| 7 | KPIs de Inmuebles alineados con subgrid. |
+| 8 | Paleta: sin marco fantasma, centrada, con un icono propio por vista y la selección con contraste ≥ 5:1. |
+| 9 | Botón «i» como icono de línea por máscara. |
+| 10 | Navegación de Ingresos en píldoras. |
+| 11 | `--bien` menos saturado en oscuro. |
+| 12 | Rentabilidad en móvil: ventanas en 2 columnas, filtros y periodo en rejilla, y sombra de desplazamiento en las tablas. |
+| 13 | Entrada escalonada de 0,3 s. |
+| — | Radios normalizados a 4/8/12/16/20/pastilla. «Momento firma»: odómetro en las cifras protagonistas. |
+
+Detectado y corregido en mis propias capturas antes de pasar el árbitro:
+- El foco de `.lfCelda` y `.hudCell` quedaba anulado por la sombra nueva; restaurado.
+- La paleta salía descentrada por `width:auto`.
+- Los chips de sub-pestañas tenían una sangría rara.
+- Los filtros se truncaban a 360 px.
+- La fila de botones de Ayuda quedaba fuera de la columna.
