@@ -24,20 +24,22 @@
   function fmtEur(v, dec) {
     if (oculto()) return "•••";
     if (v === null || v === undefined || isNaN(v)) return "—";
-    return dec === 0 ? nfEur0.format(v) : nfEur.format(v);
+    return menos(dec === 0 ? nfEur0.format(v) : nfEur.format(v));
   }
+  // Signo menos tipográfico (U+2212) en lugar del guion: mismo ancho que «+» y bien alineado.
+  function menos(t) { return typeof t === "string" ? t.replace(/^-/, "−") : t; }
   function fmtEurCorto(v) {
     if (oculto()) return "•••";
     if (v === null || v === undefined || isNaN(v)) return "—";
     const a = Math.abs(v);
-    if (a >= 1e6) return (v / 1e6).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " M€";
-    if (a >= 1000) return (v / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "k €";
-    return Math.round(v) + " €";
+    if (a >= 1e6) return menos((v / 1e6).toLocaleString("es-ES", { maximumFractionDigits: 2 }) + " M€");
+    if (a >= 1000) return menos((v / 1000).toLocaleString("es-ES", { maximumFractionDigits: 1 }) + "k €");
+    return menos(Math.round(v) + " €");
   }
   function fmtPct(v, dec) {
     if (v === null || v === undefined || isNaN(v)) return "—";
     const d = dec === undefined ? 2 : dec;
-    return (v * 100).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %";
+    return menos((v * 100).toLocaleString("es-ES", { minimumFractionDigits: d, maximumFractionDigits: d }) + " %");
   }
   function fmtPctSigno(v, dec) {
     if (v === null || v === undefined || isNaN(v)) return "—";
@@ -95,26 +97,18 @@
     _animados.add(id);
     return true;
   }
-  // Dibuja un trazo SVG de principio a fin (stroke-dashoffset). Limpia al terminar
-  // para no interferir con líneas discontinuas, hover ni el crosshair.
+  // Aparición de un trazo SVG: fundido de opacidad (el sistema de movimiento solo anima
+  // transform y opacity; dibujar el trazo con stroke-dashoffset quedaba anulado).
   function animaTrazo(path, dur) {
     if (!path) return;
-    const D = dur || 0.9;
+    const D = Math.min(dur || 0.9, 0.6);
+    path.style.transition = "none";
+    path.style.opacity = "0";
+    void path.getBoundingClientRect();   // fija el estado inicial
     requestAnimationFrame(() => {
-      let L = 0;
-      try { L = path.getTotalLength(); } catch (e) { return; }
-      if (!L) return;
-      const prev = path.getAttribute("stroke-dasharray");
-      path.style.transition = "none";
-      path.style.strokeDasharray = L;
-      path.style.strokeDashoffset = L;
-      void path.getBoundingClientRect();   // fija el estado inicial
-      path.style.transition = "stroke-dashoffset " + D + "s " + EASE;
-      path.style.strokeDashoffset = "0";
-      setTimeout(() => {
-        path.style.transition = ""; path.style.strokeDashoffset = "";
-        path.style.strokeDasharray = ""; if (prev) path.setAttribute("stroke-dasharray", prev);
-      }, D * 1000 + 80);
+      path.style.transition = "opacity " + D + "s " + EASE;
+      path.style.opacity = "";
+      setTimeout(() => { path.style.transition = ""; }, D * 1000 + 80);
     });
   }
   // Aparición suave (fade + leve subida) de un elemento SVG o contenedor.
@@ -242,7 +236,7 @@
     const fY = cfg.formatoY || fmtEurCorto;
     const fV = cfg.formatoValor || fmtEur;
 
-    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico", role: "img" });
+    const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico", role: "img", "aria-label": cfg.ariaLabel || "Gráfico de evolución en el tiempo" });
 
     // rejilla
     for (let v = esc.min; v <= esc.max + 1e-9; v += esc.paso) {
@@ -1161,7 +1155,7 @@
     const max = esc.max, min = esc.min;
     const y = v => P.t + ih - ((v - min) / (max - min)) * ih;
 
-    const cIng = css("--s6") || css("--bien") || "#1f9d72";
+    const cIng = css("--ingreso") || css("--bien") || "#1f9d72";
     const cGas = css("--mal") || "#d6455d";
     const cAho = run >= 0 ? (css("--s1") || "#2a78d6") : cGas;
     const svg = el("svg", { viewBox: `0 0 ${W} ${H}`, width: W, height: H, class: "grafico" });

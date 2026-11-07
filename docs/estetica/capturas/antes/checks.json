@@ -1,0 +1,6177 @@
+{
+ "consola": [],
+ "scrollH": [
+  {
+   "w": 360,
+   "pantalla": "03-distribucion",
+   "scrollWidth": 455,
+   "client": 360
+  },
+  {
+   "w": 360,
+   "pantalla": "04-rentabilidad",
+   "scrollWidth": 482,
+   "client": 360
+  },
+  {
+   "w": 360,
+   "pantalla": "05-evolucion",
+   "scrollWidth": 399,
+   "client": 360
+  },
+  {
+   "w": 390,
+   "pantalla": "03-distribucion",
+   "scrollWidth": 455,
+   "client": 390
+  },
+  {
+   "w": 390,
+   "pantalla": "04-rentabilidad",
+   "scrollWidth": 482,
+   "client": 390
+  },
+  {
+   "w": 390,
+   "pantalla": "05-evolucion",
+   "scrollWidth": 399,
+   "client": 390
+  }
+ ],
+ "axe": {
+  "01-inicio_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 20,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"distribucion\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".lfCelda[data-go=\"patrimonio\"][role=\"button\"]:nth-child(1) > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".lfCelda[data-go=\"patrimonio\"][role=\"button\"]:nth-child(2) > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".lfFi > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".c1 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".c2 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".c3 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".c4 > .hudEtq"
+     ]
+    ]
+   }
+  ],
+  "02-cartera_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 13,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"distribucion\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "03-distribucion_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 19,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDistModo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDist > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDist > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDist > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDist > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segDist > button:nth-child(6)"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "04-rentabilidad_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 56,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-rcmodo=\"ano\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-rcmodo=\"mes\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".ventana:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".ventana:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".ventana:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".ventana:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".rcTabla > thead > tr > th:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaAnual > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaAnual > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaAnual > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaAnual > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#compRef > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#compRef > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#compRef > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#compRef > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(1) > span"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(1) > small"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(2) > span"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(2) > small"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(3) > span"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".compCaja:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#252d34",
+      3.88,
+      ".veredicto > span"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaComisiones > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaComisiones > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaComisiones > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaComisiones > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#tablaComisiones > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segTabla > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segTabla > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segTabla > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segTabla > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segTabla > button:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"fecha\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"producto\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"importe\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"valor\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"pl\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "th[data-c=\"rent\"]"
+     ]
+    ]
+   },
+   {
+    "id": "label",
+    "impact": "critical",
+    "n": 3,
+    "ej": [
+     "#rAnos :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "#rRent :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "#rApor :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   },
+   {
+    "id": "scrollable-region-focusable",
+    "impact": "serious",
+    "n": 1,
+    "ej": [
+     ".alto :: Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
+    ],
+    "pares": null
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "05-evolucion_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 48,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segVista > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segVista > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segVista > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(1) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(2) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(3) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(4) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(5) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(6) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(7) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(8) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(9) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(10) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(11) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(12) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(13) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(14) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(15) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(16) > .im"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".filtro:nth-child(17) > .im"
+     ],
+     [
+      "#494845",
+      "#1a1a19",
+      1.9,
+      ".preset.filtro:nth-child(20)"
+     ],
+     [
+      "#494845",
+      "#1a1a19",
+      1.9,
+      ".preset.filtro:nth-child(21)"
+     ],
+     [
+      "#494845",
+      "#1a1a19",
+      1.9,
+      ".preset.filtro:nth-child(22)"
+     ],
+     [
+      "#494845",
+      "#1a1a19",
+      1.9,
+      ".preset.filtro:nth-child(23)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".hito:nth-child(4) > .fe"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".hito:nth-child(5) > .fe"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".hito:nth-child(6) > .fe"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".hito:nth-child(7) > .fe"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segPeriodo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#mesTabla > thead > tr > th:nth-child(6)"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   },
+   {
+    "id": "svg-img-alt",
+    "impact": "serious",
+    "n": 1,
+    "ej": [
+     "svg[viewBox=\"0 0 1234 330\"] :: Fix any of the following:\n  Element has no child that is a title\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, r"
+    ],
+    "pares": null
+   }
+  ],
+  "06-deudas_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 27,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#deudasTabla > thead > tr > th:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#vencTabla > thead > tr > th:nth-child(7)"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "07-ingresos_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 13,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button",
+     "#igNav :: Fix any of the following:\n  Element has children which are not allowed: button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 21,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segIgPeriodo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segIgPeriodo > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#segIgPeriodo > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#flujosTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#flujosTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#flujosTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#flujosTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "#flujosTabla > thead > tr > th:nth-child(5)"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "select[data-igf=\"inm\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "08-inmuebles_oscuro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 14,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-pv=\"inicio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f",
+     "button[data-pv=\"patrimonio\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 10.1pt (13.5px), f"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#232320",
+      4.33,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#3987e5",
+      "#1d252d",
+      4.25,
+      ".habitual"
+     ]
+    ]
+   }
+  ],
+  "09-misdatos_oscuro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 16,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     ".edGrupo.segm:nth-child(1) > button:nth-child(2) :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 9.4pt (12.5px), fo",
+     ".edGrupo.segm:nth-child(1) > button:nth-child(3) :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 9.4pt (12.5px), fo"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(2) > button:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(2) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(3) > button"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(3)"
+     ],
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "button[data-acc=\"nuevoProducto\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".orden.dt > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".orden.dt > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".orden.dt > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".orden.dt > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      ".orden.dt > thead > tr > th:nth-child(5)"
+     ]
+    ]
+   }
+  ],
+  "10-documentos_oscuro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 1,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ]
+    ]
+   }
+  ],
+  "11-ayuda_oscuro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 5,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     ".webOficial :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 13.5pt (18px), fon",
+     "#btnDescargarAqui :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      ".webOficial"
+     ],
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnDescargarAqui"
+     ],
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnCrearEjemplo"
+     ],
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      ".prim[target=\"_blank\"][rel=\"noopener\"]"
+     ]
+    ]
+   }
+  ],
+  "12-ajustes_oscuro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 9,
+    "ej": [
+     "#btnEmpezar :: Fix any of the following:\n  Element has insufficient color contrast of 3.63 (foreground color: #ffffff, background color: #3987e5, font size: 9.8pt (13px), font",
+     "button[data-val=\"claro\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 9.4pt (12.5px), fo",
+     "button[data-val=\"auto\"] :: Fix any of the following:\n  Element has insufficient color contrast of 4.38 (foreground color: #898781, background color: #232320, font size: 9.4pt (12.5px), fo"
+    ],
+    "pares": [
+     [
+      "#ffffff",
+      "#3987e5",
+      3.63,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-val=\"claro\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-val=\"auto\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-val=\"grande\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-val=\"muyGrande\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "div[data-pref=\"amplia\"] > button[data-val=\"1\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "div[data-pref=\"ocultar\"] > button[data-val=\"1\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "div[data-pref=\"ayudaBotones\"] > button[data-val=\"0\"]"
+     ],
+     [
+      "#898781",
+      "#232320",
+      4.38,
+      "button[data-val=\"panel\"]"
+     ]
+    ]
+   }
+  ],
+  "01-inicio_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 43,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".inicioTotal > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ptFila[data-go=\"patrimonio\"][type=\"button\"] > .ptNom > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ptFila[data-go=\"inmuebles\"][type=\"button\"] > .ptNom > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ptNota"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".inicioLibre > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".lfCelda[data-go=\"patrimonio\"][role=\"button\"]:nth-child(1) > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".lfCelda[data-go=\"patrimonio\"][role=\"button\"]:nth-child(2) > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".lfFi > .lfEtq"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".lfNota"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".inicioProg > .progPie > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".inicioProg > .progPie > span:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".c1 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".c2 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".c3 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".c4 > .hudEtq"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".hudExtra"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".megaPat > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".megaRent > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".megaIng > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".megaInm > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".iiFila[data-inm=\"i1\"][type=\"button\"] > .iiNom > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".iiFila[data-inm=\"i2\"][type=\"button\"] > .iiNom > small"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ],
+  "02-cartera_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 66,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".periodoSep"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCard > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCifra:nth-child(1) > .rmEt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCifra:nth-child(1) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCifra:nth-child(2) > .rmEt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCifra:nth-child(3) > .rmEt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".rmCifra:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#heroEtq"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#progIzq"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#progDer"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(3) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(4) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(5) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(5) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(6) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#kpis > .kpi:nth-child(6) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarSub"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(3) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(4) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(5) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(5) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(6) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(6) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(7) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarGrid > .kpi:nth-child(7) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".kpi:nth-child(8) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".kpi:nth-child(8) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarVariacion > .leyenda > tbody > tr:nth-child(1) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarVariacion > .leyenda > tbody > tr:nth-child(2) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarVariacion > .leyenda > tbody > tr:nth-child(3) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarTitular > .leyenda > tbody > tr:nth-child(1) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarTitular > .leyenda > tbody > tr:nth-child(2) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#hogarTitular > .leyenda > tbody > tr:nth-child(3) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "03-distribucion_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"true\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 56,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".periodoSep"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pv-distribucion > section:nth-child(2) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(1) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(2) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(3) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(4) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(5) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(6) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(7) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(8) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(9) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(10) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(11) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(12) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(13) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(14) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(15) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(16) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".chip:nth-child(17) > .pi > span:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDistModo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDist > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDist > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDist > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDist > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segDist > button:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(1) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(2) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(3) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(4) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(5) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(6) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(7) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(8) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(9) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#leyendaDist > tbody > tr:nth-child(10) > td:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "04-rentabilidad_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 84,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".periodoSep"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-rcmodo=\"ano\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-rcmodo=\"mes\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".ventana:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".ventana:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".ventana:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".ventana:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".rcTabla > thead > tr > th:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#rentCentral > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".subt > b:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".subt > b:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notaAnual"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notaTablaAnual"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaAnual > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaAnual > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaAnual > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaAnual > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "tr:nth-child(1) > .pos:nth-child(2) > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "tr:nth-child(2) > .pos:nth-child(2) > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".neg > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "tr:nth-child(4) > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "tr:nth-child(4) > .pos > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "tr:nth-child(5) > .pos:nth-child(2) > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#seccionComparar > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#compRef > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#compRef > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#compRef > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#compRef > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(1) > span"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(1) > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(2) > span"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(2) > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(3) > span"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".compCaja:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#dee5ea",
+      2.82,
+      ".veredicto > span"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#compNota"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notaComisiones"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaComisiones > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaComisiones > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaComisiones > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaComisiones > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#tablaComisiones > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#seccionProyeccion > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mando:nth-child(1) > label"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mando:nth-child(2) > label"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mando:nth-child(3) > label"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notaTabla"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segTabla > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segTabla > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segTabla > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segTabla > button:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segTabla > button:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"fecha\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"producto\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"importe\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"valor\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"pl\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "th[data-c=\"rent\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "label",
+    "impact": "critical",
+    "n": 3,
+    "ej": [
+     "#rAnos :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "#rRent :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "#rApor :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   },
+   {
+    "id": "scrollable-region-focusable",
+    "impact": "serious",
+    "n": 1,
+    "ej": [
+     ".alto :: Fix any of the following:\n  Element should have focusable content\n  Element should be focusable"
+    ],
+    "pares": null
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "05-evolucion_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 68,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".periodoSep"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#evolNota"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segVista > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segVista > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segVista > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(1) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(2) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(3) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(4) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(5) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(6) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(7) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(8) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(9) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(10) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(11) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(12) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(13) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(14) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(15) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(16) > .im"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".filtro:nth-child(17) > .im"
+     ],
+     [
+      "#cccbc8",
+      "#fcfcfb",
+      1.58,
+      ".preset.filtro:nth-child(20)"
+     ],
+     [
+      "#cccbc8",
+      "#fcfcfb",
+      1.58,
+      ".preset.filtro:nth-child(21)"
+     ],
+     [
+      "#cccbc8",
+      "#fcfcfb",
+      1.58,
+      ".preset.filtro:nth-child(22)"
+     ],
+     [
+      "#cccbc8",
+      "#fcfcfb",
+      1.58,
+      ".preset.filtro:nth-child(23)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#tarjetaDeudaEvol > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notaAport"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#pv-evolucion > .tarjeta:nth-child(5) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".hito:nth-child(4) > .fe"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".hito:nth-child(5) > .fe"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".hito:nth-child(6) > .fe"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".hito:nth-child(7) > .fe"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segPeriodo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#mesNota"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#mesEtq"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mesT:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mesT:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mesT:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".mesT:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#mesTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".tarjeta:nth-child(9) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   },
+   {
+    "id": "svg-img-alt",
+    "impact": "serious",
+    "n": 1,
+    "ej": [
+     "svg[viewBox=\"0 0 1234 330\"] :: Fix any of the following:\n  Element has no child that is a title\n  aria-label attribute does not exist or is empty\n  aria-labelledby attribute does not exist, r"
+    ],
+    "pares": null
+   }
+  ],
+  "06-deudas_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 49,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".periodoSep"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#tarjetaDeudas > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(3) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasKpis > .kpi:nth-child(4) > .n"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#deudasTabla > thead > tr > th:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasTabla > tbody > tr:nth-child(1) > td:nth-child(1) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#deudasTabla > tbody > tr:nth-child(2) > td:nth-child(1) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#tarjetaVenc > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(6)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#vencTabla > thead > tr > th:nth-child(7)"
+     ],
+     [
+      "#c98500",
+      "#fcfcfb",
+      2.99,
+      "tr:nth-child(1) > td:nth-child(7) > span"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "select[data-dim=\"clase-de-activo\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis",
+     "select[data-dim=\"geografia\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "07-ingresos_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 13,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button",
+     "#igNav :: Fix any of the following:\n  Element has children which are not allowed: button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 42,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inmuebles\"]"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "button[data-ig=\"resumen\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segIgPeriodo > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segIgPeriodo > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#segIgPeriodo > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#igFiltros > .filtroCampo > label"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosSub"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(3) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#flujosKpis > .kpi:nth-child(4) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".vacio"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#ig-resumen > .tarjeta:nth-child(3) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#flujosTabla > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#flujosTabla > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#flujosTabla > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#flujosTabla > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "#flujosTabla > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   },
+   {
+    "id": "select-name",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "select[data-igf=\"inm\"] :: Fix any of the following:\n  Element does not have an implicit (wrapped) <label>\n  Element does not have an explicit <label>\n  aria-label attribute does not exis"
+    ],
+    "pares": null
+   }
+  ],
+  "08-inmuebles_claro": [
+   {
+    "id": "aria-allowed-attr",
+    "impact": "critical",
+    "n": 9,
+    "ej": [
+     "button[data-pv=\"inicio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"patrimonio\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\"",
+     "button[data-pv=\"distribucion\"] :: Fix all of the following:\n  ARIA attribute is not allowed: aria-selected=\"false\""
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-children",
+    "impact": "critical",
+    "n": 1,
+    "ej": [
+     "#subtabs :: Fix any of the following:\n  Element has children which are not allowed: button[aria-label], button"
+    ],
+    "pares": null
+   },
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 65,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"inicio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"patrimonio\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"distribucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"rentabilidad\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"evolucion\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"deudas\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"fiscal\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-pv=\"ingresos\"]"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".aviso.avisoLinea[data-pv=\"distribucion\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"deudas\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      ".avisoLinea.clicable[data-pv=\"ingresos\"] > .avisoIr"
+     ],
+     [
+      "#2a78d6",
+      "#f2f1ec",
+      3.9,
+      "div[data-dest-inm=\"i1\"] > .avisoIr"
+     ],
+     [
+      "#898781",
+      "#eff4f9",
+      3.24,
+      "li:nth-child(1) > span > small"
+     ],
+     [
+      "#898781",
+      "#eff4f9",
+      3.24,
+      "li:nth-child(2) > span > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmSub"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(1) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(1) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(2) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(2) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(3) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(3) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(4) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(4) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(5) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(5) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(6) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(6) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(7) > .e"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#inmKpis > .kpi:nth-child(7) > .n"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > .inmCab > div > .inmDir"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > .inmValor > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dd:nth-child(2) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dd:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dd:nth-child(6) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "dd:nth-child(8) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(9)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article:nth-child(1) > dl > dt:nth-child(11)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "dt:nth-child(13)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "dd:nth-child(14) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > .inmCab > div > .inmDir"
+     ],
+     [
+      "#2a78d6",
+      "#e7eff7",
+      3.8,
+      ".habitual"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > .inmValor > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dd:nth-child(2) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dd:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dd:nth-child(6) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(7)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(9)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "article[aria-label=\"Abrir la ficha de Nuestra casa\"] > dl > dt:nth-child(11)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "dd:nth-child(12) > small"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ],
+  "09-misdatos_claro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 51,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"panel\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"notas\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"panel\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(1) > button:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(2) > button:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(2) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(3) > button"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".edGrupo.segm:nth-child(4) > button:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#edCuerpo > .tarjeta > header > .subt"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "button[data-acc=\"nuevoProducto\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ordenaHint"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".orden.dt > thead > tr > th:nth-child(1)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".orden.dt > thead > tr > th:nth-child(2)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".orden.dt > thead > tr > th:nth-child(3)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".orden.dt > thead > tr > th:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      ".orden.dt > thead > tr > th:nth-child(5)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-world > td:nth-child(1) > .idp"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-world > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-world > td:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-etfworld > td:nth-child(1) > .idp"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-etfworld > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-etfworld > td:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-emergentes > td:nth-child(1) > .idp"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-emergentes > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-emergentes > td:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-bitcoin > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-bitcoin > td:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-monetario > td:nth-child(1) > .idp"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-monetario > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-monetario > td:nth-child(4) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-acciones > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-oro > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-bono > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-pension > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-seguro > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-cuenta > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-ahorro > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-ahorro_usd > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-trastero > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#fila-prod-garaje > td:nth-child(3) > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".tablaPie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ],
+  "10-documentos_claro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 10,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"panel\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"panel\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#notas > .tarjeta > .subt"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ],
+  "11-ayuda_claro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 33,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"panel\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"panel\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#eff4f9",
+      3.24,
+      ".webCard > header > .subt"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      ".webOficial"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnDescargarAqui"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(4) > header > .subt"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnCrearEjemplo"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(4) > p:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(4) > p:nth-child(4) > b"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(5) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(6) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "p:nth-child(11)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(7) > header > .subt"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      ".prim[target=\"_blank\"][rel=\"noopener\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(7) > p:nth-child(4)"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaTarjeta.tarjeta:nth-child(8) > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#ayudaVersion"
+     ],
+     [
+      "#2a78d6",
+      "#fcfcfb",
+      4.3,
+      "#ayudaVersion > a[target=\"_blank\"][rel=\"noopener\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ayudaPie > p:nth-child(2)"
+     ],
+     [
+      "#2a78d6",
+      "#fcfcfb",
+      4.3,
+      ".ayudaPie > p:nth-child(2) > a[target=\"_blank\"][rel=\"noopener\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".creditoMod"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".creditoCanal"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".creditoCanal > b"
+     ],
+     [
+      "#2a78d6",
+      "#fcfcfb",
+      4.3,
+      ".creditoCanal > a[target=\"_blank\"][rel=\"noopener\"]:nth-child(2)"
+     ],
+     [
+      "#2a78d6",
+      "#fcfcfb",
+      4.3,
+      ".creditoCanal > a[href$=\"AlonsoVine\"][target=\"_blank\"][rel=\"noopener\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ],
+  "12-ajustes_claro": [
+   {
+    "id": "aria-required-parent",
+    "impact": "critical",
+    "n": 2,
+    "ej": [
+     "#btnAyuda :: Fix any of the following:\n  Required ARIA parent role not present: tablist",
+     "#btnAjustes :: Fix any of the following:\n  Required ARIA parent role not present: tablist"
+    ],
+    "pares": null
+   },
+   {
+    "id": "color-contrast",
+    "impact": "serious",
+    "n": 27,
+    "ej": [
+     "#metaFecha :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 9.4pt (12.5px), fon",
+     "button[data-tab=\"panel\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo",
+     "button[data-tab=\"datos\"] :: Fix any of the following:\n  Element has insufficient color contrast of 3.4 (foreground color: #898781, background color: #f9f9f7, font size: 11.6pt (15.5px), fo"
+    ],
+    "pares": [
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#metaFecha"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"panel\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"datos\"]"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "button[data-tab=\"notas\"]"
+     ],
+     [
+      "#ffffff",
+      "#2a78d6",
+      4.41,
+      "#btnEmpezar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      ".env > .aviso-legal"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      "#tab-ajustes > .tarjeta > header > .subt"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(1) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-val=\"oscuro\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-val=\"auto\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(2) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-val=\"grande\"]"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-val=\"muyGrande\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(3) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "div[data-pref=\"amplia\"] > button[data-val=\"1\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(4) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "div[data-pref=\"ocultar\"] > button[data-val=\"1\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(5) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(6) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "div[data-pref=\"ayudaBotones\"] > button[data-val=\"0\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(7) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f2f1ec",
+      3.17,
+      "button[data-val=\"panel\"]"
+     ],
+     [
+      "#898781",
+      "#fcfcfb",
+      3.49,
+      ".ajusteFila:nth-child(8) > .ajusteTxt > small"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pieVersion > .subt"
+     ],
+     [
+      "#2a78d6",
+      "#f9f9f7",
+      4.18,
+      "#pieComprobar"
+     ],
+     [
+      "#898781",
+      "#f9f9f7",
+      3.4,
+      "#pie > b"
+     ]
+    ]
+   }
+  ]
+ },
+ "foco": {
+  "tabs": 30,
+  "sinIndicador": []
+ }
+}

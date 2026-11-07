@@ -1,0 +1,34 @@
+{
+ "consola": [],
+ "scrollH": [],
+ "axe": {
+  "01-inicio_oscuro": [],
+  "02-cartera_oscuro": [],
+  "03-distribucion_oscuro": [],
+  "04-rentabilidad_oscuro": [],
+  "05-evolucion_oscuro": [],
+  "06-deudas_oscuro": [],
+  "07-ingresos_oscuro": [],
+  "08-inmuebles_oscuro": [],
+  "09-misdatos_oscuro": [],
+  "10-documentos_oscuro": [],
+  "11-ayuda_oscuro": [],
+  "12-ajustes_oscuro": [],
+  "01-inicio_claro": [],
+  "02-cartera_claro": [],
+  "03-distribucion_claro": [],
+  "04-rentabilidad_claro": [],
+  "05-evolucion_claro": [],
+  "06-deudas_claro": [],
+  "07-ingresos_claro": [],
+  "08-inmuebles_claro": [],
+  "09-misdatos_claro": [],
+  "10-documentos_claro": [],
+  "11-ayuda_claro": [],
+  "12-ajustes_claro": []
+ },
+ "foco": {
+  "tabs": 30,
+  "sinIndicador": []
+ }
+}

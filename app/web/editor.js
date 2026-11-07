@@ -164,12 +164,12 @@
     const el = $("#edAvisos");
     if (!el) return;
     // Mismo aspecto que los avisos del Panel: .avisoLinea con icono de la sección.
-    let html = (E._avisos || []).map(a => `<div class="avisoLinea aviso"><span class="avisoIco">⚠️</span><span class="avisoCuerpo">${esc(a)}</span></div>`).join("");
+    let html = (E._avisos || []).map(a => `<div class="avisoLinea aviso"><span class="avisoIco" aria-hidden="true">${window.ico ? window.ico("⚠️") : "⚠️"}</span><span class="avisoCuerpo">${esc(a)}</span></div>`).join("");
     // Avisos de fechas de la agenda que se acercan (alertas del motor con destino a la
     // agenda), clicables: llevan al calendario situado en esa fecha. Idénticos al Panel.
     const ag = ((window.DATOS || {}).alertas || []).filter(a => a.destino && a.destino.tab === "notas");
     html += ag.map(a => `<div class="avisoLinea clicable" role="button" tabindex="0" data-agenda-fecha="${esc(a.destino.fecha || "")}" title="Ir a la agenda">
-        <span class="avisoIco">🗓️</span><span class="avisoCuerpo"><b>${esc(String(a.n || ""))}</b> ${esc(a.texto)}</span><span class="avisoIr">Ver en la agenda →</span></div>`).join("");
+        <span class="avisoIco" aria-hidden="true">${window.ico ? window.ico("🗓️") : "🗓️"}</span><span class="avisoCuerpo"><b>${esc(String(a.n || ""))}</b> ${esc(a.texto)}</span><span class="avisoIr">Ver en la agenda →</span></div>`).join("");
     el.innerHTML = html;
     el.querySelectorAll("[data-agenda-fecha]").forEach(x => {
       const ir = () => window.Editor && window.Editor.irAgenda(x.dataset.agendaFecha);
